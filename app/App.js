@@ -8,6 +8,7 @@ import QuizStartScreen from './src/screens/QuizStartScreen';
 
 const Stack = createStackNavigator();
 
+//test1
 export default function App() {
   return (
     <NavigationContainer independent={true}> 
