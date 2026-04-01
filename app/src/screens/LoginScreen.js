@@ -1,6 +1,6 @@
 import React from 'react';
+import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 
 const LoginScreen = ({ navigation }) => {
   const SocialButton = ({ title }) => (
@@ -23,7 +23,7 @@ const LoginScreen = ({ navigation }) => {
         <SocialButton title="Apple" />
       </View>
 
-      <TouchableOpacity 
+      <TouchableOpacity
         style={styles.registerLink}
         onPress={() => navigation.navigate('Register')}
       >

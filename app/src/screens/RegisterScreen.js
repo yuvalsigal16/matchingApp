@@ -1,6 +1,6 @@
 import React from 'react';
+import { StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { View, Text, StyleSheet, TextInput, TouchableOpacity } from 'react-native';
 
 const RegisterScreen = ({ navigation }) => {
   return (

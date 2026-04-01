@@ -1,6 +1,6 @@
 import React from 'react';
+import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { View, Text, StyleSheet, TouchableOpacity, Image } from 'react-native';
 
 const QuizStartScreen = ({ navigation }) => {
   return (
@@ -10,17 +10,15 @@ const QuizStartScreen = ({ navigation }) => {
       </View>
 
       <View style={styles.content}>
-        {/* כאן יבוא האיור של שני האנשים מהסקיצה שלך */}
         <View style={styles.imagePlaceholder}>
-           <Text>🤝</Text> 
+          <Text>🤝</Text>
         </View>
         <Text style={styles.mainText}>בוא נכיר אותך!</Text>
       </View>
 
-      <TouchableOpacity 
+      <TouchableOpacity
         style={styles.quizButton}
-        onPress={() => console.log('Start Quiz')}
-      >
+        onPress={() => navigation.navigate('Quiz')}      >
         <Text style={styles.buttonText}>לתחילת השאלון</Text>
       </TouchableOpacity>
     </SafeAreaView>
