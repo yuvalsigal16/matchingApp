@@ -17,11 +17,19 @@ export default function PreferencesQuizScreen({ navigation }) {
     interests: []
   });
 
-  const nextStep = () => {
-    if (prefStep === 2 && !tripData.destination.trim()) {
-      alert('חובה להזין יעד לטיול!');
-      return;
+  // פונקציית סיום - בודקת אם יש יעד ומנווטת בהתאם
+  const handleFinishQuiz = () => {
+    if (!tripData.destination || tripData.destination.trim() === '') {
+      // אם אין יעד - הולכים לגלגל המזל
+      navigation.navigate('Wheel');
+    } else {
+      // אם יש יעד - הולכים ישר לדף הבית
+      navigation.navigate('Home');
     }
+  };
+
+  const nextStep = () => {
+    // הוסר התנאי של חובת היעד
     setPrefStep(prev => prev + 1);
   };
 
@@ -42,7 +50,7 @@ export default function PreferencesQuizScreen({ navigation }) {
           <View style={styles.centerContent}>
             <Text style={styles.mainTitle}>שאלון העדפות טיול</Text>
             <View style={styles.imagePlaceholder}><Text style={{fontSize: 80}}>🌍</Text></View>
-            <Text style={styles.subTitle}>בוא נתכנן את הטיול המשלם שלך!</Text>
+            <Text style={styles.subTitle}>בוא נתכנן את הטיול המושלם שלך!</Text>
             <TouchableOpacity style={styles.bigBtn} onPress={nextStep}>
               <Text style={styles.bigBtnText}>לתחילת השאלון</Text>
             </TouchableOpacity>
@@ -65,7 +73,7 @@ export default function PreferencesQuizScreen({ navigation }) {
             
             <TextInput 
               style={styles.input} 
-              placeholder="יעד (חובה)" 
+              placeholder="יעד (אופציונלי)" 
               textAlign="right" 
               onChangeText={(val) => setTripData({...tripData, destination: val})}
               value={tripData.destination}
@@ -146,7 +154,7 @@ export default function PreferencesQuizScreen({ navigation }) {
               ))}
             </View>
 
-            <TouchableOpacity style={styles.nextBtn} onPress={() => alert('עובר לגלגל המזל!')}>
+            <TouchableOpacity style={styles.nextBtn} onPress={handleFinishQuiz}>
               <Text style={styles.nextBtnText}>מוכנים למצוא התאמות</Text>
             </TouchableOpacity>
           </View>
@@ -165,6 +173,7 @@ export default function PreferencesQuizScreen({ navigation }) {
   );
 }
 
+// עיצובים נשארו ללא שינוי
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#E0E7E9' },
   scrollContent: { flexGrow: 1, padding: 20, alignItems: 'center' },
