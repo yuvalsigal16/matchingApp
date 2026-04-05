@@ -85,8 +85,9 @@ export default function LoginScreen({ navigation }) {
     validatePassword(); // מפעיל בדיקת תקינות לסיסמה
     // אם אחד השדות לא תקין - עוצר ולא ממשיך
     if (!isValidEmail(email) || !isValidPassword(password)) return;
-    // אם הכל תקין - מדפיס לקונסול (כאן תוסיפי קריאה לשרת בעתיד)
+    // אם הכל תקין - מדפיס לקונסול ועובר למסך הבית
     console.log("Login:", { email, password });
+    navigation.navigate("Home");
   };
 
   // פונקציה ריקה שרצה כשלוחצים על "לחץ כאן" בשכחת סיסמה
