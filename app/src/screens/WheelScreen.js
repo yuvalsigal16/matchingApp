@@ -1,6 +1,7 @@
 import { useRef, useState } from 'react';
 import { Animated, Easing, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { FONTS } from "../theme/fonts";
 
 const WHEEL_SIZE = 300;
 const COLORS = ['#FF6B6B', '#4ECDC4', '#FFE66D', '#1A3C40', '#A5C99E', '#E5A9A9', '#7FB3B3', '#F4A261'];
@@ -129,8 +130,8 @@ export default function WheelScreen({ navigation }) {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#E0E7E9', alignItems: 'center', paddingHorizontal: 20 },
   backBtn: { alignSelf: 'flex-start', marginTop: 10 },
-  backBtnText: { color: '#1A3C40', fontWeight: 'bold', textDecorationLine: 'underline' },
-  header: { fontSize: 24, fontWeight: 'bold', color: '#1A3C40', marginVertical: 15 },
+  backBtnText: { color: '#1A3C40', fontFamily: FONTS.bold, textDecorationLine: 'underline' },
+  header: { fontSize: 24, fontFamily: FONTS.bold, color: '#1A3C40', marginVertical: 15 },
   wheelWrapper: { width: WHEEL_SIZE, height: WHEEL_SIZE, justifyContent: 'center', alignItems: 'center' },
   wheelContainer: { 
     width: WHEEL_SIZE, 
@@ -167,7 +168,7 @@ const styles = StyleSheet.create({
     paddingRight: 20,
   },
   sliceText: {
-    fontWeight: 'bold',
+    fontFamily: FONTS.bold,
     fontSize: 13,
     textAlign: 'center',
     width: 80,
@@ -197,11 +198,11 @@ const styles = StyleSheet.create({
   },
   bubbleArea: { height: 130, justifyContent: 'center', width: '100%', marginVertical: 15 },
   bubble: { backgroundColor: '#fff', padding: 15, borderRadius: 20, width: '90%', alignSelf: 'center', elevation: 5 },
-  bubbleTitle: { fontWeight: 'bold', fontSize: 18, color: '#1A3C40', textAlign: 'right', marginBottom: 5 },
-  bubbleContent: { fontSize: 15, textAlign: 'right', color: '#444' },
-  bold: { fontWeight: 'bold', color: '#1A3C40' },
+  bubbleTitle: { fontFamily: FONTS.bold, fontSize: 18, color: '#1A3C40', textAlign: 'right', marginBottom: 5 },
+  bubbleContent: { fontSize: 15, fontFamily: FONTS.regular, textAlign: 'right', color: '#444' },
+  bold: { fontFamily: FONTS.bold, color: '#1A3C40' },
   footer: { width: '100%', alignItems: 'center', gap: 10 },
   spinBtn: { backgroundColor: '#1A3C40', paddingVertical: 14, borderRadius: 25, width: '85%', alignItems: 'center' },
   nextBtn: { backgroundColor: '#7FB3B3' },
-  btnText: { color: '#fff', fontSize: 17, fontWeight: 'bold' }
+  btnText: { color: '#fff', fontSize: 17, fontFamily: FONTS.bold }
 });

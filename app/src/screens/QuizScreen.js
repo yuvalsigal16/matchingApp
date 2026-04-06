@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { FONTS } from "../theme/fonts";
 
 const QUESTIONS = [
   { 
@@ -223,36 +224,36 @@ const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#E0E7E9', alignItems: 'center' },
   progressHeader: { marginTop: 20, marginBottom: 10 },
   circleProgress: { width: 80, height: 80, borderRadius: 40, borderWidth: 3, borderColor: '#1A3C40', justifyContent: 'center', alignItems: 'center', backgroundColor: '#fff' },
-  progressTxt: { fontWeight: 'bold', fontSize: 18, color: '#1A3C40' },
-  title: { fontSize: 26, fontWeight: 'bold', marginTop: 20, marginBottom: 30, textAlign: 'center', paddingHorizontal: 20, color: '#333' },
+  progressTxt: { fontFamily: FONTS.bold, fontSize: 18, color: '#1A3C40' },
+  title: { fontSize: 26, fontFamily: FONTS.extraBold, marginTop: 20, marginBottom: 30, textAlign: 'center', paddingHorizontal: 20, color: '#333' },
   scrollView: { width: '100%' },
   scrollArea: { alignItems: 'center', paddingHorizontal: 25, paddingBottom: 40 },
-  input: { backgroundColor: '#fff', width: '100%', paddingVertical: 18, paddingHorizontal: 20, borderRadius: 15, marginBottom: 15, borderWidth: 1, borderColor: '#BDC3C7', fontSize: 16, textAlign: 'right' },
+  input: { backgroundColor: '#fff', width: '100%', paddingVertical: 18, paddingHorizontal: 20, borderRadius: 15, marginBottom: 15, borderWidth: 1, borderColor: '#BDC3C7', fontSize: 16, fontFamily: FONTS.regular, textAlign: 'right' },
   optionsContainer: { width: '100%', alignItems: 'center' },
   optionBtn: { backgroundColor: '#fff', width: '100%', paddingVertical: 18, borderRadius: 15, marginBottom: 15, alignItems: 'center', borderWidth: 1, borderColor: '#BDC3C7', elevation: 2 },
   // סגנון חדש לכפתורי כן/לא
   yesNoContainer: { width: '100%', backgroundColor: '#fff', borderRadius: 15, padding: 15, marginBottom: 15, borderWidth: 1, borderColor: '#BDC3C7', flexDirection: 'row-reverse', justifyContent: 'space-between', alignItems: 'center' },
-  yesNoLabel: { fontSize: 18, color: '#333' },
+  yesNoLabel: { fontSize: 18, fontFamily: FONTS.regular, color: '#333' },
   yesNoButtonsRow: { flexDirection: 'row', gap: 10 },
   smallOptionBtn: { backgroundColor: '#f9f9f9', paddingVertical: 10, paddingHorizontal: 20, borderRadius: 10, borderWidth: 1, borderColor: '#BDC3C7' },
   selectedBtn: { backgroundColor: '#1A3C40', borderColor: '#1A3C40' },
-  optionText: { fontSize: 18, color: '#333' },
-  selectedText: { color: '#fff', fontWeight: 'bold' },
+  optionText: { fontSize: 18, fontFamily: FONTS.regular, color: '#333' },
+  selectedText: { color: '#fff', fontFamily: FONTS.extraBold },
   ratingWrapper: { alignItems: 'center', width: '100%', marginTop: 20 },
   ratingRow: { flexDirection: 'row', justifyContent: 'center', gap: 12 },
   rateCircle: { width: 55, height: 55, borderRadius: 27.5, backgroundColor: '#fff', justifyContent: 'center', alignItems: 'center', borderWidth: 1, borderColor: '#BDC3C7' },
-  rateText: { fontSize: 18, color: '#000' },
+  rateText: { fontSize: 18, fontFamily: FONTS.regular, color: '#000' },
   selectedRate: { backgroundColor: '#1A3C40', borderColor: '#1A3C40' },
   labelRow: { flexDirection: 'row', justifyContent: 'space-between', width: '90%', marginTop: 15 },
-  subText: { fontSize: 14, color: '#666', fontWeight: '500' },
+  subText: { fontSize: 14, color: '#666', fontFamily: FONTS.bold },
   socialContainer: { width: '100%', alignItems: 'center' },
   socialInputRow: { flexDirection: 'row-reverse', width: '100%', backgroundColor: '#fff', borderRadius: 15, marginBottom: 15, alignItems: 'center', paddingHorizontal: 15, borderWidth: 1, borderColor: '#BDC3C7' },
   iconPlaceholder: { padding: 10 },
-  socialInput: { flex: 1, paddingVertical: 18, fontSize: 16, textAlign: 'right', color: '#333' },
-  disclaimerText: { fontSize: 12, color: '#777', textAlign: 'center', marginTop: 10, paddingHorizontal: 20 },
+  socialInput: { flex: 1, paddingVertical: 18, fontSize: 16, fontFamily: FONTS.regular, textAlign: 'right', color: '#333' },
+  disclaimerText: { fontSize: 12, fontFamily: FONTS.regular, color: '#777', textAlign: 'center', marginTop: 10, paddingHorizontal: 20 },
   footer: { width: '100%', alignItems: 'center', paddingVertical: 20, backgroundColor: '#E0E7E9' },
   nextBtn: { backgroundColor: '#fff', paddingVertical: 15, width: '70%', borderRadius: 30, borderWidth: 1.5, borderColor: '#1A3C40', alignItems: 'center', marginBottom: 10 },
-  nextBtnText: { fontWeight: 'bold', fontSize: 18, color: '#1A3C40' },
+  nextBtnText: { fontFamily: FONTS.bold, fontSize: 18, color: '#1A3C40' },
   backBtn: { padding: 5 },
-  backLink: { textDecorationLine: 'underline', color: '#777', fontSize: 16 }
+  backLink: { textDecorationLine: 'underline', color: '#777', fontSize: 16, fontFamily: FONTS.regular }
 });

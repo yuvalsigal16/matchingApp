@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { FONTS } from "../theme/fonts";
 
 const INTEREST_OPTIONS = ['אקסטרים', 'טבע', 'תרבות', 'קולינריה', 'שופינג', 'בטן גב', 'מוזיקה', 'מסיבות'];
 
@@ -178,31 +179,31 @@ const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#E0E7E9' },
   scrollContent: { flexGrow: 1, padding: 20, alignItems: 'center' },
   centerContent: { alignItems: 'center', marginTop: 50 },
-  mainTitle: { fontSize: 28, fontWeight: 'bold', color: '#1A3C40' },
+  mainTitle: { fontSize: 28, fontFamily: FONTS.extraBold, color: '#1A3C40' },
   imagePlaceholder: { marginVertical: 30, width: 160, height: 160, borderRadius: 80, backgroundColor: '#fff', justifyContent: 'center', alignItems: 'center', borderWidth: 1, borderColor: '#ccc' },
-  subTitle: { fontSize: 22, fontWeight: 'bold', textAlign: 'center', marginBottom: 40 },
+  subTitle: { fontSize: 22, fontFamily: FONTS.bold, textAlign: 'center', marginBottom: 40 },
   bigBtn: { backgroundColor: '#fff', paddingVertical: 15, paddingHorizontal: 40, borderRadius: 25, borderWidth: 1.5, borderColor: '#1A3C40' },
-  bigBtnText: { fontSize: 18, fontWeight: 'bold' },
+  bigBtnText: { fontSize: 18, fontFamily: FONTS.bold },
   formContainer: { width: '100%', marginTop: 10 },
-  sectionLabel: { fontSize: 18, textAlign: 'right', marginBottom: 15, fontWeight: 'bold' },
-  label: { textAlign: 'right', fontSize: 16, marginBottom: 8, color: '#333' },
-  input: { backgroundColor: '#fff', padding: 15, borderRadius: 12, marginBottom: 15, borderWidth: 1, borderColor: '#ccc', textAlign: 'right' },
+  sectionLabel: { fontSize: 18, textAlign: 'right', marginBottom: 15, fontFamily: FONTS.bold },
+  label: { textAlign: 'right', fontSize: 16, fontFamily: FONTS.regular, marginBottom: 8, color: '#333' },
+  input: { backgroundColor: '#fff', padding: 15, borderRadius: 12, marginBottom: 15, borderWidth: 1, borderColor: '#ccc', textAlign: 'right', fontFamily: FONTS.regular },
   checkboxRow: { flexDirection: 'row-reverse', alignItems: 'center', marginBottom: 25, alignSelf: 'flex-end' },
   miniSquare: { width: 24, height: 24, borderWidth: 1, borderColor: '#1A3C40', backgroundColor: '#fff', borderRadius: 4, justifyContent: 'center', alignItems: 'center' },
   checkedSquare: { backgroundColor: '#1A3C40' },
   nextBtn: { backgroundColor: '#fff', padding: 18, borderRadius: 25, borderWidth: 1.5, borderColor: '#1A3C40', alignItems: 'center' },
-  nextBtnText: { fontWeight: 'bold', fontSize: 16 },
+  nextBtnText: { fontFamily: FONTS.bold, fontSize: 16 },
   genderRow: { flexDirection: 'row-reverse', justifyContent: 'space-between', marginBottom: 20 },
   smallBtn: { backgroundColor: '#fff', paddingVertical: 10, borderRadius: 10, borderWidth: 1, borderColor: '#ccc', width: '30%', alignItems: 'center' },
   selectedBtn: { backgroundColor: '#1A3C40', borderColor: '#1A3C40' },
-  optionText: { fontSize: 16 },
-  selectedText: { color: '#fff', fontWeight: 'bold' },
+  optionText: { fontSize: 16, fontFamily: FONTS.regular },
+  selectedText: { color: '#fff', fontFamily: FONTS.extraBold },
   sliderLine: { width: '100%', height: 6, backgroundColor: '#ccc', marginVertical: 20, borderRadius: 3 },
   sliderDot: { width: 24, height: 24, borderRadius: 12, backgroundColor: '#1A3C40', position: 'absolute', top: -9 },
-  ageInput: { marginTop: 10, fontSize: 16, fontWeight: 'bold' },
+  ageInput: { marginTop: 10, fontSize: 16, fontFamily: FONTS.bold },
   interestsGrid: { flexDirection: 'row-reverse', flexWrap: 'wrap', gap: 10, justifyContent: 'center', marginBottom: 20 },
   tag: { backgroundColor: '#fff', paddingVertical: 8, paddingHorizontal: 15, borderRadius: 20, borderWidth: 1, borderColor: '#ccc' },
-  tagText: { fontSize: 14 },
+  tagText: { fontSize: 14, fontFamily: FONTS.regular },
   backPos: { position: 'absolute', bottom: 30, left: 30 },
-  backText: { textDecorationLine: 'underline', color: '#555', fontSize: 16 }
+  backText: { textDecorationLine: 'underline', color: '#555', fontSize: 16, fontFamily: FONTS.regular }
 });

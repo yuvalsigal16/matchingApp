@@ -1,5 +1,6 @@
 import { Image, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { FONTS } from "../theme/fonts";
 
 export default function HomeScreen() {
   const MENU_ITEMS = [
@@ -67,10 +68,10 @@ const styles = StyleSheet.create({
     alignItems: 'center', 
     marginBottom: 10 
   },
-  welcomeTxt: { 
+  welcomeTxt: {
     fontSize: 28, // הקטנה קלה כדי לחסוך מקום
-    fontWeight: 'bold', 
-    textAlign: 'center', 
+    fontFamily: FONTS.extraBold,
+    textAlign: 'center',
     color: '#333',
     lineHeight: 34
   },
@@ -86,12 +87,12 @@ const styles = StyleSheet.create({
     marginBottom: 12, // צמצום המרווח בין הכפתורים
     justifyContent: 'space-between' 
   },
-  menuText: { 
-    color: '#333', 
-    fontSize: 18, 
-    fontWeight: '600' 
+  menuText: {
+    color: '#333',
+    fontSize: 18,
+    fontFamily: FONTS.bold,
   },
-  icon: { 
-    fontSize: 22 
+  icon: {
+    fontSize: 22
   }
 });

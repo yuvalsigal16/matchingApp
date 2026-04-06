@@ -1,5 +1,6 @@
 import { useEffect } from "react";
 import { Animated, Image, StyleSheet, Text, View } from "react-native";
+import { FONTS } from "../theme/fonts";
 
 export default function SplashScreen({ navigation }) {
   const fadeAnim = new Animated.Value(0); // אנימציית הופעה
@@ -50,13 +51,14 @@ const styles = StyleSheet.create({
   },
   logoText: {
     fontSize: 60,
-    fontWeight: "bold",
+    fontFamily: FONTS.extraBold,
     color: "#E0E7E9", // הצבע הבהיר של האפליקציה
     textAlign: "center",
     letterSpacing: 2,
   },
   subTitle: {
     fontSize: 18,
+    fontFamily: FONTS.regular,
     color: "#E0E7E9",
     textAlign: "center",
     marginTop: 10,
@@ -69,6 +71,7 @@ const styles = StyleSheet.create({
   footerText: {
     color: "#E0E7E9",
     fontSize: 14,
+    fontFamily: FONTS.regular,
     opacity: 0.5,
   },
 });
