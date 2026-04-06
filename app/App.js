@@ -1,3 +1,9 @@
+import {
+  Heebo_400Regular,
+  Heebo_700Bold,
+  Heebo_800ExtraBold,
+  useFonts,
+} from "@expo-google-fonts/heebo";
 import { createStackNavigator } from '@react-navigation/stack';
 import React from 'react';
 
@@ -12,8 +18,37 @@ import WheelScreen from './src/screens/WheelScreen';
 
 const Stack = createStackNavigator();
 export default function App() {
+  const [fontsLoaded] = useFonts({
+    Heebo_400Regular,
+    Heebo_700Bold,
+    Heebo_800ExtraBold,
+  });
+
+  if (!fontsLoaded) return null;
+
   return (
-    <Stack.Navigator screenOptions={{ headerShown: false }}>
+    <Stack.Navigator
+      screenOptions={{
+        headerShown: false,
+        cardStyleInterpolator: ({ current, layouts }) => ({
+          cardStyle: {
+            opacity: current.progress,
+            transform: [
+              {
+                translateX: current.progress.interpolate({
+                  inputRange: [0, 1],
+                  outputRange: [layouts.screen.width * 0.08, 0],
+                }),
+              },
+            ],
+          },
+        }),
+        transitionSpec: {
+          open:  { animation: "timing", config: { duration: 320 } },
+          close: { animation: "timing", config: { duration: 280 } },
+        },
+      }}
+    >
       <Stack.Screen name="Splash" component={SplashScreen} />
       <Stack.Screen name="Login" component={LoginScreen} />
       <Stack.Screen name="Register" component={RegisterScreen} />

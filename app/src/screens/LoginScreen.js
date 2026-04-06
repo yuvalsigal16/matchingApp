@@ -21,6 +21,7 @@ import {
 
 // SafeAreaView - מוודא שהתוכן לא נכנס לאזורים חסומים כמו ה-notch או סרגל הניווט
 import { SafeAreaView } from "react-native-safe-area-context";
+import { FONTS } from "../theme/fonts";
 
 // ── פונקציות בדיקת תקינות ──
 
@@ -114,7 +115,7 @@ export default function LoginScreen({ navigation }) {
 
           {/* ── טופס הכניסה ── */}
           <View style={styles.form}>
-            {/* שדה אימייל:
+          {/* שדה אימייל:
           - style משנה את המראה לאדום אם יש שגיאה (emailError)
           - onChangeText מעדכן את הstate ומנקה שגיאה בכל הקלדה
           - onBlur מפעיל בדיקת תקינות כשהמשתמש עוזב את השדה
@@ -271,7 +272,7 @@ const styles = StyleSheet.create({
   // עיצוב כותרת "ברוכים הבאים"
   title: {
     fontSize: 32, // גודל טקסט גדול
-    fontWeight: "800", // משקל גופן כבד מאוד (bold+)
+    fontFamily: FONTS.extraBold,
     color: "#111", // כמעט שחור
     textAlign: "center", // ממורכז
     marginBottom: 36, // רווח מתחת לכותרת
@@ -292,6 +293,7 @@ const styles = StyleSheet.create({
     borderColor: "#ddd", // צבע מסגרת אפור בהיר
     paddingHorizontal: 20, // ריווח פנימי מימין ושמאל
     fontSize: 16,
+    fontFamily: FONTS.regular,
     color: "#222",
     marginBottom: 6,
     backgroundColor: "#fafafa", // רקע לבן-אפרפר עדין
@@ -315,6 +317,7 @@ const styles = StyleSheet.create({
   passwordInput: {
     flex: 1, // תופס את כל השטח הנותר בשורה
     fontSize: 16,
+    fontFamily: FONTS.regular,
     color: "#222",
     height: "100%",
   },
@@ -333,6 +336,7 @@ const styles = StyleSheet.create({
   errorText: {
     color: "#e74c3c", // אדום
     fontSize: 12,
+    fontFamily: FONTS.regular,
     textAlign: "right",
     marginBottom: 8,
     marginRight: 8,
@@ -351,13 +355,14 @@ const styles = StyleSheet.create({
   mutedText: {
     color: "#666",
     fontSize: 14,
+    fontFamily: FONTS.regular,
   },
 
   // עיצוב הטקסט הלחיץ בשורות הממורכזות (כחול, מודגש)
   linkText: {
     color: "#1E90FF", // כחול בהיר
     fontSize: 14,
-    fontWeight: "700",
+    fontFamily: FONTS.bold,
   },
 
   // עיצוב כפתור "התחבר"
@@ -382,7 +387,7 @@ const styles = StyleSheet.create({
   loginButtonText: {
     color: "#fff",
     fontSize: 17,
-    fontWeight: "700",
+    fontFamily: FONTS.bold,
     letterSpacing: 0.5, // מרווח קל בין האותיות
   },
 
@@ -406,7 +411,7 @@ const styles = StyleSheet.create({
     marginHorizontal: 14,
     color: "#aaa",
     fontSize: 13,
-    fontWeight: "500",
+    fontFamily: FONTS.bold,
   },
 
   // עיצוב כפתורי הסושיאל (Google / Facebook / Apple)
@@ -439,6 +444,6 @@ const styles = StyleSheet.create({
   socialLabel: {
     fontSize: 15,
     color: "#222",
-    fontWeight: "500",
+    fontFamily: FONTS.bold,
   },
 });

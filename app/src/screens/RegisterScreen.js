@@ -18,6 +18,7 @@ import {
 
 // מוודא שהתוכן לא נחסם על ידי notch או סרגל ניווט
 import { SafeAreaView } from "react-native-safe-area-context";
+import { FONTS } from "../theme/fonts";
 
 // ── פונקציות בדיקת תקינות ──
 
@@ -321,7 +322,7 @@ const styles = StyleSheet.create({
   // כותרת "צור חשבון"
   title: {
     fontSize: 32,
-    fontWeight: "800",
+    fontFamily: FONTS.extraBold,
     color: "#111",
     textAlign: "center",
     marginBottom: 36,
@@ -342,6 +343,7 @@ const styles = StyleSheet.create({
     borderColor: "#ddd",
     paddingHorizontal: 20,
     fontSize: 16,
+    fontFamily: FONTS.regular,
     color: "#222",
     marginBottom: 6,
     backgroundColor: "#fafafa",
@@ -365,6 +367,7 @@ const styles = StyleSheet.create({
   passwordInput: {
     flex: 1, // תופס את כל השטח הפנוי
     fontSize: 16,
+    fontFamily: FONTS.regular,
     color: "#222",
     height: "100%",
   },
@@ -383,6 +386,7 @@ const styles = StyleSheet.create({
   errorText: {
     color: "#e74c3c",
     fontSize: 12,
+    fontFamily: FONTS.regular,
     textAlign: "right",
     marginBottom: 8,
     marginRight: 8,
@@ -409,7 +413,7 @@ const styles = StyleSheet.create({
   mainButtonText: {
     color: "#fff",
     fontSize: 17,
-    fontWeight: "700",
+    fontFamily: FONTS.bold,
     letterSpacing: 0.5,
   },
 
@@ -426,13 +430,14 @@ const styles = StyleSheet.create({
   mutedText: {
     color: "#666",
     fontSize: 14,
+    fontFamily: FONTS.regular,
   },
 
   // טקסט לחיץ כחול ("התחבר")
   linkText: {
     color: "#1E90FF",
     fontSize: 14,
-    fontWeight: "700",
+    fontFamily: FONTS.bold,
   },
 
   // שורת מפריד "או"
@@ -455,7 +460,7 @@ const styles = StyleSheet.create({
     marginHorizontal: 14,
     color: "#aaa",
     fontSize: 13,
-    fontWeight: "500",
+    fontFamily: FONTS.bold,
   },
 
   // כפתורי סושיאל — זהים ל-Login
@@ -487,6 +492,6 @@ const styles = StyleSheet.create({
   socialLabel: {
     fontSize: 15,
     color: "#222",
-    fontWeight: "500",
+    fontFamily: FONTS.bold,
   },
 });
