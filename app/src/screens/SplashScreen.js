@@ -1,9 +1,9 @@
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import { Animated, Image, StyleSheet, Text, View } from "react-native";
 import { FONTS } from "../theme/fonts";
 
 export default function SplashScreen({ navigation }) {
-  const fadeAnim = new Animated.Value(0); // אנימציית הופעה
+  const fadeAnim = useRef(new Animated.Value(0)).current; // אנימציית הופעה
 
   useEffect(() => {
     // מפעיל את האנימציה של הטקסט
