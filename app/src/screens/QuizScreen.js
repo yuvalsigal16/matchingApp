@@ -54,6 +54,7 @@ const QUESTIONS = [
   }
 ];
 
+
 export default function QuizScreen({ navigation }) {
   const [step, setStep] = useState(0);
   const [answers, setAnswers] = useState({});
