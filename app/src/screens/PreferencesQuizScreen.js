@@ -1,47 +1,63 @@
-import React, { useState } from 'react';
-import { ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import React, { useState } from "react";
+import {
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
+} from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 import { FONTS } from "../theme/fonts";
 
-const INTEREST_OPTIONS = ['אקסטרים', 'טבע', 'תרבות', 'קולינריה', 'שופינג', 'בטן גב', 'מוזיקה', 'מסיבות'];
+const INTEREST_OPTIONS = [
+  "אקסטרים",
+  "טבע",
+  "תרבות",
+  "קולינריה",
+  "שופינג",
+  "בטן גב",
+  "מוזיקה",
+  "מסיבות",
+];
 
 export default function PreferencesQuizScreen({ navigation }) {
   const [prefStep, setPrefStep] = useState(1);
   const [tripData, setTripData] = useState({
-    tripName: '',
-    destination: '',
-    startDate: '',
-    endDate: '',
+    tripName: "",
+    destination: "",
+    startDate: "",
+    endDate: "",
     recommendPeriod: false,
-    preferredGender: '',
+    preferredGender: "",
     ageRange: 25,
-    interests: []
+    interests: [],
   });
 
   // פונקציית סיום - בודקת אם יש יעד ומנווטת בהתאם
   const handleFinishQuiz = () => {
-    if (!tripData.destination || tripData.destination.trim() === '') {
+    if (!tripData.destination || tripData.destination.trim() === "") {
       // אם אין יעד - הולכים לגלגל המזל
-      navigation.navigate('Wheel');
+      navigation.navigate("Wheel");
     } else {
       // אם יש יעד - הולכים ישר לדף הבית
-      navigation.navigate('Home');
+      navigation.navigate("Home");
     }
   };
 
   const nextStep = () => {
     // הוסר התנאי של חובת היעד
-    setPrefStep(prev => prev + 1);
+    setPrefStep((prev) => prev + 1);
   };
 
-  const prevStep = () => setPrefStep(prev => (prev > 1 ? prev - 1 : 1));
+  const prevStep = () => setPrefStep((prev) => (prev > 1 ? prev - 1 : 1));
 
   const toggleInterest = (interest) => {
     const current = tripData.interests;
-    const newList = current.includes(interest) 
-      ? current.filter(i => i !== interest) 
+    const newList = current.includes(interest)
+      ? current.filter((i) => i !== interest)
       : [...current, interest];
-    setTripData({...tripData, interests: newList});
+    setTripData({ ...tripData, interests: newList });
   };
 
   const renderStepContent = () => {
@@ -50,7 +66,9 @@ export default function PreferencesQuizScreen({ navigation }) {
         return (
           <View style={styles.centerContent}>
             <Text style={styles.mainTitle}>שאלון העדפות טיול</Text>
-            <View style={styles.imagePlaceholder}><Text style={{fontSize: 80}}>🌍</Text></View>
+            <View style={styles.imagePlaceholder}>
+              <Text style={{ fontSize: 80 }}>🌍</Text>
+            </View>
             <Text style={styles.subTitle}>בוא נתכנן את הטיול המושלם שלך!</Text>
             <TouchableOpacity style={styles.bigBtn} onPress={nextStep}>
               <Text style={styles.bigBtnText}>לתחילת השאלון</Text>
@@ -62,47 +80,67 @@ export default function PreferencesQuizScreen({ navigation }) {
         return (
           <View style={styles.formContainer}>
             <Text style={styles.label}>שם הטיול שלי:</Text>
-            <TextInput 
-              style={styles.input} 
-              placeholder="למשל: טיול שחרור לתאילנד" 
+            <TextInput
+              style={styles.input}
+              placeholder="למשל: טיול שחרור לתאילנד"
               textAlign="right"
-              onChangeText={(val) => setTripData({...tripData, tripName: val})}
+              onChangeText={(val) =>
+                setTripData({ ...tripData, tripName: val })
+              }
               value={tripData.tripName}
             />
-            
+
             <Text style={styles.sectionLabel}>הקווים הכלליים של החופשה</Text>
-            
-            <TextInput 
-              style={styles.input} 
-              placeholder="יעד (אופציונלי)" 
-              textAlign="right" 
-              onChangeText={(val) => setTripData({...tripData, destination: val})}
+
+            <TextInput
+              style={styles.input}
+              placeholder="יעד (אופציונלי)"
+              textAlign="right"
+              onChangeText={(val) =>
+                setTripData({ ...tripData, destination: val })
+              }
               value={tripData.destination}
             />
 
-            <TextInput 
-              style={styles.input} 
-              placeholder="תאריך יציאה (DD/MM/YY)" 
+            <TextInput
+              style={styles.input}
+              placeholder="תאריך יציאה (DD/MM/YY)"
               textAlign="right"
-              onChangeText={(val) => setTripData({...tripData, startDate: val})}
+              onChangeText={(val) =>
+                setTripData({ ...tripData, startDate: val })
+              }
               value={tripData.startDate}
             />
 
-            <TextInput 
-              style={styles.input} 
-              placeholder="תאריך חזרה (DD/MM/YY)" 
+            <TextInput
+              style={styles.input}
+              placeholder="תאריך חזרה (DD/MM/YY)"
               textAlign="right"
-              onChangeText={(val) => setTripData({...tripData, endDate: val})}
+              onChangeText={(val) => setTripData({ ...tripData, endDate: val })}
               value={tripData.endDate}
             />
 
-            <TouchableOpacity 
-              style={styles.checkboxRow} 
-              onPress={() => setTripData({...tripData, recommendPeriod: !tripData.recommendPeriod})}
+            <TouchableOpacity
+              style={styles.checkboxRow}
+              onPress={() =>
+                setTripData({
+                  ...tripData,
+                  recommendPeriod: !tripData.recommendPeriod,
+                })
+              }
             >
-              <Text style={{marginRight: 10, fontSize: 16}}>תמליץ לי על תקופה טובה לטיסה</Text>
-              <View style={[styles.miniSquare, tripData.recommendPeriod && styles.checkedSquare]}>
-                {tripData.recommendPeriod && <Text style={{color: '#fff', fontSize: 14}}>✓</Text>}
+              <Text style={{ marginRight: 10, fontSize: 16 }}>
+                תמליץ לי על תקופה טובה לטיסה
+              </Text>
+              <View
+                style={[
+                  styles.miniSquare,
+                  tripData.recommendPeriod && styles.checkedSquare,
+                ]}
+              >
+                {tripData.recommendPeriod && (
+                  <Text style={{ color: "#fff", fontSize: 14 }}>✓</Text>
+                )}
               </View>
             </TouchableOpacity>
 
@@ -116,41 +154,70 @@ export default function PreferencesQuizScreen({ navigation }) {
         return (
           <View style={styles.formContainer}>
             <Text style={styles.stepTitle}>הפרטנר המושלם עבורי</Text>
-            
+
             <Text style={styles.label}>מגדר מועדף:</Text>
             <View style={styles.genderRow}>
-              {['גבר', 'אישה', 'הכל'].map(g => (
-                <TouchableOpacity 
+              {["גבר", "אישה", "הכל"].map((g) => (
+                <TouchableOpacity
                   key={g}
-                  style={[styles.smallBtn, tripData.preferredGender === g && styles.selectedBtn]}
-                  onPress={() => setTripData({...tripData, preferredGender: g})}
+                  style={[
+                    styles.smallBtn,
+                    tripData.preferredGender === g && styles.selectedBtn,
+                  ]}
+                  onPress={() =>
+                    setTripData({ ...tripData, preferredGender: g })
+                  }
                 >
-                  <Text style={[styles.optionText, tripData.preferredGender === g && styles.selectedText]}>{g}</Text>
+                  <Text
+                    style={[
+                      styles.optionText,
+                      tripData.preferredGender === g && styles.selectedText,
+                    ]}
+                  >
+                    {g}
+                  </Text>
                 </TouchableOpacity>
               ))}
             </View>
 
             <Text style={styles.label}>גיל מועדף: {tripData.ageRange}</Text>
             <View style={styles.sliderLine}>
-              <View style={[styles.sliderDot, { left: `${(tripData.ageRange - 18) * 1.5}%` }]} />
-              <TextInput 
+              <View
+                style={[
+                  styles.sliderDot,
+                  { left: `${(tripData.ageRange - 18) * 1.5}%` },
+                ]}
+              />
+              <TextInput
                 keyboardType="numeric"
                 style={styles.ageInput}
-                onChangeText={(val) => setTripData({...tripData, ageRange: val})}
+                onChangeText={(val) =>
+                  setTripData({ ...tripData, ageRange: val })
+                }
                 placeholder="הקלד גיל"
                 textAlign="center"
               />
             </View>
-            
+
             <Text style={styles.label}>תחומי עניין:</Text>
             <View style={styles.interestsGrid}>
-              {INTEREST_OPTIONS.map(opt => (
-                <TouchableOpacity 
-                  key={opt} 
-                  style={[styles.tag, tripData.interests.includes(opt) && styles.selectedBtn]}
+              {INTEREST_OPTIONS.map((opt) => (
+                <TouchableOpacity
+                  key={opt}
+                  style={[
+                    styles.tag,
+                    tripData.interests.includes(opt) && styles.selectedBtn,
+                  ]}
                   onPress={() => toggleInterest(opt)}
                 >
-                  <Text style={[styles.tagText, tripData.interests.includes(opt) && styles.selectedText]}>{opt}</Text>
+                  <Text
+                    style={[
+                      styles.tagText,
+                      tripData.interests.includes(opt) && styles.selectedText,
+                    ]}
+                  >
+                    {opt}
+                  </Text>
                 </TouchableOpacity>
               ))}
             </View>
@@ -160,15 +227,20 @@ export default function PreferencesQuizScreen({ navigation }) {
             </TouchableOpacity>
           </View>
         );
-      default: return null;
+      default:
+        return null;
     }
   };
 
   return (
     <SafeAreaView style={styles.container}>
-      <ScrollView contentContainerStyle={styles.scrollContent}>{renderStepContent()}</ScrollView>
+      <ScrollView contentContainerStyle={styles.scrollContent}>
+        {renderStepContent()}
+      </ScrollView>
       {prefStep > 1 && (
-        <TouchableOpacity onPress={prevStep} style={styles.backPos}><Text style={styles.backText}>חזרה</Text></TouchableOpacity>
+        <TouchableOpacity onPress={prevStep} style={styles.backPos}>
+          <Text style={styles.backText}>חזרה</Text>
+        </TouchableOpacity>
       )}
     </SafeAreaView>
   );
@@ -176,34 +248,140 @@ export default function PreferencesQuizScreen({ navigation }) {
 
 // עיצובים נשארו ללא שינוי
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#E0E7E9' },
-  scrollContent: { flexGrow: 1, padding: 20, alignItems: 'center' },
-  centerContent: { alignItems: 'center', marginTop: 50 },
-  mainTitle: { fontSize: 28, fontFamily: FONTS.extraBold, color: '#1A3C40' },
-  imagePlaceholder: { marginVertical: 30, width: 160, height: 160, borderRadius: 80, backgroundColor: '#fff', justifyContent: 'center', alignItems: 'center', borderWidth: 1, borderColor: '#ccc' },
-  subTitle: { fontSize: 22, fontFamily: FONTS.bold, textAlign: 'center', marginBottom: 40 },
-  bigBtn: { backgroundColor: '#fff', paddingVertical: 15, paddingHorizontal: 40, borderRadius: 25, borderWidth: 1.5, borderColor: '#1A3C40' },
+  container: { flex: 1, backgroundColor: "#E0E7E9" },
+  scrollContent: { flexGrow: 1, padding: 20, alignItems: "center" },
+  centerContent: { alignItems: "center", marginTop: 50 },
+  mainTitle: { fontSize: 28, fontFamily: FONTS.extraBold, color: "#1A3C40" },
+  imagePlaceholder: {
+    marginVertical: 30,
+    width: 160,
+    height: 160,
+    borderRadius: 80,
+    backgroundColor: "#fff",
+    justifyContent: "center",
+    alignItems: "center",
+    borderWidth: 1,
+    borderColor: "#ccc",
+  },
+  subTitle: {
+    fontSize: 22,
+    fontFamily: FONTS.bold,
+    textAlign: "center",
+    marginBottom: 40,
+  },
+  bigBtn: {
+    backgroundColor: "#fff",
+    paddingVertical: 15,
+    paddingHorizontal: 40,
+    borderRadius: 25,
+    borderWidth: 1.5,
+    borderColor: "#1A3C40",
+  },
   bigBtnText: { fontSize: 18, fontFamily: FONTS.bold },
-  formContainer: { width: '100%', marginTop: 10 },
-  sectionLabel: { fontSize: 18, textAlign: 'right', marginBottom: 15, fontFamily: FONTS.bold },
-  label: { textAlign: 'right', fontSize: 16, fontFamily: FONTS.regular, marginBottom: 8, color: '#333' },
-  input: { backgroundColor: '#fff', padding: 15, borderRadius: 12, marginBottom: 15, borderWidth: 1, borderColor: '#ccc', textAlign: 'right', fontFamily: FONTS.regular },
-  checkboxRow: { flexDirection: 'row-reverse', alignItems: 'center', marginBottom: 25, alignSelf: 'flex-end' },
-  miniSquare: { width: 24, height: 24, borderWidth: 1, borderColor: '#1A3C40', backgroundColor: '#fff', borderRadius: 4, justifyContent: 'center', alignItems: 'center' },
-  checkedSquare: { backgroundColor: '#1A3C40' },
-  nextBtn: { backgroundColor: '#fff', padding: 18, borderRadius: 25, borderWidth: 1.5, borderColor: '#1A3C40', alignItems: 'center' },
+  formContainer: { width: "100%", marginTop: 10 },
+  sectionLabel: {
+    fontSize: 18,
+    textAlign: "right",
+    marginBottom: 15,
+    fontFamily: FONTS.bold,
+  },
+  label: {
+    textAlign: "right",
+    fontSize: 16,
+    fontFamily: FONTS.regular,
+    marginBottom: 8,
+    color: "#333",
+  },
+  input: {
+    backgroundColor: "#fff",
+    padding: 15,
+    borderRadius: 12,
+    marginBottom: 15,
+    borderWidth: 1,
+    borderColor: "#ccc",
+    textAlign: "right",
+    fontFamily: FONTS.regular,
+  },
+  checkboxRow: {
+    flexDirection: "row-reverse",
+    alignItems: "center",
+    marginBottom: 25,
+    alignSelf: "flex-end",
+  },
+  miniSquare: {
+    width: 24,
+    height: 24,
+    borderWidth: 1,
+    borderColor: "#1A3C40",
+    backgroundColor: "#fff",
+    borderRadius: 4,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  checkedSquare: { backgroundColor: "#1A3C40" },
+  nextBtn: {
+    backgroundColor: "#fff",
+    padding: 18,
+    borderRadius: 25,
+    borderWidth: 1.5,
+    borderColor: "#1A3C40",
+    alignItems: "center",
+  },
   nextBtnText: { fontFamily: FONTS.bold, fontSize: 16 },
-  genderRow: { flexDirection: 'row-reverse', justifyContent: 'space-between', marginBottom: 20 },
-  smallBtn: { backgroundColor: '#fff', paddingVertical: 10, borderRadius: 10, borderWidth: 1, borderColor: '#ccc', width: '30%', alignItems: 'center' },
-  selectedBtn: { backgroundColor: '#1A3C40', borderColor: '#1A3C40' },
+  genderRow: {
+    flexDirection: "row-reverse",
+    justifyContent: "space-between",
+    marginBottom: 20,
+  },
+  smallBtn: {
+    backgroundColor: "#fff",
+    paddingVertical: 10,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: "#ccc",
+    width: "30%",
+    alignItems: "center",
+  },
+  selectedBtn: { backgroundColor: "#1A3C40", borderColor: "#1A3C40" },
   optionText: { fontSize: 16, fontFamily: FONTS.regular },
-  selectedText: { color: '#fff', fontFamily: FONTS.extraBold },
-  sliderLine: { width: '100%', height: 6, backgroundColor: '#ccc', marginVertical: 20, borderRadius: 3 },
-  sliderDot: { width: 24, height: 24, borderRadius: 12, backgroundColor: '#1A3C40', position: 'absolute', top: -9 },
+  selectedText: { color: "#fff", fontFamily: FONTS.extraBold },
+  sliderLine: {
+    width: "100%",
+    height: 6,
+    backgroundColor: "#ccc",
+    marginVertical: 20,
+    borderRadius: 3,
+  },
+  sliderDot: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    backgroundColor: "#1A3C40",
+    position: "absolute",
+    top: -9,
+  },
   ageInput: { marginTop: 10, fontSize: 16, fontFamily: FONTS.bold },
-  interestsGrid: { flexDirection: 'row-reverse', flexWrap: 'wrap', gap: 10, justifyContent: 'center', marginBottom: 20 },
-  tag: { backgroundColor: '#fff', paddingVertical: 8, paddingHorizontal: 15, borderRadius: 20, borderWidth: 1, borderColor: '#ccc' },
+  interestsGrid: {
+    flexDirection: "row-reverse",
+    flexWrap: "wrap",
+    gap: 10,
+    justifyContent: "center",
+    marginBottom: 20,
+  },
+  tag: {
+    backgroundColor: "#fff",
+    paddingVertical: 8,
+    paddingHorizontal: 15,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: "#ccc",
+  },
   tagText: { fontSize: 14, fontFamily: FONTS.regular },
-  backPos: { position: 'absolute', bottom: 30, left: 30 },
-  backText: { textDecorationLine: 'underline', color: '#555', fontSize: 16, fontFamily: FONTS.regular }
+  backPos: { position: "absolute", bottom: 30, left: 30 },
+  backText: {
+    textDecorationLine: "underline",
+    color: "#555",
+    fontSize: 16,
+    fontFamily: FONTS.regular,
+  },
 });

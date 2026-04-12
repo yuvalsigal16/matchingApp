@@ -38,8 +38,8 @@ const SocialButton = ({ label, iconComponent }) => (
   <TouchableOpacity style={styles.socialButton} activeOpacity={0.7}>
     {/* מיכל פנימי שמסדר את האייקון והטקסט בשורה אחת ממורכזת */}
     <View style={styles.socialInner}>
-      {iconComponent} {/* האייקון של הרשת החברתית */}
-      <Text style={styles.socialLabel}>{label}</Text> {/* שם הרשת החברתית */}
+      {iconComponent}
+      <Text style={styles.socialLabel}>{label}</Text>
     </View>
   </TouchableOpacity>
 );
@@ -211,9 +211,9 @@ export default function LoginScreen({ navigation }) {
           {/* ── מפריד "או" ── */}
           {/* שתי קווים אופקיים עם טקסט "או" ביניהם */}
           <View style={styles.dividerRow}>
-            <View style={styles.dividerLine} /> {/* קו שמאלי */}
+            <View style={styles.dividerLine} />
             <Text style={styles.dividerText}>או</Text>
-            <View style={styles.dividerLine} /> {/* קו ימני */}
+            <View style={styles.dividerLine} />
           </View>
 
           {/* ── כפתורי כניסה חברתית ── */}
