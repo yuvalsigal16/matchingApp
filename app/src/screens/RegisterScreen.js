@@ -1,22 +1,17 @@
-// ייבוא אייקונים מספריית vector-icons של Expo
-import { AntDesign, FontAwesome, Ionicons } from "@expo/vector-icons";
-
-// ייבוא React ו-useState לניהול מצב הקומפוננטה
+import { Ionicons } from "@expo/vector-icons";
 import React, { useState } from "react";
-
-// ייבוא רכיבי UI בסיסיים מ-React Native
 import {
-  KeyboardAvoidingView, // מזיז תוכן כלפי מעלה כשהמקלדת נפתחת
-  Platform, // מזהה iOS / Android
-  ScrollView, // מאפשר גלילה אם התוכן ארוך
-  StyleSheet, // הגדרת עיצובים
-  Text, // הצגת טקסט
-  TextInput, // שדה קלט
-  TouchableOpacity, // כפתור עם אפקט לחיצה
-  View, // מיכל/קופסה
+  ActivityIndicator,
+  KeyboardAvoidingView,
+  Platform,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
 } from "react-native";
-
-// מוודא שהתוכן לא נחסם על ידי notch או סרגל ניווט
+import { apiRegister } from "../api/authService";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { FONTS } from "../theme/fonts";
 
@@ -33,18 +28,6 @@ const isValidPassword = (val) => val.length >= 6;
 
 // בודקת שאימות הסיסמה זהה לסיסמה המקורית
 const isPasswordMatch = (pass, confirm) => pass === confirm;
-
-// ── קומפוננטת כפתור סושיאל (זהה ל-Login) ──
-// מקבלת label (טקסט) ו-iconComponent (אייקון מוכן)
-const SocialButton = ({ label, iconComponent }) => (
-  <TouchableOpacity style={styles.socialButton} activeOpacity={0.7}>
-    {/* שורה פנימית עם אייקון וטקסט ממורכזים */}
-    <View style={styles.socialInner}>
-      {iconComponent}
-      <Text style={styles.socialLabel}>{label}</Text>
-    </View>
-  </TouchableOpacity>
-);
 
 // ── קומפוננטת שדה סיסמה עם אייקון עין ──
 // מקבלת: value, onChangeText, onBlur, showPassword, toggleShow, placeholder, hasError
@@ -97,11 +80,12 @@ export default function RegisterScreen({ navigation }) {
   const [showPassword, setShowPassword] = useState(false); // שדה סיסמה
   const [showConfirm, setShowConfirm] = useState(false); // שדה אימות סיסמה
 
-  // ── State להודעות שגיאה (ריק = אין שגיאה) ──
   const [nameError, setNameError] = useState("");
   const [emailError, setEmailError] = useState("");
   const [passwordError, setPasswordError] = useState("");
   const [confirmError, setConfirmError] = useState("");
+  const [apiError, setApiError] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
 
   // ── פונקציות בדיקה — רצות כשהמשתמש עוזב שדה (onBlur) ──
 
@@ -137,15 +121,12 @@ export default function RegisterScreen({ navigation }) {
           : "",
     );
 
-  // ── פונקציית הרשמה — רצה בלחיצה על "הירשם" ──
-  const handleRegister = () => {
-    // מפעיל את כל הבדיקות
+  const handleRegister = async () => {
     validateName();
     validateEmail();
     validatePassword();
     validateConfirm();
 
-    // אם אחד מהשדות לא תקין — עוצר ולא ממשיך
     if (
       !isValidName(name) ||
       !isValidEmail(email) ||
@@ -154,9 +135,16 @@ export default function RegisterScreen({ navigation }) {
     )
       return;
 
-    // אם הכל תקין — מדפיס לקונסול (כאן תוסיפי קריאה לשרת בעתיד)
-    console.log("Register:", { name, email, password });
-    navigation.navigate("QuizStart");
+    setApiError("");
+    setIsLoading(true);
+    try {
+      await apiRegister(email, password);
+      navigation.navigate("QuizStart");
+    } catch (err) {
+      setApiError(err.message);
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
@@ -252,13 +240,21 @@ export default function RegisterScreen({ navigation }) {
             ) : null}
           </View>
 
-          {/* ── כפתור הרשמה ראשי ── */}
+          {apiError ? (
+            <Text style={styles.apiErrorText}>{apiError}</Text>
+          ) : null}
+
           <TouchableOpacity
-            style={styles.mainButton}
+            style={[styles.mainButton, isLoading && styles.mainButtonDisabled]}
             onPress={handleRegister}
             activeOpacity={0.85}
+            disabled={isLoading}
           >
-            <Text style={styles.mainButtonText}>הירשם</Text>
+            {isLoading ? (
+              <ActivityIndicator color="#fff" />
+            ) : (
+              <Text style={styles.mainButtonText}>הירשם</Text>
+            )}
           </TouchableOpacity>
 
           {/* ── שורת ניווט ל-Login ── */}
@@ -273,30 +269,6 @@ export default function RegisterScreen({ navigation }) {
             <Text style={styles.mutedText}>כבר יש לך חשבון? </Text>
           </View>
 
-          {/* ── מפריד "או" ── */}
-          <View style={styles.dividerRow}>
-            <View style={styles.dividerLine} />
-            <Text style={styles.dividerText}>או</Text>
-            <View style={styles.dividerLine} />
-          </View>
-
-          {/* ── כפתורי כניסה חברתית ── */}
-          <SocialButton
-            label="הירשם עם Google"
-            iconComponent={
-              <AntDesign name="google" size={20} color="#DB4437" />
-            }
-          />
-          <SocialButton
-            label="הירשם עם Facebook"
-            iconComponent={
-              <FontAwesome name="facebook" size={20} color="#1877F2" />
-            }
-          />
-          <SocialButton
-            label="הירשם עם Apple"
-            iconComponent={<AntDesign name="apple" size={20} color="#000" />}
-          />
         </ScrollView>
       </KeyboardAvoidingView>
     </SafeAreaView>
@@ -410,11 +382,26 @@ const styles = StyleSheet.create({
   },
 
   // טקסט בתוך כפתור "הירשם"
+  mainButtonDisabled: {
+    backgroundColor: "#555",
+    shadowOpacity: 0,
+    elevation: 0,
+  },
+
   mainButtonText: {
     color: "#fff",
     fontSize: 17,
     fontFamily: FONTS.bold,
     letterSpacing: 0.5,
+  },
+
+  apiErrorText: {
+    color: "#e74c3c",
+    fontSize: 14,
+    fontFamily: FONTS.regular,
+    textAlign: "center",
+    marginTop: 12,
+    marginBottom: 4,
   },
 
   // שורה ממורכזת (ניווט ל-Login)
@@ -440,58 +427,4 @@ const styles = StyleSheet.create({
     fontFamily: FONTS.bold,
   },
 
-  // שורת מפריד "או"
-  dividerRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    width: "100%",
-    marginVertical: 22,
-  },
-
-  // קו אופקי משני צדי ה"או"
-  dividerLine: {
-    flex: 1,
-    height: 1,
-    backgroundColor: "#e8e8e8",
-  },
-
-  // טקסט "או"
-  dividerText: {
-    marginHorizontal: 14,
-    color: "#aaa",
-    fontSize: 13,
-    fontFamily: FONTS.bold,
-  },
-
-  // כפתורי סושיאל — זהים ל-Login
-  socialButton: {
-    width: "100%",
-    height: 54,
-    borderRadius: 30,
-    borderWidth: 1.5,
-    borderColor: "#e8e8e8",
-    backgroundColor: "#fff",
-    justifyContent: "center",
-    alignItems: "center",
-    marginBottom: 12,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 3,
-    elevation: 1,
-  },
-
-  // שורה פנימית של כפתור סושיאל (אייקון + טקסט)
-  socialInner: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 10, // רווח אחיד בין האייקון לטקסט
-  },
-
-  // טקסט בתוך כפתורי סושיאל
-  socialLabel: {
-    fontSize: 15,
-    color: "#222",
-    fontFamily: FONTS.bold,
-  },
 });

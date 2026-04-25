@@ -1,76 +1,38 @@
-// ייבוא אייקונים מספריית vector-icons של Expo:
-// AntDesign - לאייקוני Google ו-Apple
-// FontAwesome - לאייקון Facebook
-// Ionicons - לאייקון העין (הצגה/הסתרת סיסמה)
-import { AntDesign, FontAwesome, Ionicons } from "@expo/vector-icons";
-
-// ייבוא React ו-useState - useState מאפשר לנו לשמור ולעדכן מידע בתוך הקומפוננטה
+import { Ionicons } from "@expo/vector-icons";
 import React, { useState } from "react";
-
-// ייבוא רכיבי UI בסיסיים מ-React Native:
 import {
-  KeyboardAvoidingView, // מזיז את התוכן למעלה כשהמקלדת נפתחת, כדי שהשדות לא יוסתרו
-  Platform, // מאפשר לזהות אם המכשיר הוא iOS או Android
-  ScrollView, // מאפשר גלילה אם התוכן ארוך מהמסך
-  StyleSheet, // מאפשר להגדיר עיצובים (styles) בצורה מסודרת
-  Text, // מציג טקסט על המסך
-  TextInput, // שדה קלט שבו המשתמש יכול להקליד
-  TouchableOpacity, // כפתור שמגיב ללחיצה עם אפקט עמעום
-  View, // קופסה/מיכל בסיסית לעיצוב ומיקום אלמנטים
+  ActivityIndicator,
+  KeyboardAvoidingView,
+  Platform,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
 } from "react-native";
-
-// SafeAreaView - מוודא שהתוכן לא נכנס לאזורים חסומים כמו ה-notch או סרגל הניווט
+import { apiLogin } from "../api/authService";
+import { setAuth } from "../auth/authStore";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { FONTS } from "../theme/fonts";
 
-// ── פונקציות בדיקת תקינות ──
-
-// בודקת אם כתובת האימייל בפורמט תקין (חייבת להכיל @ ונקודה אחרי)
 const isValidEmail = (val) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(val.trim());
-
-// בודקת שהסיסמה מכילה לפחות 6 תווים
 const isValidPassword = (val) => val.length >= 6;
 
-// ── קומפוננטת כפתור סושיאל ──
-// מקבלת: label (טקסט הכפתור) ו-iconComponent (אייקון מוכן)
-// מציגה כפתור עם אייקון וטקסט ממורכזים זה לצד זה
-const SocialButton = ({ label, iconComponent }) => (
-  <TouchableOpacity style={styles.socialButton} activeOpacity={0.7}>
-    {/* מיכל פנימי שמסדר את האייקון והטקסט בשורה אחת ממורכזת */}
-    <View style={styles.socialInner}>
-      {iconComponent}
-      <Text style={styles.socialLabel}>{label}</Text>
-    </View>
-  </TouchableOpacity>
-);
-
-// ── הקומפוננטה הראשית של מסך ההתחברות ──
-// מקבלת navigation - אובייקט שמאפשר מעבר בין מסכים
 export default function LoginScreen({ navigation }) {
-  // שמירת הטקסט שהמשתמש הקליד בשדה האימייל
   const [email, setEmail] = useState("");
-
-  // שמירת הטקסט שהמשתמש הקליד בשדה הסיסמה
   const [password, setPassword] = useState("");
-
-  // האם להציג את הסיסמה כטקסט רגיל (true) או כנקודות (false)
   const [showPassword, setShowPassword] = useState(false);
-
-  // הודעת שגיאה לשדה האימייל - ריקה אם אין שגיאה
   const [emailError, setEmailError] = useState("");
-
-  // הודעת שגיאה לשדה הסיסמה - ריקה אם אין שגיאה
   const [passwordError, setPasswordError] = useState("");
+  const [apiError, setApiError] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
 
-  // בדיקת תקינות לאימייל - רץ כשהמשתמש עוזב את השדה (onBlur)
-  // אם ריק → "שדה חובה", אם פורמט לא תקין → הודעת שגיאה, אחרת מנקה את השגיאה
   const validateEmail = () =>
     setEmailError(
       !email ? "שדה חובה" : !isValidEmail(email) ? "כתובת אימייל לא תקינה" : "",
     );
 
-  // בדיקת תקינות לסיסמה - רץ כשהמשתמש עוזב את השדה (onBlur)
-  // אם ריקה → "שדה חובה", אם קצרה מדי → הודעת שגיאה, אחרת מנקה את השגיאה
   const validatePassword = () =>
     setPasswordError(
       !password
@@ -80,18 +42,24 @@ export default function LoginScreen({ navigation }) {
           : "",
     );
 
-  // פונקציה שרצה כשלוחצים על "התחבר"
-  const handleLogin = () => {
-    validateEmail(); // מפעיל בדיקת תקינות לאימייל
-    validatePassword(); // מפעיל בדיקת תקינות לסיסמה
-    // אם אחד השדות לא תקין - עוצר ולא ממשיך
+  const handleLogin = async () => {
+    validateEmail();
+    validatePassword();
     if (!isValidEmail(email) || !isValidPassword(password)) return;
-    // אם הכל תקין - מדפיס לקונסול ועובר למסך הבית
-    console.log("Login:", { email, password });
-    navigation.navigate("Home");
+
+    setApiError("");
+    setIsLoading(true);
+    try {
+      const { token, user } = await apiLogin(email, password);
+      setAuth(token, user);
+      navigation.navigate("Home");
+    } catch (err) {
+      setApiError(err.message);
+    } finally {
+      setIsLoading(false);
+    }
   };
 
-  // פונקציה ריקה שרצה כשלוחצים על "לחץ כאן" בשכחת סיסמה
   const handleForgotPassword = () => console.log("Forgot password");
 
   return (
@@ -111,11 +79,11 @@ export default function LoginScreen({ navigation }) {
           showsVerticalScrollIndicator={false} // מסתיר את פס הגלילה
         >
           {/* ── כותרת ראשית ── */}
-          <Text style={styles.title}>ברוכים הבאים</Text>
+          <Text style={styles.title}>כיף שחזרת</Text>
 
           {/* ── טופס הכניסה ── */}
           <View style={styles.form}>
-          {/* שדה אימייל:
+            {/* שדה אימייל:
           - style משנה את המראה לאדום אם יש שגיאה (emailError)
           - onChangeText מעדכן את הstate ומנקה שגיאה בכל הקלדה
           - onBlur מפעיל בדיקת תקינות כשהמשתמש עוזב את השדה
@@ -198,42 +166,25 @@ export default function LoginScreen({ navigation }) {
             <Text style={styles.mutedText}>שכחת סיסמה? </Text>
           </View>
 
-          {/* ── כפתור התחברות ── */}
-          {/* לחיצה מפעילה את handleLogin שבודק תקינות ושולח */}
+          {apiError ? (
+            <Text style={styles.apiErrorText}>{apiError}</Text>
+          ) : null}
+
           <TouchableOpacity
-            style={styles.loginButton}
+            style={[
+              styles.loginButton,
+              isLoading && styles.loginButtonDisabled,
+            ]}
             onPress={handleLogin}
             activeOpacity={0.85}
+            disabled={isLoading}
           >
-            <Text style={styles.loginButtonText}>התחבר</Text>
+            {isLoading ? (
+              <ActivityIndicator color="#fff" />
+            ) : (
+              <Text style={styles.loginButtonText}>התחבר</Text>
+            )}
           </TouchableOpacity>
-
-          {/* ── מפריד "או" ── */}
-          {/* שתי קווים אופקיים עם טקסט "או" ביניהם */}
-          <View style={styles.dividerRow}>
-            <View style={styles.dividerLine} />
-            <Text style={styles.dividerText}>או</Text>
-            <View style={styles.dividerLine} />
-          </View>
-
-          {/* ── כפתורי כניסה חברתית ── */}
-          {/* כל SocialButton מקבל שם ואייקון מוכן מספריית vector-icons */}
-          <SocialButton
-            label="המשך עם Google"
-            iconComponent={
-              <AntDesign name="google" size={20} color="#DB4437" />
-            }
-          />
-          <SocialButton
-            label="המשך עם Facebook"
-            iconComponent={
-              <FontAwesome name="facebook" size={20} color="#1877F2" />
-            }
-          />
-          <SocialButton
-            label="המשך עם Apple"
-            iconComponent={<AntDesign name="apple" size={20} color="#000" />}
-          />
 
           {/* ── שורת הרשמה ── */}
           {/* לחיצה על "הירשם" מנווטת למסך ההרשמה באמצעות navigation.navigate */}
@@ -274,6 +225,14 @@ const styles = StyleSheet.create({
     fontSize: 32, // גודל טקסט גדול
     fontFamily: FONTS.extraBold,
     color: "#111", // כמעט שחור
+    textAlign: "center", // ממורכז
+    marginBottom: 36, // רווח מתחת לכותרת
+  },
+
+  title2: {
+    color: "#666",
+    fontSize: 14,
+    fontFamily: FONTS.regular,
     textAlign: "center", // ממורכז
     marginBottom: 36, // רווח מתחת לכותרת
   },
@@ -383,64 +342,28 @@ const styles = StyleSheet.create({
     elevation: 4, // צל באנדרואיד
   },
 
-  // עיצוב הטקסט בתוך כפתור "התחבר"
+  loginButtonDisabled: {
+    backgroundColor: "#555",
+    shadowOpacity: 0,
+    elevation: 0,
+  },
+
   loginButtonText: {
     color: "#fff",
     fontSize: 17,
     fontFamily: FONTS.bold,
-    letterSpacing: 0.5, // מרווח קל בין האותיות
+    letterSpacing: 0.5,
   },
 
-  // עיצוב שורת המפריד "או"
-  dividerRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    width: "100%",
-    marginVertical: 22, // ריווח מעל ומתחת
+  apiErrorText: {
+    color: "#e74c3c",
+    fontSize: 14,
+    fontFamily: FONTS.regular,
+    textAlign: "center",
+    marginTop: 12,
+    marginBottom: 4,
   },
 
-  // הקו האופקי משני צדי ה"או"
-  dividerLine: {
-    flex: 1, // מתפשט למלא את השטח הנותר
-    height: 1,
-    backgroundColor: "#e8e8e8",
-  },
-
-  // עיצוב הטקסט "או" שבין הקווים
-  dividerText: {
-    marginHorizontal: 14,
-    color: "#aaa",
-    fontSize: 13,
-    fontFamily: FONTS.bold,
-  },
-
-  // עיצוב כפתורי הסושיאל (Google / Facebook / Apple)
-  socialButton: {
-    width: "100%",
-    height: 54,
-    borderRadius: 30,
-    borderWidth: 1.5,
-    borderColor: "#e8e8e8",
-    backgroundColor: "#fff",
-    justifyContent: "center", // ממרכז את ה-socialInner בתוך הכפתור
-    alignItems: "center",
-    marginBottom: 12, // ריווח בין הכפתורים
-    // צל עדין
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 3,
-    elevation: 1,
-  },
-
-  // מיכל פנימי שמסדר אייקון + טקסט בשורה ממורכזת
-  socialInner: {
-    flexDirection: "row", // אייקון וטקסט זה לצד זה
-    alignItems: "center",
-    gap: 10, // רווח אחיד בין האייקון לטקסט
-  },
-
-  // עיצוב הטקסט בתוך כפתורי הסושיאל
   socialLabel: {
     fontSize: 15,
     color: "#222",
