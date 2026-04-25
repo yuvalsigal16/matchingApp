@@ -12,6 +12,7 @@ import {
   View,
 } from "react-native";
 import { apiLogin } from "../api/authService";
+import { getUserProfile } from "../api/userProfileService";
 import { setAuth } from "../auth/authStore";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { FONTS } from "../theme/fonts";
@@ -52,7 +53,16 @@ export default function LoginScreen({ navigation }) {
     try {
       const { token, user } = await apiLogin(email, password);
       setAuth(token, user);
-      navigation.navigate("Home");
+
+      // ניתוב חכם: אם יש פרופיל — Home. אם לא — להמשיך את ההרשמה דרך השאלון.
+      // replace במקום navigate כדי שהמסך הזה יוסר מהמחסנית ו-back לא יחזיר לכאן.
+      // השרת מחזיר camelCase (userID ולא UserID).
+      const profile = await getUserProfile(user.userID);
+      if (profile) {
+        navigation.replace("Home");
+      } else {
+        navigation.replace("QuizStart");
+      }
     } catch (err) {
       setApiError(err.message);
     } finally {

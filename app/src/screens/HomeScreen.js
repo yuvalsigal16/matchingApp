@@ -2,19 +2,58 @@ import { Image, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { FONTS } from "../theme/fonts";
 
+import {
+  MessageCircle,
+  MapPin,
+  Bell,
+  Users,
+  ChevronLeft,
+} from "lucide-react-native";
+
 export default function HomeScreen() {
   const MENU_ITEMS = [
-    { title: 'התאמות עבורך', icon: '✉️', color: '#7FB3B3' },
-    { title: 'הטיולים שלי', icon: '💬', color: '#A5C99E' },
-    { title: 'התראות ופעילויות', icon: '👥', color: '#E5A9A9' },
-    { title: 'גילוי וקהילה', icon: '👨‍👩‍👧‍👦', color: '#5B8A8A' },
+    {
+      title: "התאמות עבורך",
+      Icon: MessageCircle,
+      color: "#E6F2F2",
+      tint: '#e0f0f1',
+      ring: '#7bbdbf',
+    },
+    {
+      title: "הטיולים שלי",
+      Icon: MapPin,
+      color: "#EAF3EA",
+      tint: '#e0f0f1',
+      ring: '#7bbdbf',
+    },
+    {
+      title: "התראות ופעילויות",
+      Icon: Bell,
+      color: "#F6E6E6",
+      tint: '#e0f0f1',
+      ring: '#7bbdbf',
+    },
+    {
+      title: "גילוי וקהילה",
+      Icon: Users,
+      color: "#EEE8F6",
+      tint: '#e0f0f1',
+      ring: '#7bbdbf',
+    },
   ];
 
   return (
     <SafeAreaView style={styles.container}>
       {/* תמונת פרופיל קטנה בצד */}
       <View style={styles.header}>
-         <Image source={{ uri: 'https://cdn-icons-png.flaticon.com/512/3135/3135715.png' }} style={styles.profileImg} />
+      <View style={styles.headerTextContainer}>
+          <Text style={styles.greetingText}>שלום, דנה</Text>
+          <Text style={styles.mainTitle}>ברוך הבא לצמד חמד</Text>
+        </View>
+        <Image 
+          source={{ uri: 'https://cdn-icons-png.flaticon.com/512/3135/3135715.png' }} 
+          style={styles.profileImg} 
+        />
       </View>
 
       {/* חלק הלוגו והכותרת - צמצמנו מרווחים כדי שיעלה למעלה */}
@@ -29,11 +68,13 @@ export default function HomeScreen() {
       <View style={styles.menuContainer}>
         {MENU_ITEMS.map((item, index) => (
           <TouchableOpacity key={index} style={[styles.menuItem, { backgroundColor: item.color }]}>
-            <Text style={styles.icon}>{item.icon}</Text>
+            <item.Icon size={24} color="#1A3C40" />
             <Text style={styles.menuText}>{item.title}</Text>
           </TouchableOpacity>
         ))}
       </View>
+
+      
     </SafeAreaView>
   );
 }
