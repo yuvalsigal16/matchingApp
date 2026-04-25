@@ -1,5 +1,6 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import {
+  ActivityIndicator,
   ScrollView,
   StyleSheet,
   Text,
@@ -8,18 +9,43 @@ import {
   View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { getAllInterests } from "../api/interestService";
+import {
+  addTripPreferenceInterest,
+  createTrip,
+  createTripPreferences,
+} from "../api/tripService";
+import { getUser } from "../auth/authStore";
 import { FONTS } from "../theme/fonts";
 
-const INTEREST_OPTIONS = [
-  "אקסטרים",
-  "טבע",
-  "תרבות",
-  "קולינריה",
-  "שופינג",
-  "בטן גב",
-  "מוזיקה",
-  "מסיבות",
-];
+// "DD/MM/YY" או "DD/MM/YYYY" → Date או null אם לא תקין
+function parseDDMMYY(str) {
+  if (!str) return null;
+  const m = /^(\d{1,2})\/(\d{1,2})\/(\d{2,4})$/.exec(str.trim());
+  if (!m) return null;
+  let d = parseInt(m[1], 10);
+  let mo = parseInt(m[2], 10);
+  let y = parseInt(m[3], 10);
+  if (y < 100) y += 2000;
+  if (mo < 1 || mo > 12 || d < 1 || d > 31) return null;
+  const date = new Date(y, mo - 1, d);
+  // ולידציה שה-Date באמת תקף (לא 31/02 וכד')
+  if (date.getFullYear() !== y || date.getMonth() !== mo - 1 || date.getDate() !== d) {
+    return null;
+  }
+  return date;
+}
+
+// המרת תאריך ל-ISO string ללא שעה (השרת מצפה ל-DATE)
+function toIsoDateOnly(date) {
+  return date.toISOString().slice(0, 10);
+}
+
+const GENDER_HE_TO_DB = {
+  גבר: "Male",
+  אישה: "Female",
+  // "הכל" → null (מותר ב-CHECK constraint)
+};
 
 export default function PreferencesQuizScreen({ navigation }) {
   const [prefStep, setPrefStep] = useState(1);
@@ -31,17 +57,106 @@ export default function PreferencesQuizScreen({ navigation }) {
     recommendPeriod: false,
     preferredGender: "",
     ageRange: 25,
-    interests: [],
+    interests: [], // עכשיו: מערך של interestID (מספרים) במקום שמות
   });
 
+  // ── תחומי עניין מהשרת ──
+  const [interestOptions, setInterestOptions] = useState([]);
+  const [interestsLoading, setInterestsLoading] = useState(true);
+
+  // ── מצב שליחה ──
+  const [submitting, setSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState("");
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const data = await getAllInterests();
+        if (!cancelled) setInterestOptions(Array.isArray(data) ? data : []);
+      } catch (err) {
+        if (!cancelled) console.warn("[PreferencesQuiz] interests load failed:", err.message);
+      } finally {
+        if (!cancelled) setInterestsLoading(false);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, []);
+
+  // ── שליחה ל-DB: Trip → TripPreferences → TripPreferenceInterests ──
+  const submitFullTrip = async () => {
+    const u = getUser();
+    if (!u?.userID) {
+      throw new Error("לא נמצא משתמש מחובר. נא להתחבר מחדש.");
+    }
+
+    // ולידציה: יעד + תאריכים תקינים
+    const dest = (tripData.destination || "").trim();
+    if (!dest) throw new Error("יש להזין יעד");
+
+    const start = parseDDMMYY(tripData.startDate);
+    const end = parseDDMMYY(tripData.endDate);
+    if (!start) throw new Error("תאריך יציאה לא תקין (DD/MM/YY)");
+    if (!end) throw new Error("תאריך חזרה לא תקין (DD/MM/YY)");
+
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    if (start < today) throw new Error("תאריך יציאה חייב להיות בעתיד");
+    if (end < start) throw new Error("תאריך חזרה לא יכול להיות לפני תאריך יציאה");
+
+    // 1. יצירת Trip — מקבלים tripID
+    const tripId = await createTrip({
+      CreatedByUserID: u.userID,
+      Destination: dest,
+      StartDate: toIsoDateOnly(start),
+      EndDate: toIsoDateOnly(end),
+    });
+
+    // 2. יצירת TripPreferences — מקבלים tripPreferenceID
+    const ageNum = parseInt(tripData.ageRange, 10);
+    const ageValid = !isNaN(ageNum) && ageNum > 0;
+    const prefId = await createTripPreferences({
+      TripID: tripId,
+      PreferredGender: GENDER_HE_TO_DB[tripData.preferredGender] || null,
+      PreferredAgeMin: ageValid ? ageNum : null,
+      PreferredAgeMax: ageValid ? ageNum : null,
+      // שאר השדות (IsSmoker/KeepsKosher/...) לא נאספים במסך הזה — null
+      IsSmoker: null,
+      KeepsKosher: null,
+      KeepsShabbat: null,
+      SpontaneityLevel: null,
+      LifestyleLevel: null,
+    });
+
+    // 3. שיוך תחומי עניין ל-TripPreference
+    if (Array.isArray(tripData.interests) && tripData.interests.length > 0) {
+      await Promise.all(
+        tripData.interests.map((interestId) =>
+          addTripPreferenceInterest(prefId, interestId),
+        ),
+      );
+    }
+  };
+
   // פונקציית סיום - בודקת אם יש יעד ומנווטת בהתאם
-  const handleFinishQuiz = () => {
+  const handleFinishQuiz = async () => {
+    if (submitting) return;
+
     if (!tripData.destination || tripData.destination.trim() === "") {
-      // אם אין יעד - הולכים לגלגל המזל
+      // אם אין יעד - הולכים לגלגל המזל (Wheel ישמור את ה-Trip בסוף)
       navigation.navigate("Wheel");
-    } else {
-      // אם יש יעד - הולכים ישר לדף הבית
-      navigation.navigate("Home");
+      return;
+    }
+
+    setSubmitError("");
+    setSubmitting(true);
+    try {
+      await submitFullTrip();
+      navigation.replace("Home");
+    } catch (err) {
+      setSubmitError(err.message);
+    } finally {
+      setSubmitting(false);
     }
   };
 
@@ -52,11 +167,12 @@ export default function PreferencesQuizScreen({ navigation }) {
 
   const prevStep = () => setPrefStep((prev) => (prev > 1 ? prev - 1 : 1));
 
-  const toggleInterest = (interest) => {
+  // tripData.interests כעת מכיל interestID-ים (מספרים), לא שמות
+  const toggleInterest = (interestId) => {
     const current = tripData.interests;
-    const newList = current.includes(interest)
-      ? current.filter((i) => i !== interest)
-      : [...current, interest];
+    const newList = current.includes(interestId)
+      ? current.filter((i) => i !== interestId)
+      : [...current, interestId];
     setTripData({ ...tripData, interests: newList });
   };
 
@@ -200,30 +316,43 @@ export default function PreferencesQuizScreen({ navigation }) {
             </View>
 
             <Text style={styles.label}>תחומי עניין:</Text>
-            <View style={styles.interestsGrid}>
-              {INTEREST_OPTIONS.map((opt) => (
-                <TouchableOpacity
-                  key={opt}
-                  style={[
-                    styles.tag,
-                    tripData.interests.includes(opt) && styles.selectedBtn,
-                  ]}
-                  onPress={() => toggleInterest(opt)}
-                >
-                  <Text
-                    style={[
-                      styles.tagText,
-                      tripData.interests.includes(opt) && styles.selectedText,
-                    ]}
-                  >
-                    {opt}
-                  </Text>
-                </TouchableOpacity>
-              ))}
-            </View>
+            {interestsLoading ? (
+              <ActivityIndicator color="#1A3C40" style={{ marginVertical: 16 }} />
+            ) : (
+              <View style={styles.interestsGrid}>
+                {interestOptions.map((opt) => {
+                  const isSelected = tripData.interests.includes(opt.interestID);
+                  return (
+                    <TouchableOpacity
+                      key={opt.interestID}
+                      style={[styles.tag, isSelected && styles.selectedBtn]}
+                      onPress={() => toggleInterest(opt.interestID)}
+                    >
+                      <Text
+                        style={[styles.tagText, isSelected && styles.selectedText]}
+                      >
+                        {opt.interestName}
+                      </Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+            )}
 
-            <TouchableOpacity style={styles.nextBtn} onPress={handleFinishQuiz}>
-              <Text style={styles.nextBtnText}>מוכנים למצוא התאמות</Text>
+            {submitError ? (
+              <Text style={styles.errorText}>{submitError}</Text>
+            ) : null}
+
+            <TouchableOpacity
+              style={[styles.nextBtn, submitting && { opacity: 0.6 }]}
+              onPress={handleFinishQuiz}
+              disabled={submitting}
+            >
+              {submitting ? (
+                <ActivityIndicator color="#1A3C40" />
+              ) : (
+                <Text style={styles.nextBtnText}>מוכנים למצוא התאמות</Text>
+              )}
             </TouchableOpacity>
           </View>
         );
@@ -383,5 +512,12 @@ const styles = StyleSheet.create({
     color: "#555",
     fontSize: 16,
     fontFamily: FONTS.regular,
+  },
+  errorText: {
+    color: "#e74c3c",
+    fontSize: 14,
+    fontFamily: FONTS.regular,
+    textAlign: "center",
+    marginBottom: 12,
   },
 });

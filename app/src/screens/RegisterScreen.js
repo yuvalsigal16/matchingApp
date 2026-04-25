@@ -11,14 +11,12 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
-import { apiRegister } from "../api/authService";
+import { apiLogin, apiRegister } from "../api/authService";
+import { setAuth } from "../auth/authStore";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { FONTS } from "../theme/fonts";
 
 // ── פונקציות בדיקת תקינות ──
-
-// בודקת שהשם לא ריק ומכיל לפחות 2 תווים
-const isValidName = (val) => val.trim().length >= 2;
 
 // בודקת פורמט אימייל תקני (חייב להכיל @ ונקודה אחריה)
 const isValidEmail = (val) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(val.trim());
@@ -71,7 +69,6 @@ const PasswordField = ({
 // ── הקומפוננטה הראשית של מסך ההרשמה ──
 export default function RegisterScreen({ navigation }) {
   // ── State לשדות הקלט ──
-  const [name, setName] = useState(""); // שם מלא
   const [email, setEmail] = useState(""); // כתובת אימייל
   const [password, setPassword] = useState(""); // סיסמה
   const [confirm, setConfirm] = useState(""); // אימות סיסמה
@@ -80,7 +77,6 @@ export default function RegisterScreen({ navigation }) {
   const [showPassword, setShowPassword] = useState(false); // שדה סיסמה
   const [showConfirm, setShowConfirm] = useState(false); // שדה אימות סיסמה
 
-  const [nameError, setNameError] = useState("");
   const [emailError, setEmailError] = useState("");
   const [passwordError, setPasswordError] = useState("");
   const [confirmError, setConfirmError] = useState("");
@@ -88,15 +84,6 @@ export default function RegisterScreen({ navigation }) {
   const [isLoading, setIsLoading] = useState(false);
 
   // ── פונקציות בדיקה — רצות כשהמשתמש עוזב שדה (onBlur) ──
-
-  const validateName = () =>
-    setNameError(
-      !name
-        ? "שדה חובה"
-        : !isValidName(name)
-          ? "שם חייב להכיל לפחות 2 תווים"
-          : "",
-    );
 
   const validateEmail = () =>
     setEmailError(
@@ -122,13 +109,11 @@ export default function RegisterScreen({ navigation }) {
     );
 
   const handleRegister = async () => {
-    validateName();
     validateEmail();
     validatePassword();
     validateConfirm();
 
     if (
-      !isValidName(name) ||
       !isValidEmail(email) ||
       !isValidPassword(password) ||
       !isPasswordMatch(password, confirm)
@@ -139,6 +124,9 @@ export default function RegisterScreen({ navigation }) {
     setIsLoading(true);
     try {
       await apiRegister(email, password);
+      // Auto-login כדי לקבל JWT — נחוץ למסכים הבאים (העלאת תמונה דורשת [Authorize])
+      const { token, user } = await apiLogin(email, password);
+      setAuth(token, user);
       navigation.navigate("QuizStart");
     } catch (err) {
       setApiError(err.message);
@@ -166,25 +154,6 @@ export default function RegisterScreen({ navigation }) {
 
           {/* ── טופס הרשמה ── */}
           <View style={styles.form}>
-            {/* שדה שם מלא */}
-            <TextInput
-              style={[styles.input, nameError ? styles.inputError : null]}
-              placeholder="שם מלא"
-              placeholderTextColor="#aaa"
-              value={name}
-              onChangeText={(v) => {
-                setName(v);
-                setNameError("");
-              }}
-              onBlur={validateName}
-              autoCorrect={false}
-              textAlign="right"
-            />
-            {/* הודעת שגיאה — מוצגת רק אם יש שגיאה */}
-            {nameError ? (
-              <Text style={styles.errorText}>{nameError}</Text>
-            ) : null}
-
             {/* שדה אימייל */}
             <TextInput
               style={[styles.input, emailError ? styles.inputError : null]}

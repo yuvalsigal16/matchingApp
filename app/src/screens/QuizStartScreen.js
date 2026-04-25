@@ -159,7 +159,7 @@ export default function QuizStartScreen({ navigation }) {
       }),
     ]).start(() => {
       // callback: רץ אחרי שהProgress bar הסתיים — עובר למסך השאלון
-      navigation.navigate("Quiz");
+      navigation.replace("Quiz");
     });
   }, [step]); // מתפעל מחדש בכל שינוי של step
 

@@ -1,8 +1,13 @@
-import React, { useState, useRef, useEffect, useCallback } from "react";
+import { Ionicons } from "@expo/vector-icons";
+import * as ImagePicker from "expo-image-picker";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
+  Alert,
   Animated,
+  Image,
   KeyboardAvoidingView,
+  Modal,
   Platform,
   Pressable,
   ScrollView,
@@ -12,24 +17,77 @@ import {
   View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { addUserInterest, getAllInterests } from "../api/interestService";
+import { createQuestionnaire } from "../api/questionnaireService";
+import {
+  createUserProfile,
+  uploadProfileImage,
+} from "../api/userProfileService";
+import { getUser } from "../auth/authStore";
 import { FONTS } from "../theme/fonts";
 
-// ─── Local city data (offline fallback) ──────────────────────────────────────
+// // ─── Local city data (offline fallback) ──────────────────────────────────────
 
-const ISRAELI_CITIES = [
-  "אבו גוש", "אור יהודה", "אור עקיבא", "אילת", "אריאל",
-  "אשדוד", "אשקלון", "באר שבע", "בית שאן", "בית שמש",
-  "בני ברק", "בת ים", "גבעת שמואל", "גבעתיים", "דימונה",
-  "הוד השרון", "הרצליה", "חדרה", "חולון", "חיפה",
-  "טבריה", "טירת כרמל", "יבנה", "יהוד", "ירושלים",
-  "כפר סבא", "כרמיאל", "לוד", "מגדל העמק", "מודיעין",
-  "מודיעין עילית", "מעלה אדומים", "נהריה", "נס ציונה", "נצרת",
-  "נצרת עילית", "נתניה", "עכו", "עפולה", "פתח תקווה",
-  "צפת", "קריית אתא", "קריית ביאליק", "קריית גת", "קריית מוצקין",
-  "קריית שמונה", "קריית ים", "ראש העין", "ראשון לציון", "רהט",
-  "רחובות", "רמלה", "רמת גן", "רמת השרון", "רעננה",
-  "שדרות", "שפרעם", "תל אביב",
-];
+// const ISRAELI_CITIES = [
+//   "אבו גוש",
+//   "אור יהודה",
+//   "אור עקיבא",
+//   "אילת",
+//   "אריאל",
+//   "אשדוד",
+//   "אשקלון",
+//   "באר שבע",
+//   "בית שאן",
+//   "בית שמש",
+//   "בני ברק",
+//   "בת ים",
+//   "גבעת שמואל",
+//   "גבעתיים",
+//   "דימונה",
+//   "הוד השרון",
+//   "הרצליה",
+//   "חדרה",
+//   "חולון",
+//   "חיפה",
+//   "טבריה",
+//   "טירת כרמל",
+//   "יבנה",
+//   "יהוד",
+//   "ירושלים",
+//   "כפר סבא",
+//   "כרמיאל",
+//   "לוד",
+//   "מגדל העמק",
+//   "מודיעין",
+//   "מודיעין עילית",
+//   "מעלה אדומים",
+//   "נהריה",
+//   "נס ציונה",
+//   "נצרת",
+//   "נצרת עילית",
+//   "נתניה",
+//   "עכו",
+//   "עפולה",
+//   "פתח תקווה",
+//   "צפת",
+//   "קריית אתא",
+//   "קריית ביאליק",
+//   "קריית גת",
+//   "קריית מוצקין",
+//   "קריית שמונה",
+//   "קריית ים",
+//   "ראש העין",
+//   "ראשון לציון",
+//   "רהט",
+//   "רחובות",
+//   "רמלה",
+//   "רמת גן",
+//   "רמת השרון",
+//   "רעננה",
+//   "שדרות",
+//   "שפרעם",
+//   "תל אביב",
+// ];
 
 const GENDER_OPTIONS = ["זכר", "נקבה", "אחר"];
 
@@ -39,7 +97,7 @@ const GENDER_OPTIONS = ["זכר", "נקבה", "אחר"];
 // block with your own backend: `fetch(\`https://your-api.com/cities?q=...\`)`
 
 const GEOAPIFY_API_KEY = "b7fddb151bdd4eae8f4afe871bff1da1";
-const GEOAPIFY_URL     = "https://api.geoapify.com/v1/geocode/autocomplete";
+const GEOAPIFY_URL = "https://api.geoapify.com/v1/geocode/autocomplete";
 
 // Module-level LRU-style cache — avoids redundant API calls for the same query
 const cityCache = new Map();
@@ -55,11 +113,11 @@ async function fetchCitySuggestions(query, signal) {
 
   try {
     const params = new URLSearchParams({
-      text:   query,
-      type:   "city",
-      limit:  "6",
-      lang:   "he",
-      bias:   "proximity:34.8516,31.0461", // rank Israeli cities higher
+      text: query,
+      type: "city",
+      limit: "6",
+      lang: "he",
+      bias: "proximity:34.8516,31.0461", // rank Israeli cities higher
       apiKey: GEOAPIFY_API_KEY,
     });
 
@@ -71,11 +129,11 @@ async function fetchCitySuggestions(query, signal) {
     const results = (data.features ?? [])
       .filter((f) => f.properties?.city)
       .map((f) => ({
-        label:   f.properties.formatted ?? f.properties.city,
-        city:    f.properties.city,
+        label: f.properties.formatted ?? f.properties.city,
+        city: f.properties.city,
         country: f.properties.country ?? "",
-        lat:     f.properties.lat ?? f.geometry?.coordinates[1] ?? 0,
-        lon:     f.properties.lon ?? f.geometry?.coordinates[0] ?? 0,
+        lat: f.properties.lat ?? f.geometry?.coordinates[1] ?? 0,
+        lon: f.properties.lon ?? f.geometry?.coordinates[0] ?? 0,
       }))
       .slice(0, 5);
 
@@ -87,10 +145,15 @@ async function fetchCitySuggestions(query, signal) {
   } catch (e) {
     if (e.name === "AbortError") throw e;
     // Network / API failure → local fallback so the field always works
-    return ISRAELI_CITIES
-      .filter((c) => c.includes(query))
+    return ISRAELI_CITIES.filter((c) => c.includes(query))
       .slice(0, 5)
-      .map((name) => ({ label: name, city: name, country: "ישראל", lat: 0, lon: 0 }));
+      .map((name) => ({
+        label: name,
+        city: name,
+        country: "ישראל",
+        lat: 0,
+        lon: 0,
+      }));
   }
 }
 
@@ -102,8 +165,8 @@ async function fetchCitySuggestions(query, signal) {
 
 function useCitySearch(query) {
   const [suggestions, setSuggestions] = useState([]);
-  const [status, setStatus]           = useState("idle"); // "idle"|"loading"|"done"
-  const controllerRef                 = useRef(null);
+  const [status, setStatus] = useState("idle"); // "idle"|"loading"|"done"
+  const controllerRef = useRef(null);
 
   useEffect(() => {
     const trimmed = query.trim();
@@ -151,18 +214,29 @@ const QUESTIONS = [
     title: "קצת על עצמי",
     type: "fields",
     fields: [
-      { key: "name", label: "שם מלא" },
-      { key: "age",  label: "גיל" },
+      { key: "firstName", label: "שם פרטי" },
+      { key: "lastName", label: "שם משפחה" },
+      { key: "age", label: "גיל" },
       { key: "city", label: "מקום מגורים" },
     ],
     hasGender: true,
+    hasImagePicker: true,
     progress: 5,
   },
   {
     id: "interests",
     title: "תחומי עניין של טיול מושלם",
     type: "multi-select",
-    options: ["אקסטרים", "טבע", "תרבות", "קולינריה", "שופינג", "בטן גב", "מוזיקה", "מסיבות"],
+    options: [
+      "אקסטרים",
+      "טבע",
+      "תרבות",
+      "קולינריה",
+      "שופינג",
+      "בטן גב",
+      "מוזיקה",
+      "מסיבות",
+    ],
     progress: 15,
   },
   {
@@ -178,7 +252,7 @@ const QUESTIONS = [
     type: "yes-no-list",
     options: [
       { key: "shabbat", label: "שומר/ת שבת? 🕯️" },
-      { key: "kosher",  label: "שומר/ת כשרות? ✡️" },
+      { key: "kosher", label: "שומר/ת כשרות? ✡️" },
     ],
     progress: 40,
   },
@@ -212,9 +286,11 @@ function getIsAnswered(question, answers) {
       const fieldsOk = question.fields.every((f) => {
         if (f.key === "city") {
           // Must be a selected suggestion object, not just free-typed text
-          return answers.city != null
-            && typeof answers.city === "object"
-            && !!answers.city.city;
+          return (
+            answers.city != null &&
+            typeof answers.city === "object" &&
+            !!answers.city.city
+          );
         }
         const val = (answers[f.key] || "").trim();
         if (!val) return false;
@@ -225,6 +301,7 @@ function getIsAnswered(question, answers) {
         return true;
       });
       const genderOk = !question.hasGender || !!answers.gender;
+      // התמונה היא רשות — לא חוסמים את ה"המשך"
       return fieldsOk && genderOk;
     }
     case "multi-select":
@@ -251,11 +328,31 @@ export default function QuizScreen({ navigation }) {
   // fully resolved { label, city, country, lat, lon } object on selection.
   const [cityInputText, setCityInputText] = useState("");
 
-  const scrollViewRef  = useRef(null);
-  const progressAnim   = useRef(new Animated.Value(QUESTIONS[0].progress)).current;
-  const fadeAnim       = useRef(new Animated.Value(1)).current;
-  const slideAnim      = useRef(new Animated.Value(0)).current;
-  const nextBtnScale   = useRef(new Animated.Value(1)).current;
+  // ── תמונת פרופיל ──
+  const [profileImageUri, setProfileImageUri] = useState(null);
+  const [imagePickerVisible, setImagePickerVisible] = useState(false);
+
+  // ── מצב שליחה לשרת (שלב bio) ──
+  const [submitting, setSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState("");
+  // אחרי שהפרופיל נוצר אנחנו לא יוצרים אותו שוב גם אם המשתמש חוזר וקופץ קדימה
+  const [profileCreated, setProfileCreated] = useState(false);
+  const [interestsSubmitted, setInterestsSubmitted] = useState(false);
+  const [questionnaireSubmitted, setQuestionnaireSubmitted] = useState(false);
+
+  // ── תחומי עניין מהשרת ──
+  // [{ interestID, interestName }] — נטען פעם אחת ב-mount
+  const [interestOptions, setInterestOptions] = useState([]);
+  const [interestsLoading, setInterestsLoading] = useState(true);
+  const [interestsLoadError, setInterestsLoadError] = useState("");
+
+  const scrollViewRef = useRef(null);
+  const progressAnim = useRef(
+    new Animated.Value(QUESTIONS[0].progress),
+  ).current;
+  const fadeAnim = useRef(new Animated.Value(1)).current;
+  const slideAnim = useRef(new Animated.Value(0)).current;
+  const nextBtnScale = useRef(new Animated.Value(1)).current;
 
   const currentQ = QUESTIONS[step];
   const answered = getIsAnswered(currentQ, answers);
@@ -281,30 +378,239 @@ export default function QuizScreen({ navigation }) {
     }).start();
   }, [step]);
 
+  // טעינת תחומי העניין מהשרת — פעם אחת ב-mount
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const data = await getAllInterests();
+        if (!cancelled) {
+          setInterestOptions(Array.isArray(data) ? data : []);
+          setInterestsLoadError("");
+        }
+      } catch (err) {
+        if (!cancelled) {
+          setInterestsLoadError(err.message);
+        }
+      } finally {
+        if (!cancelled) setInterestsLoading(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
   const animateTransition = useCallback(
     (nextStep) => {
       const exitDir = nextStep > step ? -24 : 24;
       Animated.parallel([
-        Animated.timing(fadeAnim,  { toValue: 0, duration: 140, useNativeDriver: true }),
-        Animated.timing(slideAnim, { toValue: exitDir, duration: 140, useNativeDriver: true }),
+        Animated.timing(fadeAnim, {
+          toValue: 0,
+          duration: 140,
+          useNativeDriver: true,
+        }),
+        Animated.timing(slideAnim, {
+          toValue: exitDir,
+          duration: 140,
+          useNativeDriver: true,
+        }),
       ]).start(() => {
         setStep(nextStep);
         slideAnim.setValue(-exitDir);
         Animated.parallel([
-          Animated.timing(fadeAnim,  { toValue: 1, duration: 220, useNativeDriver: true }),
-          Animated.timing(slideAnim, { toValue: 0, duration: 220, useNativeDriver: true }),
+          Animated.timing(fadeAnim, {
+            toValue: 1,
+            duration: 220,
+            useNativeDriver: true,
+          }),
+          Animated.timing(slideAnim, {
+            toValue: 0,
+            duration: 220,
+            useNativeDriver: true,
+          }),
         ]).start();
       });
     },
-    [step]
+    [step],
   );
 
-  const handleNext = () => {
-    if (!answered) return;
+  // ── תמונת פרופיל: בחירה מהגלריה ──
+  const pickFromGallery = useCallback(async () => {
+    setImagePickerVisible(false);
+    const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (!perm.granted) {
+      Alert.alert("נדרשת הרשאה", "נא לאשר גישה לגלריה כדי לבחור תמונה");
+      return;
+    }
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ["images"],
+      allowsEditing: true,
+      aspect: [1, 1],
+      quality: 0.7,
+    });
+    if (!result.canceled && result.assets?.[0]) {
+      setProfileImageUri(result.assets[0].uri);
+    }
+  }, []);
+
+  // ── תמונת פרופיל: צילום במצלמה ──
+  const takePhoto = useCallback(async () => {
+    setImagePickerVisible(false);
+    const perm = await ImagePicker.requestCameraPermissionsAsync();
+    if (!perm.granted) {
+      Alert.alert("נדרשת הרשאה", "נא לאשר גישה למצלמה כדי לצלם תמונה");
+      return;
+    }
+    const result = await ImagePicker.launchCameraAsync({
+      allowsEditing: true,
+      aspect: [1, 1],
+      quality: 0.7,
+    });
+    if (!result.canceled && result.assets?.[0]) {
+      setProfileImageUri(result.assets[0].uri);
+    }
+  }, []);
+
+  // ── שליחת פרופיל ל-UserProfile + העלאת תמונה אם נבחרה ──
+  const submitBioStep = useCallback(async () => {
+    const u = getUser();
+    // השרת מחזיר camelCase (userID ולא UserID)
+    if (!u?.userID) {
+      throw new Error("לא נמצא משתמש מחובר. נא להתחבר מחדש.");
+    }
+
+    // ממירים גיל ל-BirthDate (1 בינואר של השנה המתאימה — קירוב מספק לשרת)
+    const ageNum = parseInt(answers.age, 10);
+    const today = new Date();
+    const birthYear = today.getFullYear() - ageNum;
+    const birthDate = new Date(birthYear, 0, 1).toISOString();
+
+    const profile = {
+      UserID: u.userID,
+      FirstName: (answers.firstName || "").trim(),
+      LastName: (answers.lastName || "").trim(),
+      BirthDate: birthDate,
+      Gender: answers.gender || null,
+      City: answers.city?.city || null,
+    };
+
+    await createUserProfile(profile);
+
+    if (profileImageUri) {
+      try {
+        await uploadProfileImage(u.userID, profileImageUri);
+      } catch (imgErr) {
+        // העלאת תמונה נכשלה — לא חוסם את המשך השאלון
+        console.warn("[QuizScreen] image upload failed:", imgErr.message);
+      }
+    }
+  }, [answers, profileImageUri]);
+
+  // ── שליחת תחומי עניין ל-UserInterests ──
+  const submitInterestsStep = useCallback(async () => {
+    const u = getUser();
+    if (!u?.userID) {
+      throw new Error("לא נמצא משתמש מחובר. נא להתחבר מחדש.");
+    }
+
+    const ids = answers.interests || [];
+    if (ids.length === 0) return;
+
+    // שולחים את כל הבחירות במקביל — כל אחד הוא קריאה נפרדת לשרת
+    await Promise.all(
+      ids.map((interestId) => addUserInterest(u.userID, interestId)),
+    );
+  }, [answers]);
+
+  // ── שליחת השאלון השלם ל-Questionnaire (בסיום) ──
+  const submitQuestionnaireStep = useCallback(async () => {
+    const u = getUser();
+    if (!u?.userID) {
+      throw new Error("לא נמצא משתמש מחובר. נא להתחבר מחדש.");
+    }
+
+    // smoking שמור כ-array (single-select) — הערך היחיד הוא ה-string שנבחר
+    const smokingVal = answers.smoking?.[0];
+    const isSmoker = smokingVal == null ? null : smokingVal === "מעשן/ת 🚬";
+
+    // shabbat / kosher שמורים כ-"כן"/"לא" (yes-no-list)
+    const toBool = (v) => (v == null ? null : v === "כן");
+
+    // social — JSON עם הקישורים. אם שניהם ריקים — שולחים null
+    const social =
+      (answers.instagram || "").trim() || (answers.facebook || "").trim()
+        ? JSON.stringify({
+            instagram: (answers.instagram || "").trim(),
+            facebook: (answers.facebook || "").trim(),
+          })
+        : null;
+
+    const q = {
+      UserID: u.userID,
+      IsSmoker: isSmoker,
+      KeepsShabbat: toBool(answers.shabbat),
+      KeepsKosher: toBool(answers.kosher),
+      SpontaneityLevel: answers.spontaneous ?? null,
+      LifestyleLevel: answers.lifestyle ?? null,
+      SocialNetworks: social,
+    };
+
+    await createQuestionnaire(q);
+  }, [answers]);
+
+  const handleNext = async () => {
+    if (!answered || submitting) return;
+
+    // אם זה שלב ה-bio ולא שלחנו עדיין — שולחים לשרת לפני התקדמות
+    if (currentQ.id === "bio" && !profileCreated) {
+      setSubmitError("");
+      setSubmitting(true);
+      try {
+        await submitBioStep();
+        setProfileCreated(true);
+      } catch (err) {
+        setSubmitError(err.message);
+        setSubmitting(false);
+        return;
+      }
+      setSubmitting(false);
+    }
+
+    // אם זה שלב interests ולא שלחנו עדיין — שולחים את הבחירות ל-UserInterests
+    if (currentQ.id === "interests" && !interestsSubmitted) {
+      setSubmitError("");
+      setSubmitting(true);
+      try {
+        await submitInterestsStep();
+        setInterestsSubmitted(true);
+      } catch (err) {
+        setSubmitError(err.message);
+        setSubmitting(false);
+        return;
+      }
+      setSubmitting(false);
+    }
+
+    // אם זה השלב האחרון (social) — שולחים את כל השאלון ל-Questionnaire
+    if (currentQ.id === "social" && !questionnaireSubmitted) {
+      setSubmitError("");
+      setSubmitting(true);
+      try {
+        await submitQuestionnaireStep();
+        setQuestionnaireSubmitted(true);
+      } catch (err) {
+        setSubmitError(err.message);
+        setSubmitting(false);
+        return;
+      }
+      setSubmitting(false);
+    }
+
     if (step < QUESTIONS.length - 1) {
       animateTransition(step + 1);
     } else {
-      navigation.navigate("PreferencesQuiz");
+      navigation.replace("PreferencesQuiz");
     }
   };
 
@@ -319,18 +625,87 @@ export default function QuizScreen({ navigation }) {
 
   const onNextPressIn = () => {
     if (!answered) return;
-    Animated.spring(nextBtnScale, { toValue: 0.96, useNativeDriver: true, speed: 30, bounciness: 4 }).start();
+    Animated.spring(nextBtnScale, {
+      toValue: 0.96,
+      useNativeDriver: true,
+      speed: 30,
+      bounciness: 4,
+    }).start();
   };
   const onNextPressOut = () => {
-    Animated.spring(nextBtnScale, { toValue: 1, useNativeDriver: true, speed: 30, bounciness: 4 }).start();
+    Animated.spring(nextBtnScale, {
+      toValue: 1,
+      useNativeDriver: true,
+      speed: 30,
+      bounciness: 4,
+    }).start();
   };
 
   // Scroll city input into view after keyboard animation completes
   const handleCityFocus = useCallback(() => {
-    setTimeout(() => scrollViewRef.current?.scrollToEnd({ animated: true }), 400);
+    setTimeout(
+      () => scrollViewRef.current?.scrollToEnd({ animated: true }),
+      400,
+    );
   }, []);
 
   // ─── Field sub-renderers ──────────────────────────────────────────────────
+
+  const renderImagePicker = () => (
+    <View key="profileImage" style={styles.imagePickerWrapper}>
+      <Pressable
+        style={styles.avatarCircle}
+        onPress={() => setImagePickerVisible(true)}
+      >
+        {profileImageUri ? (
+          <Image source={{ uri: profileImageUri }} style={styles.avatarImage} />
+        ) : (
+          <Ionicons name="person" size={48} color="#9AABAD" />
+        )}
+        <View style={styles.cameraBadge}>
+          <Ionicons name="camera" size={16} color="#fff" />
+        </View>
+      </Pressable>
+      <Text style={styles.imagePickerHint}>
+        {profileImageUri ? "הקש להחלפת תמונה" : "הוסף תמונת פרופיל"}
+      </Text>
+    </View>
+  );
+
+  const renderImagePickerModal = () => (
+    <Modal
+      transparent
+      visible={imagePickerVisible}
+      animationType="fade"
+      onRequestClose={() => setImagePickerVisible(false)}
+    >
+      <Pressable
+        style={styles.modalBackdrop}
+        onPress={() => setImagePickerVisible(false)}
+      >
+        <Pressable style={styles.modalCard} onPress={() => {}}>
+          <Text style={styles.modalTitle}>בחירת תמונת פרופיל</Text>
+
+          <Pressable style={styles.modalBtn} onPress={takePhoto}>
+            <Ionicons name="camera" size={22} color="#1A3C40" />
+            <Text style={styles.modalBtnText}>צילום במצלמה</Text>
+          </Pressable>
+
+          <Pressable style={styles.modalBtn} onPress={pickFromGallery}>
+            <Ionicons name="images" size={22} color="#1A3C40" />
+            <Text style={styles.modalBtnText}>בחירה מהגלריה</Text>
+          </Pressable>
+
+          <Pressable
+            style={[styles.modalBtn, styles.modalBtnCancel]}
+            onPress={() => setImagePickerVisible(false)}
+          >
+            <Text style={styles.modalBtnCancelText}>ביטול</Text>
+          </Pressable>
+        </Pressable>
+      </Pressable>
+    </Modal>
+  );
 
   const renderGenderSelector = () => (
     <View key="gender" style={styles.genderCard}>
@@ -344,7 +719,12 @@ export default function QuizScreen({ navigation }) {
               style={[styles.segment, isSelected && styles.segmentActive]}
               onPress={() => updateAnswer("gender", opt)}
             >
-              <Text style={[styles.segmentText, isSelected && styles.segmentTextActive]}>
+              <Text
+                style={[
+                  styles.segmentText,
+                  isSelected && styles.segmentTextActive,
+                ]}
+              >
                 {opt}
               </Text>
             </Pressable>
@@ -355,7 +735,8 @@ export default function QuizScreen({ navigation }) {
   );
 
   const renderCityInput = () => {
-    const showDropdown = showCitySuggestions && cityInputText.trim().length >= 2;
+    const showDropdown =
+      showCitySuggestions && cityInputText.trim().length >= 2;
 
     return (
       <View key="city" style={styles.cityWrapper}>
@@ -374,13 +755,18 @@ export default function QuizScreen({ navigation }) {
               setShowCitySuggestions(val.trim().length >= 2);
             }}
             onFocus={() => {
-              if (cityInputText.trim().length >= 2) setShowCitySuggestions(true);
+              if (cityInputText.trim().length >= 2)
+                setShowCitySuggestions(true);
               handleCityFocus();
             }}
             onBlur={() => setTimeout(() => setShowCitySuggestions(false), 200)}
           />
           {cityLoading && (
-            <ActivityIndicator size="small" color="#aaa" style={styles.citySpinner} />
+            <ActivityIndicator
+              size="small"
+              color="#aaa"
+              style={styles.citySpinner}
+            />
           )}
         </View>
 
@@ -398,7 +784,9 @@ export default function QuizScreen({ navigation }) {
                   style={({ pressed }) => [
                     styles.suggestionItem,
                     pressed && styles.pressedBtn,
-                    idx === citySuggestions.length - 1 && { borderBottomWidth: 0 },
+                    idx === citySuggestions.length - 1 && {
+                      borderBottomWidth: 0,
+                    },
                   ]}
                   onPress={() => {
                     setCityInputText(suggestion.city);
@@ -408,7 +796,9 @@ export default function QuizScreen({ navigation }) {
                 >
                   <Text style={styles.suggestionText}>{suggestion.city}</Text>
                   {suggestion.country ? (
-                    <Text style={styles.suggestionSubText}>{suggestion.country}</Text>
+                    <Text style={styles.suggestionSubText}>
+                      {suggestion.country}
+                    </Text>
                   ) : null}
                 </Pressable>
               ))
@@ -425,6 +815,9 @@ export default function QuizScreen({ navigation }) {
 
   const renderFields = () => {
     const rows = [];
+    if (currentQ.hasImagePicker) {
+      rows.push(renderImagePicker());
+    }
     for (const f of currentQ.fields) {
       if (f.key === "city") {
         rows.push(renderCityInput());
@@ -450,7 +843,7 @@ export default function QuizScreen({ navigation }) {
               }
             }}
             value={answers[f.key] || ""}
-          />
+          />,
         );
       }
       // Inject gender segmented control after the age row
@@ -464,14 +857,45 @@ export default function QuizScreen({ navigation }) {
   // ─── Question renderers ───────────────────────────────────────────────────
 
   const renderSelectOptions = () => {
+    // לתחומי עניין משתמשים ברשימה מהשרת (אובייקטים עם id ושם),
+    // לשאר השאלות ברשימה הקשיחה של מחרוזות.
+    const isInterests = currentQ.id === "interests";
+
+    if (isInterests && interestsLoading) {
+      return (
+        <View style={styles.optionsContainer}>
+          <ActivityIndicator color="#1A3C40" />
+        </View>
+      );
+    }
+
+    if (isInterests && interestsLoadError) {
+      return (
+        <View style={styles.optionsContainer}>
+          <Text style={styles.submitErrorText}>
+            כשל בטעינת תחומי העניין: {interestsLoadError}
+          </Text>
+        </View>
+      );
+    }
+
+    // נורמליזציה: כל אופציה הופכת לאובייקט { value, label }
+    const items = isInterests
+      ? interestOptions.map((o) => ({
+          value: o.interestID,
+          label: o.interestName,
+        }))
+      : currentQ.options.map((o) => ({ value: o, label: o }));
+
     const currentVal = answers[currentQ.id] || [];
+
     return (
       <View style={styles.optionsContainer}>
-        {currentQ.options.map((opt) => {
-          const isSelected = currentVal.includes(opt);
+        {items.map((item) => {
+          const isSelected = currentVal.includes(item.value);
           return (
             <Pressable
-              key={opt}
+              key={String(item.value)}
               style={({ pressed }) => [
                 styles.optionBtn,
                 isSelected && styles.selectedBtn,
@@ -479,16 +903,20 @@ export default function QuizScreen({ navigation }) {
               ]}
               onPress={() => {
                 if (currentQ.type === "single-select") {
-                  updateAnswer(currentQ.id, [opt]);
+                  updateAnswer(currentQ.id, [item.value]);
                 } else {
                   const next = isSelected
-                    ? currentVal.filter((i) => i !== opt)
-                    : [...currentVal, opt];
+                    ? currentVal.filter((i) => i !== item.value)
+                    : [...currentVal, item.value];
                   updateAnswer(currentQ.id, next);
                 }
               }}
             >
-              <Text style={[styles.optionText, isSelected && styles.selectedText]}>{opt}</Text>
+              <Text
+                style={[styles.optionText, isSelected && styles.selectedText]}
+              >
+                {item.label}
+              </Text>
               {isSelected && <Text style={styles.checkmark}>✓</Text>}
             </Pressable>
           );
@@ -514,7 +942,12 @@ export default function QuizScreen({ navigation }) {
                 ]}
                 onPress={() => updateAnswer(item.key, val)}
               >
-                <Text style={[styles.smallOptionText, isSelected && styles.selectedText]}>
+                <Text
+                  style={[
+                    styles.smallOptionText,
+                    isSelected && styles.selectedText,
+                  ]}
+                >
                   {val}
                 </Text>
               </Pressable>
@@ -539,7 +972,11 @@ export default function QuizScreen({ navigation }) {
               ]}
               onPress={() => updateAnswer(currentQ.id, num)}
             >
-              <Text style={[styles.rateText, isSelected && styles.selectedRateText]}>{num}</Text>
+              <Text
+                style={[styles.rateText, isSelected && styles.selectedRateText]}
+              >
+                {num}
+              </Text>
             </Pressable>
           );
         })}
@@ -555,7 +992,7 @@ export default function QuizScreen({ navigation }) {
     <View style={styles.socialContainer}>
       {[
         { key: "instagram", icon: "📸", placeholder: "@username (Instagram)" },
-        { key: "facebook",  icon: "👤", placeholder: "/username (Facebook)" },
+        { key: "facebook", icon: "👤", placeholder: "/username (Facebook)" },
       ].map(({ key, icon, placeholder }) => (
         <View key={key} style={styles.socialInputRow}>
           <Text style={styles.socialIcon}>{icon}</Text>
@@ -576,13 +1013,19 @@ export default function QuizScreen({ navigation }) {
 
   const renderQuestionContent = () => {
     switch (currentQ.type) {
-      case "fields":        return renderFields();
+      case "fields":
+        return renderFields();
       case "multi-select":
-      case "single-select": return renderSelectOptions();
-      case "yes-no-list":   return renderYesNoList();
-      case "rating":        return renderRating();
-      case "social-links":  return renderSocialLinks();
-      default:              return null;
+      case "single-select":
+        return renderSelectOptions();
+      case "yes-no-list":
+        return renderYesNoList();
+      case "rating":
+        return renderRating();
+      case "social-links":
+        return renderSocialLinks();
+      default:
+        return null;
     }
   };
 
@@ -595,6 +1038,7 @@ export default function QuizScreen({ navigation }) {
 
   return (
     <SafeAreaView style={styles.container}>
+      {renderImagePickerModal()}
       <KeyboardAvoidingView
         style={styles.flex}
         behavior={Platform.OS === "ios" ? "padding" : "height"}
@@ -603,7 +1047,9 @@ export default function QuizScreen({ navigation }) {
         {/* Progress bar — lives outside animated area so it's always visible */}
         <View style={styles.progressBarWrapper}>
           <View style={styles.progressTrack}>
-            <Animated.View style={[styles.progressFill, { width: progressWidth }]} />
+            <Animated.View
+              style={[styles.progressFill, { width: progressWidth }]}
+            />
           </View>
           <Text style={styles.progressLabel}>{`${currentQ.progress}%`}</Text>
         </View>
@@ -630,17 +1076,37 @@ export default function QuizScreen({ navigation }) {
 
         {/* Footer */}
         <View style={styles.footer}>
-          <Animated.View style={[styles.nextBtnWrapper, { transform: [{ scale: nextBtnScale }] }]}>
+          {submitError ? (
+            <Text style={styles.submitErrorText}>{submitError}</Text>
+          ) : null}
+          <Animated.View
+            style={[
+              styles.nextBtnWrapper,
+              { transform: [{ scale: nextBtnScale }] },
+            ]}
+          >
             <Pressable
-              style={[styles.nextBtn, !answered && styles.nextBtnDisabled]}
+              style={[
+                styles.nextBtn,
+                (!answered || submitting) && styles.nextBtnDisabled,
+              ]}
               onPress={handleNext}
               onPressIn={onNextPressIn}
               onPressOut={onNextPressOut}
-              disabled={!answered}
+              disabled={!answered || submitting}
             >
-              <Text style={[styles.nextBtnText, !answered && styles.nextBtnTextDisabled]}>
-                {step === QUESTIONS.length - 1 ? "סיום" : "נמשיך הלאה?"}
-              </Text>
+              {submitting ? (
+                <ActivityIndicator color="#fff" />
+              ) : (
+                <Text
+                  style={[
+                    styles.nextBtnText,
+                    !answered && styles.nextBtnTextDisabled,
+                  ]}
+                >
+                  {step === QUESTIONS.length - 1 ? "סיום" : "נמשיך הלאה?"}
+                </Text>
+              )}
             </Pressable>
           </Animated.View>
 
@@ -668,7 +1134,7 @@ const SHADOW = {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: "#E8EDEF" },
-  flex:      { flex: 1, alignItems: "center" },
+  flex: { flex: 1, alignItems: "center" },
 
   // ── Progress ──
   progressBarWrapper: {
@@ -720,6 +1186,105 @@ const styles = StyleSheet.create({
     alignItems: "center",
     paddingHorizontal: 22,
     paddingBottom: 40,
+  },
+
+  // ── Image picker (avatar) ──
+  imagePickerWrapper: {
+    width: "100%",
+    alignItems: "center",
+    marginBottom: 18,
+  },
+  avatarCircle: {
+    width: 110,
+    height: 110,
+    borderRadius: 55,
+    backgroundColor: "#fff",
+    justifyContent: "center",
+    alignItems: "center",
+    overflow: "visible",
+    ...SHADOW,
+  },
+  avatarImage: {
+    width: 110,
+    height: 110,
+    borderRadius: 55,
+  },
+  cameraBadge: {
+    position: "absolute",
+    bottom: 2,
+    right: 2,
+    width: 30,
+    height: 30,
+    borderRadius: 15,
+    backgroundColor: "#1A3C40",
+    justifyContent: "center",
+    alignItems: "center",
+    borderWidth: 2,
+    borderColor: "#E8EDEF",
+  },
+  imagePickerHint: {
+    marginTop: 10,
+    fontSize: 13,
+    fontFamily: FONTS.regular,
+    color: "#666",
+  },
+
+  // ── Image picker modal ──
+  modalBackdrop: {
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.45)",
+    justifyContent: "center",
+    alignItems: "center",
+    paddingHorizontal: 28,
+  },
+  modalCard: {
+    width: "100%",
+    backgroundColor: "#fff",
+    borderRadius: 18,
+    paddingVertical: 18,
+    paddingHorizontal: 14,
+  },
+  modalTitle: {
+    fontSize: 16,
+    fontFamily: FONTS.bold,
+    textAlign: "center",
+    color: "#1A1A1A",
+    marginBottom: 14,
+  },
+  modalBtn: {
+    flexDirection: "row-reverse",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 10,
+    paddingVertical: 14,
+    borderRadius: 12,
+    backgroundColor: "#F4F6F7",
+    marginBottom: 10,
+  },
+  modalBtnText: {
+    fontSize: 16,
+    fontFamily: FONTS.bold,
+    color: "#1A3C40",
+  },
+  modalBtnCancel: {
+    backgroundColor: "transparent",
+    marginBottom: 0,
+    marginTop: 4,
+  },
+  modalBtnCancelText: {
+    fontSize: 15,
+    fontFamily: FONTS.regular,
+    color: "#888",
+  },
+
+  // ── Submit error (footer) ──
+  submitErrorText: {
+    color: "#e74c3c",
+    fontSize: 13,
+    fontFamily: FONTS.regular,
+    textAlign: "center",
+    marginBottom: 8,
+    paddingHorizontal: 24,
   },
 
   // ── Standard text input ──
@@ -868,7 +1433,12 @@ const styles = StyleSheet.create({
   selectedBtn: { backgroundColor: "#1A3C40", shadowOpacity: 0.18 },
   optionText: { fontSize: 17, fontFamily: FONTS.regular, color: "#333" },
   selectedText: { color: "#fff", fontFamily: FONTS.bold },
-  checkmark: { color: "#fff", fontSize: 16, fontFamily: FONTS.bold, marginLeft: 6 },
+  checkmark: {
+    color: "#fff",
+    fontSize: 16,
+    fontFamily: FONTS.bold,
+    marginLeft: 6,
+  },
 
   // ── Yes / No list ──
   yesNoContainer: {
@@ -901,7 +1471,7 @@ const styles = StyleSheet.create({
 
   // ── Rating ──
   ratingWrapper: { alignItems: "center", width: "100%", marginTop: 24 },
-  ratingRow:     { flexDirection: "row", justifyContent: "center", gap: 14 },
+  ratingRow: { flexDirection: "row", justifyContent: "center", gap: 14 },
   rateCircle: {
     width: 58,
     height: 58,
@@ -911,8 +1481,8 @@ const styles = StyleSheet.create({
     alignItems: "center",
     ...SHADOW,
   },
-  selectedRate:     { backgroundColor: "#1A3C40", shadowOpacity: 0.2 },
-  rateText:         { fontSize: 18, fontFamily: FONTS.regular, color: "#333" },
+  selectedRate: { backgroundColor: "#1A3C40", shadowOpacity: 0.2 },
+  rateText: { fontSize: 18, fontFamily: FONTS.regular, color: "#333" },
   selectedRateText: { color: "#fff", fontFamily: FONTS.bold },
   labelRow: {
     flexDirection: "row",
@@ -934,7 +1504,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14,
     ...SHADOW,
   },
-  socialIcon:  { fontSize: 24, padding: 10 },
+  socialIcon: { fontSize: 24, padding: 10 },
   socialInput: {
     flex: 1,
     paddingVertical: 17,
@@ -970,10 +1540,14 @@ const styles = StyleSheet.create({
     ...SHADOW,
     shadowOpacity: 0.2,
   },
-  nextBtnDisabled:     { backgroundColor: "#C8D0D2", shadowOpacity: 0, elevation: 0 },
-  nextBtnText:         { fontFamily: FONTS.bold, fontSize: 18, color: "#fff" },
+  nextBtnDisabled: {
+    backgroundColor: "#C8D0D2",
+    shadowOpacity: 0,
+    elevation: 0,
+  },
+  nextBtnText: { fontFamily: FONTS.bold, fontSize: 18, color: "#fff" },
   nextBtnTextDisabled: { color: "#9AABAD" },
-  backBtn:  { paddingVertical: 6, paddingHorizontal: 10 },
+  backBtn: { paddingVertical: 6, paddingHorizontal: 10 },
   backLink: {
     textDecorationLine: "underline",
     color: "#888",
