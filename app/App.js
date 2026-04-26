@@ -15,6 +15,7 @@ import QuizStartScreen from './src/screens/QuizStartScreen';
 import RegisterScreen from './src/screens/RegisterScreen';
 import SplashScreen from './src/screens/SplashScreen';
 import WheelScreen from './src/screens/WheelScreen';
+import ProfileScreen from './src/screens/PersonalprofileScreen';
 
 const Stack = createStackNavigator();
 export default function App() {
@@ -57,6 +58,7 @@ export default function App() {
       <Stack.Screen name="PreferencesQuiz" component={PreferencesQuizScreen} />
       <Stack.Screen name="Wheel" component={WheelScreen} />
       <Stack.Screen name="Home" component={HomeScreen} />
+      <Stack.Screen name="PersonalProfile" component={PersonalprofileScreen} />
     </Stack.Navigator>
   );
 }
