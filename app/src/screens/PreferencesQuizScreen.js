@@ -1,39 +1,50 @@
-import { Ionicons } from "@expo/vector-icons";
+// ── ייבואים ──
+import { Ionicons } from "@expo/vector-icons"; // אייקונים מוכרים (V/X וכו')
+// אייקונים מותאמים אישית — Globe2 לכותרת ה-intro, Plane/Home לתאריכים, Calendar למועדים
 import { Globe2, Plane, Home, Calendar } from "lucide-react-native";
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import {
-  ActivityIndicator,
-  Animated,
-  KeyboardAvoidingView,
-  Platform,
-  Pressable,
-  ScrollView,
-  StyleSheet,
+  ActivityIndicator,    // אינדיקטור טעינה (ספינר עגול)
+  Animated,             // לאנימציות מעבר בין שאלות
+  KeyboardAvoidingView, // מזיז את התוכן כשהמקלדת עולה
+  Platform,             // מאפשר לבדוק אם זה iOS או Android
+  Pressable,            // כפתור עם פידבק לחיצה
+  ScrollView,           // מאפשר גלילה
+  StyleSheet,           // הגדרת עיצובים
   Text,
-  TextInput,
+  TextInput,            // שדה קלט
   View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { getAllInterests } from "../api/interestService";
+
+// ── שירותי API ──
+import { getAllInterests } from "../api/interestService"; // טעינת תחומי עניין
 import {
-  addTripPreferenceInterest,
-  createTrip,
-  createTripPreferences,
+  addTripPreferenceInterest, // קישור תחום עניין להעדפה
+  createTrip,                 // יצירת טיול חדש
+  createTripPreferences,      // יצירת אובייקט העדפות
 } from "../api/tripService";
-import { getUser } from "../auth/authStore";
+import { getUser } from "../auth/authStore"; // משיכת המשתמש המחובר
 import { FONTS } from "../theme/fonts";
 
-// "DD/MM/YY" או "DD/MM/YYYY" → Date או null אם לא תקין
+// ── פונקציות עזר לתאריכים ──
+
+// המרה ממחרוזת "DD/MM/YY" או "DD/MM/YYYY" לאובייקט Date
+// מחזירה null אם הפורמט שגוי או התאריך לא קיים בלוח השנה
 function parseDDMMYY(str) {
   if (!str) return null;
+  // רגקס לפיצוח 3 קבוצות מספרים מופרדות בלוכסן
   const m = /^(\d{1,2})\/(\d{1,2})\/(\d{2,4})$/.exec(str.trim());
   if (!m) return null;
   let d = parseInt(m[1], 10);
   let mo = parseInt(m[2], 10);
   let y = parseInt(m[3], 10);
+  // אם השנה דו-ספרתית — מוסיפים 2000 (25 → 2025)
   if (y < 100) y += 2000;
+  // ולידציה בסיסית של טווחים
   if (mo < 1 || mo > 12 || d < 1 || d > 31) return null;
-  const date = new Date(y, mo - 1, d);
+  const date = new Date(y, mo - 1, d); // החודש ב-JS מתחיל מ-0
+  // ולידציה: בודקת שהתאריך באמת קיים (למשל 31/2 לא יעבור)
   if (
     date.getFullYear() !== y ||
     date.getMonth() !== mo - 1 ||
@@ -44,132 +55,147 @@ function parseDDMMYY(str) {
   return date;
 }
 
+// ממיר אובייקט Date ל-"YYYY-MM-DD" (פורמט תקני לשרת)
 function toIsoDateOnly(date) {
   return date.toISOString().slice(0, 10);
 }
 
+// ── מיפוי מגדר מעברית לאנגלית (לשרת) ──
+// השרת מצפה לערכים באנגלית; "הכל" מתורגם ל-null (אין העדפה)
 const GENDER_HE_TO_DB = {
   גבר: "Male",
   אישה: "Female",
   // "הכל" → null
 };
 
-// ─── Questions ────────────────────────────────────────────────────────────────
-
+// ─── הגדרת שאלות השאלון ─────────────────────────────────────────────────────
+// כל שאלה מכילה: id (מפתח לשמירה), type (סוג השאלה), title (כותרת), progress (אחוז התקדמות)
+// סדר המערך = סדר הצגת השאלות
 const QUESTIONS = [
   {
-    id: "intro",
+    id: "intro",                                       // מסך פתיחה (לא שאלה אמיתית)
     type: "intro",
     title: "שאלון העדפות טיול",
     subtitle: "בואי נתכנן יחד את הטיול המושלם שלך",
     progress: 0,
   },
   {
-    id: "tripName",
+    id: "tripName",                                    // שם הטיול — שדה טקסט חופשי
     type: "field",
     title: "איך נקרא לטיול שלך?",
     placeholder: "למשל: טיול שחרור לתאילנד",
     progress: 15,
   },
   {
-    id: "destination",
+    id: "destination",                                 // יעד הטיול — לא חובה
     type: "field",
     title: "מה היעד?",
     placeholder: "יעד הטיול (לא חובה)",
-    optional: true,
+    optional: true,                                    // אם ריק — מציע גלגל מזל
     progress: 30,
   },
   {
-    id: "dates",
+    id: "dates",                                       // תאריכי יציאה וחזרה
     type: "dates",
     title: "מתי יוצאים?",
     progress: 50,
   },
   {
-    id: "gender",
+    id: "gender",                                      // העדפת מגדר לפרטנר
     type: "single-select",
     title: "איזה סוג של פרטנר/ית תרצי?",
     options: ["גבר", "אישה", "הכל"],
     progress: 65,
   },
   {
-    id: "age",
+    id: "age",                                         // העדפת גיל לפרטנר
     type: "age",
     title: "איזה גיל מתאים לי?",
     progress: 80,
   },
   {
-    id: "interests",
+    id: "interests",                                   // תחומי עניין — נטענים מהשרת
     type: "multi-select",
     title: "תחומי עניין לטיול",
     progress: 100,
   },
 ];
 
-// ─── Validation ───────────────────────────────────────────────────────────────
-
+// ─── ולידציה ─────────────────────────────────────────────────────────────────
+// בודקת אם השאלה הנוכחית נענתה בצורה תקינה
+// משמשת להפעלה/השבתה של כפתור "המשך"
 function getIsAnswered(question, data) {
   switch (question.type) {
     case "intro":
-      return true;
+      return true; // מסך פתיחה — תמיד "מאושר"
     case "field": {
-      if (question.optional) return true;
-      return !!(data[question.id] || "").trim();
+      if (question.optional) return true; // שדה לא-חובה — תמיד מאושר
+      return !!(data[question.id] || "").trim(); // חובה שיהיה טקסט אחרי trim
     }
     case "dates": {
+      // שני התאריכים חייבים להיות תקינים
       const start = parseDDMMYY(data.startDate);
       const end = parseDDMMYY(data.endDate);
       if (!start || !end) return false;
-      if (end < start) return false;
+      if (end < start) return false; // תאריך חזרה לא יכול להיות לפני יציאה
       return true;
     }
     case "single-select":
-      return !!data[question.id];
+      return !!data[question.id]; // חובה לבחור אופציה
     case "age": {
       const n = parseInt(data.ageRange, 10);
-      return !isNaN(n) && n >= 18 && n <= 99;
+      return !isNaN(n) && n >= 18 && n <= 99; // טווח חוקי: 18-99
     }
     case "multi-select":
+      // חייב לפחות תחום עניין אחד
       return Array.isArray(data.interests) && data.interests.length > 0;
     default:
       return false;
   }
 }
 
-// ─── Component ────────────────────────────────────────────────────────────────
+// ─── הקומפוננטה הראשית ───────────────────────────────────────────────────────
 
 export default function PreferencesQuizScreen({ navigation }) {
+  // מספר השאלה הנוכחית (אינדקס במערך QUESTIONS)
   const [step, setStep] = useState(0);
+
+  // כל הנתונים שנאספו מהמשתמש — אובייקט אחד עם כל השדות
   const [data, setData] = useState({
-    tripName: "",
-    destination: "",
-    startDate: "",
-    endDate: "",
-    recommendPeriod: false,
-    gender: "",
-    ageRange: "",
-    interests: [],
+    tripName: "",        // שם הטיול
+    destination: "",     // יעד
+    startDate: "",       // תאריך יציאה
+    endDate: "",         // תאריך חזרה
+    recommendPeriod: false, // האם להמליץ על תקופה?
+    gender: "",          // העדפת מגדר
+    ageRange: "",        // העדפת גיל
+    interests: [],       // מערך IDs של תחומי עניין
   });
 
-  const [interestOptions, setInterestOptions] = useState([]);
-  const [interestsLoading, setInterestsLoading] = useState(true);
-  const [interestsLoadError, setInterestsLoadError] = useState("");
+  // ── תחומי עניין מהשרת ──
+  const [interestOptions, setInterestOptions] = useState([]);     // הרשימה שנטענה
+  const [interestsLoading, setInterestsLoading] = useState(true); // האם בטעינה?
+  const [interestsLoadError, setInterestsLoadError] = useState(""); // שגיאת טעינה
 
-  const [submitting, setSubmitting] = useState(false);
-  const [submitError, setSubmitError] = useState("");
+  // ── מצב שליחה לשרת ──
+  const [submitting, setSubmitting] = useState(false); // האם בתהליך שליחה?
+  const [submitError, setSubmitError] = useState("");  // שגיאת שליחה
 
+  // ── ערכי אנימציה (useRef שומר ערך בין renders ללא הפעלה מחדש) ──
+  // ערך פס ההתקדמות — מתחיל באחוז של השאלה הראשונה
   const progressAnim = useRef(
     new Animated.Value(QUESTIONS[0].progress),
   ).current;
-  const fadeAnim = useRef(new Animated.Value(1)).current;
-  const slideAnim = useRef(new Animated.Value(0)).current;
-  const nextBtnScale = useRef(new Animated.Value(1)).current;
+  const fadeAnim = useRef(new Animated.Value(1)).current;       // שקיפות בין מעברים
+  const slideAnim = useRef(new Animated.Value(0)).current;      // החלקה בין מעברים
+  const nextBtnScale = useRef(new Animated.Value(1)).current;   // גודל כפתור "המשך"
 
-  const currentQ = QUESTIONS[step];
-  const answered = getIsAnswered(currentQ, data);
+  const currentQ = QUESTIONS[step];                  // השאלה הנוכחית
+  const answered = getIsAnswered(currentQ, data);    // האם נענתה?
 
-  // ── טעינת תחומי עניין מהשרת ──
+  // ── טעינת תחומי עניין מהשרת — פעם אחת בעת טעינת הקומפוננטה ──
   useEffect(() => {
+    // cancelled — דגל למניעת setState אחרי שהקומפוננטה כבר נסגרה
     let cancelled = false;
     (async () => {
       try {
@@ -184,28 +210,33 @@ export default function PreferencesQuizScreen({ navigation }) {
         if (!cancelled) setInterestsLoading(false);
       }
     })();
+    // cleanup: נקרא כשהקומפוננטה נסגרת — מונע memory leaks
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, []); // [] = מערך תלויות ריק → רץ רק פעם אחת
 
-  // ── אנימציית פס התקדמות ──
+  // ── אנימציית פס ההתקדמות — בכל שינוי שלב ──
   useEffect(() => {
     Animated.timing(progressAnim, {
-      toValue: currentQ.progress,
-      duration: 450,
-      useNativeDriver: false,
+      toValue: currentQ.progress,  // מטרה: אחוז השאלה הנוכחית
+      duration: 450,                // 450ms
+      useNativeDriver: false,       // false כי מאנים width שהוא layout property
     }).start();
   }, [step]);
 
+  // ── אנימציית מעבר בין שאלות (fade-out → fade-in) ──
+  // useCallback — הפונקציה נוצרת מחדש רק כשstep משתנה
   const animateTransition = useCallback(
     (nextStep) => {
+      // כיוון ההחלקה: שמאלה אם מתקדמים, ימינה אם חוזרים אחורה
       const exitDir = nextStep > step ? -24 : 24;
+      // שלב 1: פיידאאוט במקביל לתזוזה
       Animated.parallel([
         Animated.timing(fadeAnim, {
           toValue: 0,
           duration: 140,
-          useNativeDriver: true,
+          useNativeDriver: true, // אופטימיזציה — רץ ב-thread גרפי
         }),
         Animated.timing(slideAnim, {
           toValue: exitDir,
@@ -213,8 +244,9 @@ export default function PreferencesQuizScreen({ navigation }) {
           useNativeDriver: true,
         }),
       ]).start(() => {
+        // שלב 2: אחרי שהתוכן נעלם — מחליפים את השאלה ומכניסים אותה מהצד השני
         setStep(nextStep);
-        slideAnim.setValue(-exitDir);
+        slideAnim.setValue(-exitDir); // מתחיל מצד הפוך
         Animated.parallel([
           Animated.timing(fadeAnim, {
             toValue: 1,
@@ -232,50 +264,59 @@ export default function PreferencesQuizScreen({ navigation }) {
     [step],
   );
 
+  // ── עדכון שדה בודד ב-data ──
+  // useCallback מבטיח שאותה פונקציה מחזירה (אופטימיזציית רנדור)
   const updateField = useCallback((key, value) => {
+    // ...prev — מעתיק את כל השדות הקיימים, ומחליף רק את [key]
     setData((prev) => ({ ...prev, [key]: value }));
   }, []);
 
+  // ── הוספה/הסרה של תחום עניין מהמערך ──
   const toggleInterest = useCallback((interestId) => {
     setData((prev) => ({
       ...prev,
+      // אם כבר קיים — מסירים, אחרת מוסיפים (toggle)
       interests: prev.interests.includes(interestId)
         ? prev.interests.filter((i) => i !== interestId)
         : [...prev.interests, interestId],
     }));
   }, []);
 
-  // ── שליחה ל-DB ──
+  // ── שליחת כל נתוני הטיול ל-DB (3 קריאות API) ──
   const submitFullTrip = useCallback(async () => {
     const u = getUser();
     if (!u?.userID) {
       throw new Error("לא נמצא משתמש מחובר. נא להתחבר מחדש.");
     }
 
+    // המרת המידע לפורמט שהשרת מצפה לו
     const dest = (data.destination || "").trim();
     const start = parseDDMMYY(data.startDate);
     const end = parseDDMMYY(data.endDate);
 
+    // ולידציה: תאריך יציאה לא יכול להיות בעבר
     const today = new Date();
-    today.setHours(0, 0, 0, 0);
+    today.setHours(0, 0, 0, 0); // איפוס שעות לתחילת היום
     if (start < today) throw new Error("תאריך יציאה חייב להיות בעתיד");
 
-    // 1. Trip
+    // ── שלב 1: יצירת רשומת Trip ──
     const tripId = await createTrip({
       CreatedByUserID: u.userID,
       Destination: dest,
-      StartDate: toIsoDateOnly(start),
+      StartDate: toIsoDateOnly(start), // YYYY-MM-DD
       EndDate: toIsoDateOnly(end),
     });
 
-    // 2. TripPreferences
+    // ── שלב 2: יצירת רשומת TripPreferences (קשורה ל-Trip) ──
     const ageNum = parseInt(data.ageRange, 10);
     const ageValid = !isNaN(ageNum) && ageNum > 0;
     const prefId = await createTripPreferences({
-      TripID: tripId,
+      TripID: tripId, // מזהה הטיול שנוצר בשלב 1
       PreferredGender: GENDER_HE_TO_DB[data.gender] || null,
+      // אותו גיל ל-Min ול-Max (בעתיד יהיה טווח)
       PreferredAgeMin: ageValid ? ageNum : null,
       PreferredAgeMax: ageValid ? ageNum : null,
+      // שדות לא רלוונטיים לטיול (שייכים לפרופיל המשתמש)
       IsSmoker: null,
       KeepsKosher: null,
       KeepsShabbat: null,
@@ -283,8 +324,9 @@ export default function PreferencesQuizScreen({ navigation }) {
       LifestyleLevel: null,
     });
 
-    // 3. TripPreferenceInterests
+    // ── שלב 3: שמירת תחומי העניין שנבחרו (קישור many-to-many) ──
     if (Array.isArray(data.interests) && data.interests.length > 0) {
+      // Promise.all שולח את כל הקריאות במקביל לחיסכון בזמן
       await Promise.all(
         data.interests.map((interestId) =>
           addTripPreferenceInterest(prefId, interestId),
@@ -293,38 +335,46 @@ export default function PreferencesQuizScreen({ navigation }) {
     }
   }, [data]);
 
+  // ── מטפל בלחיצה על "המשך" ──
   const handleNext = async () => {
+    // אם השאלה לא נענתה או בתהליך שליחה — לא עושים כלום
     if (!answered || submitting) return;
 
-    // שלב אחרון
+    // האם זו השאלה האחרונה?
     if (step === QUESTIONS.length - 1) {
-      // אם אין יעד — גלגל מזל
+      // אם המשתמש לא בחר יעד — מפנה לגלגל המזל
       if (!(data.destination || "").trim()) {
         navigation.navigate("Wheel");
         return;
       }
 
+      // אחרת — שולח את כל הנתונים לשרת
       setSubmitError("");
       setSubmitting(true);
       try {
         await submitFullTrip();
-        navigation.replace("Home");
+        navigation.replace("Home"); // מצליח → מסך הבית
       } catch (err) {
-        setSubmitError(err.message);
+        setSubmitError(err.message); // נכשל → מציג שגיאה
       } finally {
         setSubmitting(false);
       }
       return;
     }
 
+    // שאלה אמצעית — מעבר חלק לשאלה הבאה
     animateTransition(step + 1);
   };
 
+  // ── מטפל בלחיצה על "חזרה" ──
   const handleBack = () => {
+    // אם זו לא השאלה הראשונה — חוזרים לקודמת; אחרת — חוזרים למסך הקודם
     if (step > 0) animateTransition(step - 1);
     else navigation.goBack();
   };
 
+  // ── אנימציות פידבק לכפתור "המשך" ──
+  // בלחיצה — מקטין את הכפתור מעט (אפקט "נלחץ")
   const onNextPressIn = () => {
     if (!answered) return;
     Animated.spring(nextBtnScale, {
@@ -334,6 +384,7 @@ export default function PreferencesQuizScreen({ navigation }) {
       bounciness: 4,
     }).start();
   };
+  // בשחרור — מחזיר לגודל המלא
   const onNextPressOut = () => {
     Animated.spring(nextBtnScale, {
       toValue: 1,
@@ -343,8 +394,10 @@ export default function PreferencesQuizScreen({ navigation }) {
     }).start();
   };
 
-  // ─── Sub-renderers ────────────────────────────────────────────────────────
+  // ─── פונקציות רנדור לכל סוג שאלה ──────────────────────────────────────────
+  // כל סוג שאלה מטופל בפונקציה נפרדת — ארגון נקי וקל לתחזוקה
 
+  // ── מסך הפתיחה — אייקון גדול + כותרת משנה ──
   const renderIntro = () => (
     <View style={styles.introWrapper}>
       <View style={styles.introIconCircle}>
@@ -354,16 +407,19 @@ export default function PreferencesQuizScreen({ navigation }) {
     </View>
   );
 
+  // ── שדה טקסט פשוט (שם הטיול / יעד) ──
   const renderField = () => (
     <View style={styles.fieldsWrapper}>
       <TextInput
         style={styles.input}
         placeholder={currentQ.placeholder}
         placeholderTextColor="#aaa"
-        textAlign="right"
+        textAlign="right" // יישור טקסט לימין (RTL)
         value={data[currentQ.id] || ""}
+        // שמירת הערך ב-data תחת ה-id של השאלה
         onChangeText={(v) => updateField(currentQ.id, v)}
       />
+      {/* טקסט עזרה רק לשדות אופציונליים */}
       {currentQ.optional ? (
         <Text style={styles.hintText}>
           ניתן לדלג — נציע לך יעד אקראי בגלגל המזל
@@ -372,12 +428,15 @@ export default function PreferencesQuizScreen({ navigation }) {
     </View>
   );
 
+  // ── שאלת תאריכים: יציאה + חזרה + checkbox המלצה ──
   const renderDates = () => (
     <View style={styles.fieldsWrapper}>
+      {/* תווית "תאריך יציאה" עם אייקון מטוס */}
       <View style={styles.dateLabelRow}>
         <Plane size={18} color="#1A3C40" strokeWidth={1.8} />
         <Text style={styles.dateLabel}>תאריך יציאה</Text>
       </View>
+      {/* שדה קלט עם אייקון לוח שנה — תאריך יציאה */}
       <View style={styles.dateInputCard}>
         <Calendar size={18} color="#9AABAD" strokeWidth={1.8} />
         <TextInput
@@ -387,14 +446,16 @@ export default function PreferencesQuizScreen({ navigation }) {
           textAlign="right"
           value={data.startDate}
           onChangeText={(v) => updateField("startDate", v)}
-          keyboardType="numbers-and-punctuation"
+          keyboardType="numbers-and-punctuation" // מקלדת מספרים+סימני פיסוק
         />
       </View>
 
+      {/* תווית "תאריך חזרה" עם אייקון בית */}
       <View style={styles.dateLabelRow}>
         <Home size={18} color="#1A3C40" strokeWidth={1.8} />
         <Text style={styles.dateLabel}>תאריך חזרה</Text>
       </View>
+      {/* שדה קלט — תאריך חזרה */}
       <View style={styles.dateInputCard}>
         <Calendar size={18} color="#9AABAD" strokeWidth={1.8} />
         <TextInput
@@ -408,18 +469,21 @@ export default function PreferencesQuizScreen({ navigation }) {
         />
       </View>
 
+      {/* checkbox עם טקסט — לחיצה הופכת את המצב הבוליאני */}
       <Pressable
         style={styles.checkboxRow}
         onPress={() =>
           updateField("recommendPeriod", !data.recommendPeriod)
         }
       >
+        {/* ריבוע ה-checkbox — מקבל סגנון נוסף כשמסומן */}
         <View
           style={[
             styles.checkbox,
             data.recommendPeriod && styles.checkboxChecked,
           ]}
         >
+          {/* סימן וי — מוצג רק כשמסומן */}
           {data.recommendPeriod && (
             <Ionicons name="checkmark" size={16} color="#fff" />
           )}
@@ -429,13 +493,16 @@ export default function PreferencesQuizScreen({ navigation }) {
     </View>
   );
 
+  // ── שאלת בחירה יחידה (single-select) — בחירת מגדר ──
   const renderSingleSelect = () => (
     <View style={styles.optionsContainer}>
+      {/* רנדור של כל אופציה כפרטה לחיצה */}
       {currentQ.options.map((opt) => {
         const isSelected = data[currentQ.id] === opt;
         return (
           <Pressable
             key={opt}
+            // סגנון דינמי: רגיל / נבחר / נלחץ
             style={({ pressed }) => [
               styles.optionBtn,
               isSelected && styles.selectedBtn,
@@ -448,6 +515,7 @@ export default function PreferencesQuizScreen({ navigation }) {
             >
               {opt}
             </Text>
+            {/* סימון וי — רק לאופציה שנבחרה */}
             {isSelected && <Text style={styles.checkmark}>✓</Text>}
           </Pressable>
         );
@@ -455,6 +523,7 @@ export default function PreferencesQuizScreen({ navigation }) {
     </View>
   );
 
+  // ── שאלת גיל — שדה מספר עם ולידציה (18-99) ──
   const renderAge = () => (
     <View style={styles.fieldsWrapper}>
       <Text style={styles.ageHint}>גיל מועדף לפרטנר/ית</Text>
@@ -463,10 +532,11 @@ export default function PreferencesQuizScreen({ navigation }) {
         placeholder="הקלידי גיל (18-99)"
         placeholderTextColor="#aaa"
         textAlign="center"
-        keyboardType="numeric"
-        maxLength={2}
+        keyboardType="numeric" // רק מקלדת מספרים
+        maxLength={2}           // מקסימום 2 ספרות
         value={String(data.ageRange || "")}
         onChangeText={(v) => {
+          // מסיר כל תו שאינו ספרה (אבטחה נוספת)
           const clean = v.replace(/[^0-9]/g, "");
           updateField("ageRange", clean);
         }}
@@ -474,7 +544,9 @@ export default function PreferencesQuizScreen({ navigation }) {
     </View>
   );
 
+  // ── שאלת multi-select — תחומי עניין מהשרת ──
   const renderMultiSelect = () => {
+    // מצב טעינה — מציג ספינר
     if (interestsLoading) {
       return (
         <View style={styles.optionsContainer}>
@@ -483,6 +555,7 @@ export default function PreferencesQuizScreen({ navigation }) {
       );
     }
 
+    // מצב שגיאה — מציג הודעת שגיאה
     if (interestsLoadError) {
       return (
         <View style={styles.optionsContainer}>
@@ -493,9 +566,11 @@ export default function PreferencesQuizScreen({ navigation }) {
       );
     }
 
+    // הצלחה — מציג רשת של תגיות לחיצות
     return (
       <View style={styles.tagsGrid}>
         {interestOptions.map((opt) => {
+          // האם התג הזה כבר נבחר?
           const isSelected = data.interests.includes(opt.interestID);
           return (
             <Pressable
@@ -505,7 +580,7 @@ export default function PreferencesQuizScreen({ navigation }) {
                 isSelected && styles.tagSelected,
                 pressed && !isSelected && styles.pressedBtn,
               ]}
-              onPress={() => toggleInterest(opt.interestID)}
+              onPress={() => toggleInterest(opt.interestID)} // toggle
             >
               <Text
                 style={[

@@ -109,10 +109,14 @@ export default function RegisterScreen({ navigation }) {
     );
 
   const handleRegister = async () => {
+
+    //בדיקות UI בלבד
+    //להציג שגיאות למשתמש על המסך
     validateEmail();
     validatePassword();
     validateConfirm();
 
+    //תפקיד הבדיקה היא לעצור שליחה לשרת אם הנתונים לא תקינים
     if (
       !isValidEmail(email) ||
       !isValidPassword(password) ||
@@ -123,14 +127,16 @@ export default function RegisterScreen({ navigation }) {
     setApiError("");
     setIsLoading(true);
     try {
+      //הרשמת המשתמש
       await apiRegister(email, password);
-      // Auto-login כדי לקבל JWT — נחוץ למסכים הבאים (העלאת תמונה דורשת [Authorize])
+      //התחברות אוטומטית אחרי הרשמה
       const { token, user } = await apiLogin(email, password);
       setAuth(token, user);
       navigation.navigate("QuizStart");
     } catch (err) {
       setApiError(err.message);
     } finally {
+      //לבטל/לאפס מצב טעינה
       setIsLoading(false);
     }
   };
