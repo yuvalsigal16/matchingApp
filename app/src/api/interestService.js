@@ -11,7 +11,9 @@ export async function getAllInterests() {
     res = await fetch(url);
   } catch (networkErr) {
     console.error(`[interest] ✖ network error:`, networkErr);
-    throw new Error(`לא ניתן להתחבר לשרת (${url}). פרטים: ${networkErr.message}`);
+    throw new Error(
+      `לא ניתן להתחבר לשרת (${url}). פרטים: ${networkErr.message}`,
+    );
   }
 
   console.log(`[interest] ← ${res.status} ${res.statusText}`);
@@ -19,14 +21,17 @@ export async function getAllInterests() {
   const text = await res.text();
   if (!res.ok) {
     let msg = text;
-    try { msg = JSON.parse(text)?.message || msg; } catch {}
+    try {
+      msg = JSON.parse(text)?.message || msg;
+    } catch {}
     throw new Error(msg || `שגיאה ${res.status} מהשרת`);
   }
 
+  // וידוא שהתשובה תקינה והמרת רשימת תחומי העניין למערך של אובייקטים. אם הרשימה ריקה נחזיר מערך ריק
   return text ? JSON.parse(text) : [];
 }
 
-// מקשר משתמש לתחום עניין. השרת מצפה ל-query string ולא ל-body
+// הוספת תחום עניין למשתמש ספציפי על ידי שליחת המזהים כפרמטרים בכתובת ה-URL (Query String)
 // (ב-controller אין [FromBody], ברירת המחדל היא [FromQuery]).
 export async function addUserInterest(userId, interestId) {
   const url = `${BASE_URL}/UserInterest?userId=${userId}&interestId=${interestId}`;
@@ -34,6 +39,7 @@ export async function addUserInterest(userId, interestId) {
 
   let res;
   try {
+    // ביצוע בקשת POST לשרת ללא גוף הודעה מכיוון שהנתונים נשלחים בכתובת עצמה
     res = await fetch(url, { method: "POST" });
   } catch (networkErr) {
     console.error(`[interest] ✖ network error:`, networkErr);
@@ -45,7 +51,9 @@ export async function addUserInterest(userId, interestId) {
   const text = await res.text();
   if (!res.ok) {
     let msg = text;
-    try { msg = JSON.parse(text)?.message || msg; } catch {}
+    try {
+      msg = JSON.parse(text)?.message || msg;
+    } catch {}
     throw new Error(msg || `שגיאה ${res.status} מהשרת`);
   }
 

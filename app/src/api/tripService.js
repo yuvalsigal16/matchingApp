@@ -1,5 +1,5 @@
-import { BASE_URL } from "./config";
 import { getToken } from "../auth/authStore";
+import { BASE_URL } from "./config";
 
 // יוצר Trip חדש ב-DB. חובת [Authorize] בשרת — שולחים JWT.
 // trip = { CreatedByUserID, Destination, StartDate (ISO), EndDate (ISO) }
@@ -10,6 +10,7 @@ export async function createTrip(trip) {
   const token = getToken();
   let res;
   try {
+    // שליחת בקשת יצירת טיול בצירוף טוקן אבטחה (JWT) לזיהוי המשתמש המחובר
     res = await fetch(url, {
       method: "POST",
       headers: {
@@ -20,7 +21,9 @@ export async function createTrip(trip) {
     });
   } catch (networkErr) {
     console.error(`[trip] ✖ network error:`, networkErr);
-    throw new Error(`לא ניתן להתחבר לשרת (${url}). פרטים: ${networkErr.message}`);
+    throw new Error(
+      `לא ניתן להתחבר לשרת (${url}). פרטים: ${networkErr.message}`,
+    );
   }
 
   console.log(`[trip] ← ${res.status} ${res.statusText}`);
@@ -28,7 +31,9 @@ export async function createTrip(trip) {
   const text = await res.text();
   if (!res.ok) {
     let msg = text;
-    try { msg = JSON.parse(text)?.message || msg; } catch {}
+    try {
+      msg = JSON.parse(text)?.message || msg;
+    } catch {}
     throw new Error(msg || `שגיאה ${res.status} מהשרת`);
   }
 
@@ -38,6 +43,7 @@ export async function createTrip(trip) {
 
 // יוצר העדפות לטיול. UNIQUE על TripID.
 // pref = { TripID, PreferredGender, PreferredAgeMin, PreferredAgeMax, IsSmoker, KeepsKosher, KeepsShabbat, SpontaneityLevel, LifestyleLevel }
+// שליחת העדפות הפרטנר המבוקש לטיול (גיל, מגדר וכו') ושמירתן בשרת
 export async function createTripPreferences(pref) {
   const url = `${BASE_URL}/TripPreferences`;
   console.log(`[trip-pref] → POST ${url}`, pref);
@@ -51,7 +57,9 @@ export async function createTripPreferences(pref) {
     });
   } catch (networkErr) {
     console.error(`[trip-pref] ✖ network error:`, networkErr);
-    throw new Error(`לא ניתן להתחבר לשרת (${url}). פרטים: ${networkErr.message}`);
+    throw new Error(
+      `לא ניתן להתחבר לשרת (${url}). פרטים: ${networkErr.message}`,
+    );
   }
 
   console.log(`[trip-pref] ← ${res.status} ${res.statusText}`);
@@ -59,15 +67,19 @@ export async function createTripPreferences(pref) {
   const text = await res.text();
   if (!res.ok) {
     let msg = text;
-    try { msg = JSON.parse(text)?.message || msg; } catch {}
+    try {
+      msg = JSON.parse(text)?.message || msg;
+    } catch {}
     throw new Error(msg || `שגיאה ${res.status} מהשרת`);
   }
 
   // ה-controller מחזיר int (tripPreferenceID)
+  //הפונקציה מחזירה את ה-ID של ההעדפות שנוצרו בשרת, כדי שנוכל להשתמש בו מיד אחר כך כדי להוסיף תחומי עניין לטיול
   return text ? JSON.parse(text) : null;
 }
 
 // מקשר תחום עניין להעדפת טיול. השרת מצפה ל-query string (אין [FromBody] ב-controller).
+// קישור תחומי עניין ספציפיים להעדפות הטיול באמצעות פרמטרים בכתובת ה-URL
 export async function addTripPreferenceInterest(tripPreferenceId, interestId) {
   const url = `${BASE_URL}/TripPreferenceInterests?tripPreferenceID=${tripPreferenceId}&interestID=${interestId}`;
   console.log(`[trip-pref-int] → POST ${url}`);
@@ -85,7 +97,9 @@ export async function addTripPreferenceInterest(tripPreferenceId, interestId) {
   const text = await res.text();
   if (!res.ok) {
     let msg = text;
-    try { msg = JSON.parse(text)?.message || msg; } catch {}
+    try {
+      msg = JSON.parse(text)?.message || msg;
+    } catch {}
     throw new Error(msg || `שגיאה ${res.status} מהשרת`);
   }
 
