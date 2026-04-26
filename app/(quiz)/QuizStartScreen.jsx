@@ -1,5 +1,6 @@
 // ייבוא ספריית Lottie להרצת אנימציות JSON מקצועיות
 import LottieView from "lottie-react-native";
+import { useRouter } from "expo-router";
 
 // ייבוא React עם שלושה hooks:
 // useEffect — מריץ קוד בתגובה לשינויים
@@ -19,7 +20,7 @@ import {
 
 // מוודא שהתוכן לא נחסם על ידי notch או סרגל ניווט
 import { SafeAreaView } from "react-native-safe-area-context";
-import { FONTS } from "../theme/fonts";
+import { FONTS } from "../src/theme/fonts";
 
 // שומר את רוחב המסך — ישמש לחישוב גדלים יחסיים
 const { width } = Dimensions.get("window");
@@ -115,7 +116,8 @@ function StepDots({ active }) {
 // מנהלת את כל לוגיקת המסך: טיימרים, מעברים, progress bar
 // מקבלת: navigation — אובייקט לניווט בין מסכים
 // ══════════════════════════════════════════════════════════
-export default function QuizStartScreen({ navigation }) {
+export default function QuizStartScreen() {
+  const router = useRouter();
 
   // step = מספר השלב הנוכחי (0/1/2)
   // setStep = פונקציה לשינוי השלב שגורמת לrender מחדש
@@ -159,7 +161,7 @@ export default function QuizStartScreen({ navigation }) {
       }),
     ]).start(() => {
       // callback: רץ אחרי שהProgress bar הסתיים — עובר למסך השאלון
-      navigation.replace("Quiz");
+      router.replace("/Quiz");
     });
   }, [step]); // מתפעל מחדש בכל שינוי של step
 
@@ -184,7 +186,7 @@ export default function QuizStartScreen({ navigation }) {
           speed={1}: מהירות רגילה (1 = נורמל, 2 = כפול)
           הLottie נטען פעם אחת ולא מאופס בין המשפטים */}
       <LottieView
-        source={require("../../../assets/lottie/road trip.json")}
+        source={require("../../assets/lottie/road trip.json")}
         autoPlay
         loop={false}
         speed={1}

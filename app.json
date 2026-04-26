@@ -45,7 +45,8 @@
           "photosPermission": "האפליקציה צריכה גישה לגלריה כדי לבחור תמונת פרופיל",
           "cameraPermission": "האפליקציה צריכה גישה למצלמה כדי לצלם תמונת פרופיל"
         }
-      ]
+      ],
+      "@react-native-community/datetimepicker"
     ],
     "experiments": {
       "typedRoutes": true,

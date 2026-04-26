@@ -1,4 +1,5 @@
 import { Ionicons } from "@expo/vector-icons";
+import { useRouter } from "expo-router";
 import React, { useState } from "react";
 import {
   ActivityIndicator,
@@ -11,10 +12,10 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
-import { apiLogin, apiRegister } from "../api/authService";
-import { setAuth } from "../auth/authStore";
+import { apiLogin, apiRegister } from "../src/api/authService";
+import { setAuth } from "../src/auth/authStore";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { FONTS } from "../theme/fonts";
+import { FONTS } from "../src/theme/fonts";
 
 // ── פונקציות בדיקת תקינות ──
 
@@ -67,7 +68,8 @@ const PasswordField = ({
 );
 
 // ── הקומפוננטה הראשית של מסך ההרשמה ──
-export default function RegisterScreen({ navigation }) {
+export default function RegisterScreen() {
+  const router = useRouter();
   // ── State לשדות הקלט ──
   const [email, setEmail] = useState(""); // כתובת אימייל
   const [password, setPassword] = useState(""); // סיסמה
@@ -132,7 +134,7 @@ export default function RegisterScreen({ navigation }) {
       //התחברות אוטומטית אחרי הרשמה
       const { token, user } = await apiLogin(email, password);
       setAuth(token, user);
-      navigation.navigate("QuizStart");
+      router.replace("/QuizStartScreen");
     } catch (err) {
       setApiError(err.message);
     } finally {
@@ -235,7 +237,7 @@ export default function RegisterScreen({ navigation }) {
           {/* View ממורכז עם שני אלמנטים בשורה אחת */}
           <View style={styles.centeredRow}>
             <TouchableOpacity
-              onPress={() => navigation.navigate("Login")}
+              onPress={() => router.replace("/Login")}
               activeOpacity={0.7}
             >
               <Text style={styles.linkText}>התחבר</Text>
@@ -257,12 +259,13 @@ const styles = StyleSheet.create({
     backgroundColor: "#fff",
   },
 
-  // תוכן ה-ScrollView — ממורכז עם ריווחים
+  // תוכן ה-ScrollView — ממורכז אנכית במסך
   scroll: {
+    flexGrow: 1,
+    justifyContent: "center",
     alignItems: "center",
     paddingHorizontal: 28,
-    paddingBottom: 48,
-    paddingTop: 40,
+    paddingVertical: 32,
   },
 
   // כותרת "צור חשבון"

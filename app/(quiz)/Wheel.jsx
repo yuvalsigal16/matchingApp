@@ -22,8 +22,9 @@ import {
 
 // SafeAreaView — מבטיח שהתוכן לא ייחסם על ידי ה-notch או סרגל הניווט
 import { SafeAreaView } from "react-native-safe-area-context";
+import { useRouter } from "expo-router";
 // פונטים מותאמים של האפליקציה
-import { FONTS } from "../theme/fonts";
+import { FONTS } from "../src/theme/fonts";
 
 // גודל הגלגל בפיקסלים — בסיס לחישוב כל המידות הפנימיות
 const WHEEL_SIZE = 290;
@@ -58,7 +59,8 @@ const DESTINATIONS_POOL = [
 
 // ── הקומפוננטה הראשית של מסך גלגל המזל ──
 // מסך זה מוצג כאשר המשתמש מדלג על בחירת יעד בשאלון ההעדפות
-export default function WheelScreen({ navigation }) {
+export default function WheelScreen() {
+  const router = useRouter();
   // ── ערכי אנימציה ──
   // ערך הסיבוב הנוכחי של הגלגל (0 = עומד במקום, גדל בכל סיבוב)
   // useRef מונע יצירה מחדש בכל render
@@ -146,7 +148,7 @@ export default function WheelScreen({ navigation }) {
             styles.backBtn,
             pressed && { opacity: 0.5 }, // עמעום בלחיצה
           ]}
-          onPress={() => navigation.goBack()}
+          onPress={() => router.back()}
         >
           <ChevronRight size={26} color="#1A3C40" strokeWidth={2} />
         </Pressable>
@@ -309,7 +311,7 @@ export default function WheelScreen({ navigation }) {
               styles.confirmBtn,
               pressed && { opacity: 0.85 },
             ]}
-            onPress={() => navigation.replace("Home")}
+            onPress={() => router.replace("/Home")}
           >
             <Text style={styles.confirmBtnText}>זה היעד שלי!</Text>
           </Pressable>
@@ -321,7 +323,7 @@ export default function WheelScreen({ navigation }) {
             styles.skipBtn,
             pressed && { opacity: 0.5 },
           ]}
-          onPress={() => navigation.replace("Home")}
+          onPress={() => router.replace("/Home")}
           disabled={isSpinning}
         >
           <Text style={styles.skipText}>דלגי בלי לבחור יעד</Text>

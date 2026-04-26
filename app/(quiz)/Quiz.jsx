@@ -1,5 +1,7 @@
 import { Ionicons } from "@expo/vector-icons";
+import DateTimePicker from "@react-native-community/datetimepicker";
 import * as ImagePicker from "expo-image-picker";
+import { useRouter } from "expo-router";
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
@@ -17,14 +19,14 @@ import {
   View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { addUserInterest, getAllInterests } from "../api/interestService";
-import { createQuestionnaire } from "../api/questionnaireService";
+import { addUserInterest, getAllInterests } from "../src/api/interestService";
+import { createQuestionnaire } from "../src/api/questionnaireService";
 import {
   createUserProfile,
   uploadProfileImage,
-} from "../api/userProfileService";
-import { getUser } from "../auth/authStore";
-import { FONTS } from "../theme/fonts";
+} from "../src/api/userProfileService";
+import { getUser } from "../src/auth/authStore";
+import { FONTS } from "../src/theme/fonts";
 
 
 const GENDER_OPTIONS = ["זכר", "נקבה", "אחר"];
@@ -154,7 +156,7 @@ const QUESTIONS = [
     fields: [
       { key: "firstName", label: "שם פרטי" },
       { key: "lastName", label: "שם משפחה" },
-      { key: "age", label: "גיל" },
+      { key: "birthDate", label: "תאריך לידה" },
       { key: "city", label: "מקום מגורים" },
     ],
     hasGender: true,
@@ -230,12 +232,18 @@ function getIsAnswered(question, answers) {
             !!answers.city.city
           );
         }
+        if (f.key === "birthDate") {
+          // birthDate נשמר כאובייקט Date — חייב להיות בתאריך תקף וגיל 18+
+          const d = answers.birthDate;
+          if (!(d instanceof Date) || isNaN(d.getTime())) return false;
+          const today = new Date();
+          let age = today.getFullYear() - d.getFullYear();
+          const m = today.getMonth() - d.getMonth();
+          if (m < 0 || (m === 0 && today.getDate() < d.getDate())) age--;
+          return age >= 18 && age <= 120;
+        }
         const val = (answers[f.key] || "").trim();
         if (!val) return false;
-        if (f.key === "age") {
-          const n = parseInt(val, 10);
-          return !isNaN(n) && n >= 1 && n <= 120;
-        }
         return true;
       });
       const genderOk = !question.hasGender || !!answers.gender;
@@ -258,7 +266,8 @@ function getIsAnswered(question, answers) {
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
-export default function QuizScreen({ navigation }) {
+export default function QuizScreen() {
+  const router = useRouter();
   const [step, setStep] = useState(0);
   const [answers, setAnswers] = useState({});
   const [showCitySuggestions, setShowCitySuggestions] = useState(false);
@@ -269,6 +278,9 @@ export default function QuizScreen({ navigation }) {
   // ── תמונת פרופיל ──
   const [profileImageUri, setProfileImageUri] = useState(null);
   const [imagePickerVisible, setImagePickerVisible] = useState(false);
+
+  // ── בורר תאריך לידה ──
+  const [birthDatePickerVisible, setBirthDatePickerVisible] = useState(false);
 
   // ── מצב שליחה לשרת (שלב bio) ──
   const [submitting, setSubmitting] = useState(false);
@@ -548,13 +560,13 @@ export default function QuizScreen({ navigation }) {
     if (step < QUESTIONS.length - 1) {
       animateTransition(step + 1);
     } else {
-      navigation.replace("PreferencesQuiz");
+      router.replace("/PreferencesQuiz");
     }
   };
 
   const handleBack = () => {
     if (step > 0) animateTransition(step - 1);
-    else navigation.goBack();
+    else router.back();
   };
 
   const updateAnswer = useCallback((key, value) => {

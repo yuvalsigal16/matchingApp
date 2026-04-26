@@ -1,5 +1,5 @@
-import App from "./App";
+import { Redirect, type Href } from "expo-router";
 
 export default function Index() {
-  return <App />;
+  return <Redirect href={"/SplashScreen" as Href} />;
 }
