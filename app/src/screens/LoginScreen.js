@@ -21,6 +21,7 @@ const isValidEmail = (val) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(val.trim());
 const isValidPassword = (val) => val.length >= 6;
 
 export default function LoginScreen({ navigation }) {
+  //שומר מה שהמשתמש מקליד באימייל ובסיסמה, וגם מצבים של הצגת סיסמה, שגיאות, וטעינה
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
@@ -43,20 +44,27 @@ export default function LoginScreen({ navigation }) {
           : "",
     );
 
+
+    //פעולה א-סינכרונית
   const handleLogin = async () => {
     validateEmail();
     validatePassword();
     if (!isValidEmail(email) || !isValidPassword(password)) return;
 
+    //מנקה שגיאה קודמת ומפעיל מצב טעינה
     setApiError("");
     setIsLoading(true);
+
     try {
+      //קורא לפונקציה apiLogin (קריאה לשרת)
+
       const { token, user } = await apiLogin(email, password);
       setAuth(token, user);
 
       // ניתוב חכם: אם יש פרופיל — Home. אם לא — להמשיך את ההרשמה דרך השאלון.
       // replace במקום navigate כדי שהמסך הזה יוסר מהמחסנית ו-back לא יחזיר לכאן.
-      // השרת מחזיר camelCase (userID ולא UserID).
+
+      //שליחת בקשה לשרת על מנת לבדוק האם יש למשתמש פרופיל
       const profile = await getUserProfile(user.userID);
       if (profile) {
         navigation.replace("Home");
@@ -70,10 +78,11 @@ export default function LoginScreen({ navigation }) {
     }
   };
 
-  const handleForgotPassword = () => console.log("Forgot password");
+
+  // const handleForgotPassword = () => console.log("Forgot password");
 
   return (
-    // SafeAreaView - מוודא שהתוכן לא נחסם על ידי ה-notch או סרגל הניווט
+    //SafeAreaview - שומר על עיצוב נקי ובטוח ומוודא שהתוכן לא נחסם
     <SafeAreaView style={styles.safe}>
       {/* KeyboardAvoidingView - מזיז את כל התוכן כלפי מעלה כשהמקלדת עולה
           ב-iOS משתמשים ב-"padding", באנדרואיד לא צריך (undefined) */}
@@ -96,30 +105,31 @@ export default function LoginScreen({ navigation }) {
             {/* שדה אימייל:
           - style משנה את המראה לאדום אם יש שגיאה (emailError)
           - onChangeText מעדכן את הstate ומנקה שגיאה בכל הקלדה
-          - onBlur מפעיל בדיקת תקינות כשהמשתמש עוזב את השדה
-          - keyboardType="email-address" פותח מקלדת מתאימה לאימייל */}
+          */}
             <TextInput
               style={[styles.input, emailError ? styles.inputError : null]}
               placeholder="כתובת אימייל"
               placeholderTextColor="#aaa"
-              value={email}
+              value={email} //הערך של השדה
+              //מעדכן את השדה של האימייל
               onChangeText={(v) => {
                 setEmail(v);
                 setEmailError("");
               }}
-              onBlur={validateEmail}
-              keyboardType="email-address"
+              onBlur={validateEmail} //מפעיל בדיקת תקינות כשהמשתמש עוזב את השדה
+              keyboardType="email-address" //פותח מקלדת מתאימה לאימייל 
               autoCapitalize="none" // לא מגדיל אות ראשונה אוטומטית
               autoCorrect={false} // מבטל תיקון אוטומטי
               textAlign="right" // כיוון הטקסט לימין (עברית)
             />
-            {/* מציג הודעת שגיאה מתחת לשדה רק אם יש שגיאה */}
+            //מציג הודעת שגיאה מתחת לשדה רק אם יש שגיאה באימייל
             {emailError ? (
               <Text style={styles.errorText}>{emailError}</Text>
             ) : null}
 
+
             {/* ── שדה סיסמה עם כפתור הצגה/הסתרה ── */}
-            {/* View חיצוני מדמה את גבול השדה, כולל את הקלט ואת אייקון העין */}
+            {/* חיצוני מדמה את גבול השדה, כולל את הקלט ואת אייקון העין */}
             <View
               style={[
                 styles.passwordWrapper,
