@@ -11,10 +11,10 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 import { apiLogin } from "../api/authService";
 import { getUserProfile } from "../api/userProfileService";
 import { setAuth } from "../auth/authStore";
-import { SafeAreaView } from "react-native-safe-area-context";
 import { FONTS } from "../theme/fonts";
 
 const isValidEmail = (val) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(val.trim());
