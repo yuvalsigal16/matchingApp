@@ -988,28 +988,37 @@ export default function QuizScreen({ navigation }) {
     </View>
   );
 
-  const renderSocialLinks = () => (
-    <View style={styles.socialContainer}>
-      {[
-        { key: "instagram", icon: "📸", placeholder: "@username (Instagram)" },
-        { key: "facebook", icon: "👤", placeholder: "/username (Facebook)" },
-      ].map(({ key, icon, placeholder }) => (
-        <View key={key} style={styles.socialInputRow}>
-          <Text style={styles.socialIcon}>{icon}</Text>
-          <TextInput
-            style={styles.socialInput}
-            placeholder={placeholder}
-            placeholderTextColor="#aaa"
-            onChangeText={(val) => updateAnswer(key, val)}
-            value={answers[key] || ""}
-          />
-        </View>
-      ))}
-      <Text style={styles.disclaimerText}>
-        הפרטים יוצגו למשתמשים מתאימים בלבד ובהתאם למדיניות הפרטיות
-      </Text>
+const renderSocialLinks = () => (
+  <View style={styles.socialContainer}>
+    {/* Instagram */}
+    <View style={styles.socialInputRow}>
+      <Ionicons name="logo-instagram" size={22} color="#E1306C" />
+      <TextInput
+        style={styles.socialInput}
+        placeholder="שם משתמש באינסטגרם"
+        placeholderTextColor="#aaa"
+        onChangeText={(val) => updateAnswer("instagram", val)}
+        value={answers.instagram || ""}
+      />
     </View>
-  );
+
+    {/* Facebook */}
+    <View style={styles.socialInputRow}>
+      <Ionicons name="logo-facebook" size={22} color="#1877F2" />
+      <TextInput
+        style={styles.socialInput}
+        placeholder="שם משתמש בפייסבוק"
+        placeholderTextColor="#aaa"
+        onChangeText={(val) => updateAnswer("facebook", val)}
+        value={answers.facebook || ""}
+      />
+    </View>
+
+    <Text style={styles.disclaimerText}>
+      הפרטים יוצגו למשתמשים מתאימים בלבד ובהתאם למדיניות הפרטיות
+    </Text>
+  </View>
+);
 
   const renderQuestionContent = () => {
     switch (currentQ.type) {
@@ -1493,18 +1502,31 @@ const styles = StyleSheet.create({
   subText: { fontSize: 13, color: "#777", fontFamily: FONTS.bold },
 
   // ── Social links ──
-  socialContainer: { width: "100%", alignItems: "center" },
-  socialInputRow: {
-    flexDirection: "row-reverse",
-    width: "100%",
-    backgroundColor: "#fff",
-    borderRadius: 14,
-    marginBottom: 14,
-    alignItems: "center",
-    paddingHorizontal: 14,
-    ...SHADOW,
+  socialContainer: 
+  { width: "100%", 
+    alignItems: "center" 
   },
-  socialIcon: { fontSize: 24, padding: 10 },
+  socialInputRow: {
+  flexDirection: "row-reverse",
+  width: "100%",
+  backgroundColor: "#fff",
+  borderRadius: 16,
+  marginBottom: 14,
+  alignItems: "center",
+  paddingHorizontal: 16,
+  height: 60,
+  borderWidth: 1,
+  borderColor: "#E4E9EB",
+  shadowColor: "#000",
+  shadowOffset: { width: 0, height: 2 },
+  shadowOpacity: 0.05,
+  shadowRadius: 4,
+  elevation: 2,
+  },
+  socialIcon: 
+  { fontSize: 24, 
+    padding: 10 
+  },
   socialInput: {
     flex: 1,
     paddingVertical: 17,
