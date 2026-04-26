@@ -1,21 +1,21 @@
+import { useRouter } from "expo-router";
 import { useEffect, useRef } from "react";
 import { Animated, Image, StyleSheet, Text, View } from "react-native";
-import { FONTS } from "../theme/fonts";
+import { FONTS } from "./src/theme/fonts";
 
-export default function SplashScreen({ navigation }) {
-  const fadeAnim = useRef(new Animated.Value(0)).current; // אנימציית הופעה
+export default function SplashScreen() {
+  const router = useRouter();
+  const fadeAnim = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
-    // מפעיל את האנימציה של הטקסט
     Animated.timing(fadeAnim, {
       toValue: 1,
       duration: 2000,
       useNativeDriver: true,
     }).start();
 
-    // אחרי 3 שניות, עובר אוטומטית למסך ה-Login
     const timer = setTimeout(() => {
-      navigation.replace("Login");
+      router.replace("/Login");
     }, 3500);
 
     return () => clearTimeout(timer);
@@ -23,9 +23,9 @@ export default function SplashScreen({ navigation }) {
 
   return (
     <View style={styles.container}>
-      <Animated.View style={{ opacity: fadeAnim, alignItems: "center"}}>
+      <Animated.View style={{ opacity: fadeAnim, alignItems: "center" }}>
         <Image
-          source={require("../../../assets/images/onlyLogo-removebg-preview.png")}
+          source={require("../assets/images/onlyLogo-removebg-preview.png")}
           style={{ width: 250, height: 250, marginBottom: 10 }}
           resizeMode="contain"
         />
@@ -34,7 +34,6 @@ export default function SplashScreen({ navigation }) {
         <Text style={styles.subTitle}>החצי השני שלך לטיול הבא</Text>
       </Animated.View>
 
-      {/* אם יש לך לוגו ב-assets, תוכלי להוסיף אותו כאן */}
       <View style={styles.footer}>
         <Text style={styles.footerText}>מתחברים בקרוב...</Text>
       </View>
@@ -45,14 +44,14 @@ export default function SplashScreen({ navigation }) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#1A3C40", // הצבע הירוק הכהה מהלוגו שלך
+    backgroundColor: "#1A3C40",
     justifyContent: "center",
     alignItems: "center",
   },
   logoText: {
     fontSize: 60,
     fontFamily: FONTS.extraBold,
-    color: "#E0E7E9", // הצבע הבהיר של האפליקציה
+    color: "#E0E7E9",
     textAlign: "center",
     letterSpacing: 2,
   },

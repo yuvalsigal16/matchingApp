@@ -110,3 +110,33 @@ export async function uploadProfileImage(userId, localUri) {
 
   return text ? JSON.parse(text) : null;
 }
+
+// מוחק את תמונת הפרופיל מהשרת. אחרי הצלחה אין למשתמש תמונה (ה-DB מחזיר null/empty).
+// השרת מצפה ל-DELETE /api/UserProfile/deleteImage/{userId} ומחזיר { ok: true } בהצלחה.
+export async function deleteProfileImage(userId) {
+  const url = `${BASE_URL}/UserProfile/deleteImage/${userId}`;
+  console.log(`[userProfile] → DELETE ${url}`);
+
+  const token = getToken();
+  let res;
+  try {
+    res = await fetch(url, {
+      method: "DELETE",
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+    });
+  } catch (networkErr) {
+    console.error(`[userProfile] ✖ image delete network error:`, networkErr);
+    throw new Error(`כישלון במחיקת תמונה: ${networkErr.message}`);
+  }
+
+  const text = await res.text();
+  console.log(`[userProfile] ← delete ${res.status}`, text);
+
+  if (!res.ok) {
+    let msg = text;
+    try { msg = JSON.parse(text)?.message || msg; } catch {}
+    throw new Error(msg || `שגיאה ${res.status} במחיקת תמונה`);
+  }
+
+  return text ? JSON.parse(text) : { ok: true };
+}

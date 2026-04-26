@@ -1,5 +1,6 @@
 // ── ייבואים ──
 import { Ionicons } from "@expo/vector-icons"; // אייקונים מוכרים (V/X וכו')
+import { useRouter } from "expo-router";
 // אייקונים מותאמים אישית — Globe2 לכותרת ה-intro, Plane/Home לתאריכים, Calendar למועדים
 import { Globe2, Plane, Home, Calendar } from "lucide-react-native";
 import React, { useCallback, useEffect, useRef, useState } from "react";
@@ -18,14 +19,14 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 
 // ── שירותי API ──
-import { getAllInterests } from "../api/interestService"; // טעינת תחומי עניין
+import { getAllInterests } from "../src/api/interestService"; // טעינת תחומי עניין
 import {
   addTripPreferenceInterest, // קישור תחום עניין להעדפה
   createTrip,                 // יצירת טיול חדש
   createTripPreferences,      // יצירת אובייקט העדפות
-} from "../api/tripService";
-import { getUser } from "../auth/authStore"; // משיכת המשתמש המחובר
-import { FONTS } from "../theme/fonts";
+} from "../src/api/tripService";
+import { getUser } from "../src/auth/authStore"; // משיכת המשתמש המחובר
+import { FONTS } from "../src/theme/fonts";
 
 // ── פונקציות עזר לתאריכים ──
 
@@ -156,7 +157,8 @@ function getIsAnswered(question, data) {
 
 // ─── הקומפוננטה הראשית ───────────────────────────────────────────────────────
 
-export default function PreferencesQuizScreen({ navigation }) {
+export default function PreferencesQuizScreen() {
+  const router = useRouter();
   // מספר השאלה הנוכחית (אינדקס במערך QUESTIONS)
   const [step, setStep] = useState(0);
 
@@ -344,7 +346,7 @@ export default function PreferencesQuizScreen({ navigation }) {
     if (step === QUESTIONS.length - 1) {
       // אם המשתמש לא בחר יעד — מפנה לגלגל המזל
       if (!(data.destination || "").trim()) {
-        navigation.navigate("Wheel");
+        router.push("/Wheel");
         return;
       }
 
@@ -353,7 +355,7 @@ export default function PreferencesQuizScreen({ navigation }) {
       setSubmitting(true);
       try {
         await submitFullTrip();
-        navigation.replace("Home"); // מצליח → מסך הבית
+        router.replace("/Home"); // מצליח → מסך הבית
       } catch (err) {
         setSubmitError(err.message); // נכשל → מציג שגיאה
       } finally {
@@ -370,7 +372,7 @@ export default function PreferencesQuizScreen({ navigation }) {
   const handleBack = () => {
     // אם זו לא השאלה הראשונה — חוזרים לקודמת; אחרת — חוזרים למסך הקודם
     if (step > 0) animateTransition(step - 1);
-    else navigation.goBack();
+    else router.back();
   };
 
   // ── אנימציות פידבק לכפתור "המשך" ──

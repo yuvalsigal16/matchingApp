@@ -3,10 +3,10 @@ import { ActivityIndicator, Image, StyleSheet, Text, TouchableOpacity, View } fr
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { Bell, ChevronLeft, MapPin, MessageCircle, Users } from "lucide-react-native";
-import { FONTS } from "../theme/fonts";
-import { getToken, getUser } from "../auth/authStore";
-import { BASE_URL } from "../api/config";
-import BottomNav from "../Components/BottomNav";
+import { FONTS } from "../src/theme/fonts";
+import { getToken, getUser } from "../src/auth/authStore";
+import { BASE_URL } from "../src/api/config";
+import BottomNav from "../../components/BottomNav";
 
 // בונה URI שלם לתמונת פרופיל. השרת עשוי להחזיר URL מלא, נתיב יחסי, או שם קובץ —
 // במקרים האחרונים חייבים להוסיף את שורש השרת (ללא ה-"/api") כדי ש-<Image> יוכל לטעון.
@@ -19,7 +19,7 @@ function buildImageUri(raw) {
   return value.startsWith("/") ? `${origin}${value}` : `${origin}/${value}`;
 }
 
-export default function HomeScreen({ navigation }) {
+export default function Home() {
   // אתחול מיידי מ-authStore כדי שהשם יוצג בלי המתנה לרשת
   const cachedUser = getUser();
   const [userData, setUserData] = useState({
@@ -191,12 +191,11 @@ export default function HomeScreen({ navigation }) {
         </View>
       </View>
 
-      <BottomNav navigation={navigation} active="home" />
+      <BottomNav active="home" />
       {/* <View style={styles.bottomNav}>
-        <TouchableOpacity 
-        style={styles.navItem} 
+        <TouchableOpacity
+        style={styles.navItem}
         activeOpacity={0.7}
-          onPress={() => navigation.navigate("PersonalProfile")}
         >
           <Ionicons name="person-outline" size={26} color="#1A3C40" />
         </TouchableOpacity>
@@ -224,36 +223,37 @@ const styles = StyleSheet.create({
   },
   content: {
     flex: 1,
-    paddingHorizontal: 20,
-    paddingTop: 8,
+    paddingHorizontal: 22,
+    paddingTop: 36,
   },
 
   header: {
     flexDirection: "row-reverse",
     justifyContent: "space-between",
     alignItems: "center",
-    marginBottom: 28,
+    marginBottom: 40,
   },
   headerTextContainer: {
     alignItems: "flex-end",
     flex: 1,
   },
   greetingText: {
-    fontSize: 13,
+    fontSize: 14,
     color: "#8A8A8A",
-    fontFamily: FONTS?.medium || "System",
-    marginBottom: 4,
+    fontFamily: FONTS.regular,
+    marginBottom: 6,
   },
   mainTitle: {
-    fontSize: 22,
-    fontFamily: FONTS?.extraBold || "System",
+    fontSize: 24,
+    fontFamily: FONTS.extraBold,
     color: "#1A1A1A",
+    letterSpacing: 0.2,
   },
 
   avatar: {
-    width: 56,
-    height: 56,
-    borderRadius: 28,
+    width: 60,
+    height: 60,
+    borderRadius: 30,
   },
   avatarFallback: {
     backgroundColor: "#F5C7B8",
@@ -264,50 +264,57 @@ const styles = StyleSheet.create({
   introSection: {
     flexDirection: "row-reverse",
     alignItems: "center",
-    marginBottom: 24,
+    marginBottom: 36,
   },
   introText: {
     flex: 1,
-    fontSize: 14,
-    color: "#7A7A7A",
-    fontFamily: FONTS?.medium || "System",
+    fontSize: 15,
+    color: "#6E6E6E",
+    fontFamily: FONTS.regular,
     textAlign: "right",
-    paddingHorizontal: 8,
-    lineHeight: 20,
+    paddingHorizontal: 4,
+    lineHeight: 22,
   },
 
   menuList: {
     flex: 1,
+    justifyContent: "center",
+    paddingBottom: 24,
   },
   tile: {
     flexDirection: "row-reverse",
     alignItems: "center",
     justifyContent: "space-between",
-    paddingVertical: 14,
-    paddingHorizontal: 16,
-    borderRadius: 18,
-    marginBottom: 12,
+    paddingVertical: 18,
+    paddingHorizontal: 18,
+    borderRadius: 20,
+    marginBottom: 14,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.06,
+    shadowRadius: 8,
+    elevation: 2,
   },
   tileTextContainer: {
     flex: 1,
     alignItems: "flex-end",
-    paddingHorizontal: 12,
+    paddingHorizontal: 14,
   },
   tileTitle: {
     fontSize: 16,
-    fontFamily: FONTS?.bold || "System",
+    fontFamily: FONTS.bold,
     color: "#1A1A1A",
     marginBottom: 4,
   },
   tileSub: {
-    fontSize: 12,
+    fontSize: 13,
     color: "#7A7A7A",
-    fontFamily: FONTS?.regular || "System",
+    fontFamily: FONTS.regular,
   },
   iconContainer: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
+    width: 50,
+    height: 50,
+    borderRadius: 25,
     backgroundColor: "#fff",
     justifyContent: "center",
     alignItems: "center",

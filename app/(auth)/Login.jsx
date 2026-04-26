@@ -1,4 +1,5 @@
 import { Ionicons } from "@expo/vector-icons";
+import { useRouter } from "expo-router";
 import React, { useState } from "react";
 import {
   ActivityIndicator,
@@ -12,15 +13,16 @@ import {
   View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { apiLogin } from "../api/authService";
-import { getUserProfile } from "../api/userProfileService";
-import { setAuth } from "../auth/authStore";
-import { FONTS } from "../theme/fonts";
+import { apiLogin } from "../src/api/authService";
+import { getUserProfile } from "../src/api/userProfileService";
+import { setAuth } from "../src/auth/authStore";
+import { FONTS } from "../src/theme/fonts";
 
 const isValidEmail = (val) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(val.trim());
 const isValidPassword = (val) => val.length >= 6;
 
-export default function LoginScreen({ navigation }) {
+export default function LoginScreen() {
+  const router = useRouter();
   //שומר מה שהמשתמש מקליד באימייל ובסיסמה, וגם מצבים של הצגת סיסמה, שגיאות, וטעינה
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -66,9 +68,9 @@ export default function LoginScreen({ navigation }) {
       //שליחת בקשה לשרת על מנת לבדוק האם יש למשתמש פרופיל
       const profile = await getUserProfile(user.userID);
       if (profile) {
-        navigation.replace("Home");
+        router.replace("/Home");
       } else {
-        navigation.replace("QuizStart");
+        router.replace("/QuizStartScreen");
       }
     } catch (err) {
       setApiError(err.message);
@@ -194,7 +196,7 @@ export default function LoginScreen({ navigation }) {
           {/* ── שורת הרשמה ── */}
           <View style={styles.centeredRow}>
             <TouchableOpacity
-              onPress={() => navigation.navigate("Register")}
+              onPress={() => router.push("/Register")}
               activeOpacity={0.7}
             >
               <Text style={styles.linkText}>הירשם</Text>
@@ -216,12 +218,14 @@ const styles = StyleSheet.create({
     backgroundColor: "#F5F0E8",
   },
 
-  // עיצוב תוכן ה-ScrollView - מרכז אלמנטים, מרווחים פנימיים מכל הכיוונים
+  // עיצוב תוכן ה-ScrollView - ממרכז את הטופס אנכית במסך
+  // flexGrow: 1 מאלץ את contentContainer לתפוס גובה מלא, justifyContent ממרכז אנכית
   scroll: {
-    alignItems: "center", // מרכז אופקית
-    paddingHorizontal: 28, // ריווח מימין ושמאל
-    paddingBottom: 48, // ריווח מלמטה כדי שהתוכן לא ידבק לתחתית
-    paddingTop: 40, // ריווח מלמעלה
+    flexGrow: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    paddingHorizontal: 28,
+    paddingVertical: 32,
   },
 
   // עיצוב כותרת "ברוכים הבאים"
