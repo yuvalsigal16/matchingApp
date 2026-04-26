@@ -44,8 +44,7 @@ export default function LoginScreen({ navigation }) {
           : "",
     );
 
-
-    //פעולה א-סינכרונית
+  //פעולה א-סינכרונית
   const handleLogin = async () => {
     validateEmail();
     validatePassword();
@@ -78,14 +77,10 @@ export default function LoginScreen({ navigation }) {
     }
   };
 
-
-  // const handleForgotPassword = () => console.log("Forgot password");
+  const handleForgotPassword = () => console.log("Forgot password");
 
   return (
-    //SafeAreaview - שומר על עיצוב נקי ובטוח ומוודא שהתוכן לא נחסם
     <SafeAreaView style={styles.safe}>
-      {/* KeyboardAvoidingView - מזיז את כל התוכן כלפי מעלה כשהמקלדת עולה
-          ב-iOS משתמשים ב-"padding", באנדרואיד לא צריך (undefined) */}
       <KeyboardAvoidingView
         style={{ flex: 1 }}
         behavior={Platform.OS === "ios" ? "padding" : undefined}
@@ -95,38 +90,31 @@ export default function LoginScreen({ navigation }) {
         <ScrollView
           contentContainerStyle={styles.scroll}
           keyboardShouldPersistTaps="handled"
-          showsVerticalScrollIndicator={false} // מסתיר את פס הגלילה
+          showsVerticalScrollIndicator={false}
         >
-          {/* ── כותרת ראשית ── */}
           <Text style={styles.title}>כיף שחזרת</Text>
 
           {/* ── טופס הכניסה ── */}
           <View style={styles.form}>
-            {/* שדה אימייל:
-          - style משנה את המראה לאדום אם יש שגיאה (emailError)
-          - onChangeText מעדכן את הstate ומנקה שגיאה בכל הקלדה
-          */}
+            {/* ── שדה אימייל ── */}
             <TextInput
               style={[styles.input, emailError ? styles.inputError : null]}
               placeholder="כתובת אימייל"
               placeholderTextColor="#aaa"
-              value={email} //הערך של השדה
-              //מעדכן את השדה של האימייל
+              value={email}
               onChangeText={(v) => {
                 setEmail(v);
                 setEmailError("");
               }}
-              onBlur={validateEmail} //מפעיל בדיקת תקינות כשהמשתמש עוזב את השדה
-              keyboardType="email-address" //פותח מקלדת מתאימה לאימייל 
-              autoCapitalize="none" // לא מגדיל אות ראשונה אוטומטית
-              autoCorrect={false} // מבטל תיקון אוטומטי
-              textAlign="right" // כיוון הטקסט לימין (עברית)
+              onBlur={validateEmail}
+              keyboardType="email-address"
+              autoCapitalize="none"
+              autoCorrect={false}
+              textAlign="right"
             />
-            //מציג הודעת שגיאה מתחת לשדה רק אם יש שגיאה באימייל
             {emailError ? (
               <Text style={styles.errorText}>{emailError}</Text>
             ) : null}
-
 
             {/* ── שדה סיסמה עם כפתור הצגה/הסתרה ── */}
             {/* חיצוני מדמה את גבול השדה, כולל את הקלט ואת אייקון העין */}
@@ -144,14 +132,12 @@ export default function LoginScreen({ navigation }) {
               >
                 {/* אייקון עין - משתנה בהתאם למצב הצגת הסיסמה */}
                 <Ionicons
-                  name={showPassword ? "eye-outline" : "eye-off-outline"} // עין פתוחה או סגורה
+                  name={showPassword ? "eye-outline" : "eye-off-outline"}
                   size={22}
-                  color="#CCCCCC" // אפור בהיר
+                  color="#CCCCCC"
                 />
               </TouchableOpacity>
 
-              {/* שדה הקלט של הסיסמה:
-                  - secureTextEntry מסתיר את הטקסט כנקודות כשהערך הוא true */}
               <TextInput
                 style={styles.passwordInput}
                 placeholder="סיסמה"
@@ -162,7 +148,7 @@ export default function LoginScreen({ navigation }) {
                   setPasswordError("");
                 }}
                 onBlur={validatePassword}
-                secureTextEntry={!showPassword} // true = מוסתר, false = גלוי
+                secureTextEntry={!showPassword}
                 textAlign="right"
               />
             </View>
@@ -173,7 +159,6 @@ export default function LoginScreen({ navigation }) {
           </View>
 
           {/* ── שורת שכחת סיסמה ── */}
-          {/* View עם justifyContent="center" שומר את שני הטקסטים ממורכזים */}
           <View style={styles.centeredRow}>
             {/* כפתור "לחץ כאן" - לחיצה תפעיל את handleForgotPassword */}
             <TouchableOpacity
@@ -207,7 +192,6 @@ export default function LoginScreen({ navigation }) {
           </TouchableOpacity>
 
           {/* ── שורת הרשמה ── */}
-          {/* לחיצה על "הירשם" מנווטת למסך ההרשמה באמצעות navigation.navigate */}
           <View style={styles.centeredRow}>
             <TouchableOpacity
               onPress={() => navigation.navigate("Register")}
@@ -226,10 +210,10 @@ export default function LoginScreen({ navigation }) {
 // ── הגדרת העיצובים (Styles) ──
 // StyleSheet.create מייעל את הביצועים על ידי עיבוד הסטיילים פעם אחת
 const styles = StyleSheet.create({
-  // עיצוב המיכל הראשי - מלא את כל המסך, רקע לבן
+  // עיצוב המיכל הראשי - מלא את כל המסך, רקע קרם חמים
   safe: {
     flex: 1,
-    backgroundColor: "#fff",
+    backgroundColor: "#F5F0E8",
   },
 
   // עיצוב תוכן ה-ScrollView - מרכז אלמנטים, מרווחים פנימיים מכל הכיוונים

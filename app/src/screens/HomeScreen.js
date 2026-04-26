@@ -1,171 +1,325 @@
-// ייבוא רכיבי UI מ-React Native
-import { Image, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
-// SafeAreaView — מבטיח שהתוכן לא ייחסם על ידי ה-notch או סרגל הניווט
-import { SafeAreaView } from 'react-native-safe-area-context';
-// פונטים מותאמים של האפליקציה
+import React, { useEffect, useState } from "react";
+import { ActivityIndicator, Image, StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
+import { Ionicons } from "@expo/vector-icons";
+import { Bell, ChevronLeft, MapPin, MessageCircle, Users } from "lucide-react-native";
 import { FONTS } from "../theme/fonts";
+import { getToken, getUser } from "../auth/authStore";
+import { BASE_URL } from "../api/config";
 
-// אייקונים מהספרייה lucide-react-native — אייקונים בקווים מודרניים
-import {
-  MessageCircle, // אייקון בועת הודעה — לתצוגת התאמות
-  MapPin,        // אייקון סיכת מפה — לטיולים שלי
-  Bell,          // אייקון פעמון — להתראות
-  Users,         // אייקון קבוצת אנשים — לקהילה
-  ChevronLeft,   // אייקון חץ שמאלה — מיובא לשימוש עתידי
-} from "lucide-react-native";
+// בונה URI שלם לתמונת פרופיל. השרת עשוי להחזיר URL מלא, נתיב יחסי, או שם קובץ —
+// במקרים האחרונים חייבים להוסיף את שורש השרת (ללא ה-"/api") כדי ש-<Image> יוכל לטעון.
+function buildImageUri(raw) {
+  if (!raw) return null;
+  const value = String(raw).trim();
+  if (!value) return null;
+  if (/^(https?:|data:|file:)/i.test(value)) return value;
+  const origin = BASE_URL.replace(/\/api\/?$/, "");
+  return value.startsWith("/") ? `${origin}${value}` : `${origin}/${value}`;
+}
 
-// ── הקומפוננטה הראשית של מסך הבית ──
-// זהו המסך שמוצג למשתמש אחרי שהוא התחבר וסיים את שאלון ההיכרות
 export default function HomeScreen() {
-  // ── רשימת הפריטים בתפריט הראשי ──
-  // כל פריט מכיל: כותרת, אייקון, צבע רקע, גוון, וצבע מסגרת
-  // הגדרה כמערך מאפשרת לרנדר את כל הפריטים בלולאה אחת (DRY)
+  // אתחול מיידי מ-authStore כדי שהשם יוצג בלי המתנה לרשת
+  const cachedUser = getUser();
+  const [userData, setUserData] = useState({
+    firstName: cachedUser?.firstName || "",
+    profileImage: "",
+  });
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const loadProfile = async () => {
+      try {
+        const token = getToken();
+        const userId = getUser()?.userID;
+
+        if (!token || !userId) {
+          console.warn("[HomeScreen] משתמש לא מחובר — אין userID/token");
+          setLoading(false);
+          return;
+        }
+
+        const headers = {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        };
+
+        // קריאה במקביל: פרטי פרופיל ותמונה — שתי קריאות נפרדות לשני endpoints
+        // כדי שכל אחד יוכל להצליח/להיכשל לחוד מבלי לחסום את השני.
+        const [profileRes, imageRes] = await Promise.all([
+          fetch(`${BASE_URL}/UserProfile/${userId}`, { method: "GET", headers }),
+          fetch(`${BASE_URL}/UserProfile/image/${userId}`, { method: "GET", headers }),
+        ]);
+
+        let firstName = "";
+        let profileImage = "";
+
+        if (profileRes.ok) {
+          const data = await profileRes.json();
+          console.log("[HomeScreen] תשובת פרופיל:", data);
+          firstName = data.firstName || data.FirstName || "";
+          // fallback: אם endpoint התמונה ייכשל, ניקח את הנתיב מתוך הפרופיל
+          profileImage = data.profileImage || data.ProfileImage || "";
+        } else {
+          console.warn(`[HomeScreen] קריאת פרופיל החזירה ${profileRes.status}`);
+        }
+
+        if (imageRes.ok) {
+          const imgData = await imageRes.json();
+          console.log("[HomeScreen] תשובת תמונה:", imgData);
+          if (imgData?.imagePath) {
+            profileImage = imgData.imagePath;
+          }
+        } else if (imageRes.status !== 404) {
+          console.warn(`[HomeScreen] קריאת תמונה החזירה ${imageRes.status}`);
+        }
+
+        setUserData({ firstName, profileImage });
+      } catch (error) {
+        console.error("[HomeScreen] שגיאה בטעינת פרופיל:", error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadProfile();
+  }, []);
+
+  const profileImageUri = buildImageUri(userData.profileImage);
+
+  const renderAvatar = () => {
+    if (loading) {
+      return (
+        <View style={[styles.avatar, styles.avatarFallback]}>
+          <ActivityIndicator size="small" color="#fff" />
+        </View>
+      );
+    }
+
+    if (profileImageUri) {
+      return (
+        <Image
+          source={{ uri: profileImageUri }}
+          style={styles.avatar}
+          onError={(e) =>
+            console.warn("[HomeScreen] טעינת תמונה נכשלה:", profileImageUri, e.nativeEvent?.error)
+          }
+        />
+      );
+    }
+
+    return (
+      <View style={[styles.avatar, styles.avatarFallback]}>
+        <Ionicons name="person" size={28} color="#fff" />
+      </View>
+    );
+  };
+
   const MENU_ITEMS = [
     {
-      title: "התאמות עבורך",      // טקסט הכפתור
-      Icon: MessageCircle,         // קומפוננטת האייקון
-      color: "#E6F2F2",            // צבע רקע — turquoise בהיר
-      tint: '#e0f0f1',
-      ring: '#7bbdbf',
+      key: "matches",
+      title: "התאמות עבורך",
+      sub: "3 התאמות חדשות",
+      Icon: MessageCircle,
+      bg: "#D4E8E6",
+      iconBorder: "#7BBDBF",
     },
     {
+      key: "trips",
       title: "הטיולים שלי",
+      sub: "2 טיולים פעילים",
       Icon: MapPin,
-      color: "#EAF3EA",            // ירוק בהיר
-      tint: '#e0f0f1',
-      ring: '#7bbdbf',
+      bg: "#EADFCB",
+      iconBorder: "#C9A876",
     },
     {
+      key: "notifications",
       title: "התראות ופעילויות",
+      sub: "5 התראות",
       Icon: Bell,
-      color: "#F6E6E6",            // ורוד בהיר
-      tint: '#e0f0f1',
-      ring: '#7bbdbf',
+      bg: "#F4D9D9",
+      iconBorder: "#D88B8B",
     },
     {
+      key: "community",
       title: "גילוי וקהילה",
+      sub: "בקרב המטיילים",
       Icon: Users,
-      color: "#EEE8F6",            // סגול בהיר
-      tint: '#e0f0f1',
-      ring: '#7bbdbf',
+      bg: "#E0D5E8",
+      iconBorder: "#9A7BBE",
     },
   ];
 
   return (
-    // SafeAreaView — מיכל ראשי של המסך
     <SafeAreaView style={styles.container}>
-      {/* ── אזור עליון: ברכת שלום ותמונת פרופיל ── */}
-      <View style={styles.header}>
-      <View style={styles.headerTextContainer}>
-          {/* טקסטים בעברית — מיושרים לימין */}
-          <Text style={styles.greetingText}>שלום, דנה</Text>
-          <Text style={styles.mainTitle}>ברוך הבא לצמד חמד</Text>
+      <View style={styles.content}>
+        <View style={styles.header}>
+          <View style={styles.headerTextContainer}>
+            <Text style={styles.greetingText}>{`שלום, ${userData.firstName || "אורח"}`}</Text>
+            <Text style={styles.mainTitle}>ברוך הבא לצמד חמד</Text>
+          </View>
+          {renderAvatar()}
         </View>
-        {/* תמונת פרופיל זמנית — בעתיד תוחלף בתמונה האמיתית של המשתמש */}
-        <Image
-          source={{ uri: 'https://cdn-icons-png.flaticon.com/512/3135/3135715.png' }}
-          style={styles.profileImg}
-        />
-      </View>
 
-      {/* ── אזור הלוגו והכותרת המרכזית ── */}
-      {/* צמצמנו מרווחים כדי שהתוכן יעלה למעלה ויישאר מקום לתפריט */}
-      <View style={styles.logoSection}>
-        {/* עיגול עם אייקון סיכת מיקום (אימוג'י) — מסמל את עולם הטיולים */}
-        <View style={styles.logoCircle}>
-            <Text style={{fontSize: 60}}>📍</Text>
+        <View style={styles.introSection}>
+          <Text style={styles.introText}>מוכנ/ה למצוא את פרטנר הטיול הבא שלך?</Text>
+          <View style={styles.introIcon}>
+          </View>
         </View>
-        {/* כותרת ברכת קבלה — \n גורם לירידת שורה */}
-        <Text style={styles.welcomeTxt}>ברוך הבא{"\n"}לצמד חמד</Text>
+
+        <View style={styles.menuList}>
+          {MENU_ITEMS.map((item) => {
+            const IconComponent = item.Icon;
+            return (
+              <TouchableOpacity
+                key={item.key}
+                style={[styles.tile, { backgroundColor: item.bg }]}
+                activeOpacity={0.85}
+              >
+                <View style={styles.tileTextContainer}>
+                  <Text style={styles.tileTitle}>{item.title}</Text>
+                  <Text style={styles.tileSub}>{item.sub}</Text>
+                </View>
+                <View style={[styles.iconContainer, { borderColor: item.iconBorder }]}>
+                  <IconComponent size={22} color="#1A3C40" strokeWidth={2.2} />
+                </View>
+                <ChevronLeft size={22} color="#9A9A9A" strokeWidth={2.2} />
+              </TouchableOpacity>
+            );
+          })}
+        </View>
       </View>
 
-      {/* ── תפריט הכפתורים הראשי ── */}
-      {/* רנדור דינמי של כל פריט מהמערך MENU_ITEMS */}
-      <View style={styles.menuContainer}>
-        {MENU_ITEMS.map((item, index) => (
-          // TouchableOpacity — כפתור עם אפקט עמעום בלחיצה
-          // key={index} — מזהה ייחודי לכל פריט (חובה ב-React)
-          <TouchableOpacity key={index} style={[styles.menuItem, { backgroundColor: item.color }]}>
-            {/* האייקון של הפריט — נטען דינמית מהמערך */}
-            <item.Icon size={24} color="#1A3C40" />
-            {/* טקסט הכפתור */}
-            <Text style={styles.menuText}>{item.title}</Text>
-          </TouchableOpacity>
-        ))}
+      <View style={styles.bottomNav}>
+        <TouchableOpacity style={styles.navItem} activeOpacity={0.7}>
+          <Ionicons name="person-outline" size={26} color="#1A3C40" />
+        </TouchableOpacity>
+        <TouchableOpacity style={styles.navItem} activeOpacity={0.7}>
+          <Ionicons name="chatbubble-outline" size={26} color="#1A3C40" />
+        </TouchableOpacity>
+        <TouchableOpacity style={styles.navItem} activeOpacity={0.7}>
+          <Ionicons name="compass-outline" size={26} color="#1A3C40" />
+        </TouchableOpacity>
+        <TouchableOpacity style={[styles.navItem, styles.navItemActive]} activeOpacity={0.7}>
+          <Ionicons name="home" size={26} color="#1A3C40" />
+        </TouchableOpacity>
       </View>
-
-
     </SafeAreaView>
   );
 }
 
-// ── הגדרת העיצובים (Styles) ──
-// StyleSheet.create מייעל ביצועים — מעבד את הסגנונות פעם אחת בלבד
 const styles = StyleSheet.create({
-  // המיכל הראשי של המסך — רקע אפור-ירקרק בהיר
   container: {
     flex: 1,
-    backgroundColor: '#E0E7E9',
-    justifyContent: 'flex-start', // מבטיח שהתוכן יתחיל מההתחלה (למעלה)
+    backgroundColor: "#F5F0E8",
   },
-  // אזור הכותרת העליונה (שלום + תמונת פרופיל)
-  header: {
+  content: {
+    flex: 1,
     paddingHorizontal: 20,
-    paddingTop: 10, // ריווח מינימלי מלמעלה
-    alignItems: 'flex-end' // יישור תוכן לימין (RTL)
+    paddingTop: 8,
   },
-  // תמונת פרופיל עגולה
-  profileImg: {
-    width: 40,
-    height: 40,
-    borderRadius: 20  // חצי מהרוחב = עיגול מושלם
+
+  header: {
+    flexDirection: "row-reverse",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 28,
   },
-  // אזור הלוגו המרכזי
-  logoSection: {
-    alignItems: 'center', // ממורכז אופקית
-    marginTop: 10, // צמצום משמעותי מ-20 — חוסך מקום לתפריט
-    marginBottom: 20
+  headerTextContainer: {
+    alignItems: "flex-end",
+    flex: 1,
   },
-  // עיגול הלוגו — רקע אפור-ירקרק עם אימוג'י במרכז
-  logoCircle: {
-    width: 100,
-    height: 100,
-    borderRadius: 50, // עיגול מושלם
-    backgroundColor: '#B8CBD0',
-    justifyContent: 'center', // מרכוז אנכי של האימוג'י
-    alignItems: 'center',     // מרכוז אופקי של האימוג'י
-    marginBottom: 10
+  greetingText: {
+    fontSize: 13,
+    color: "#8A8A8A",
+    fontFamily: FONTS?.medium || "System",
+    marginBottom: 4,
   },
-  // טקסט הברכה הגדול ("ברוך הבא לצמד חמד")
-  welcomeTxt: {
-    fontSize: 28, // הקטנה קלה כדי לחסוך מקום
-    fontFamily: FONTS.extraBold, // פונט מודגש מאוד
-    textAlign: 'center',
-    color: '#333',
-    lineHeight: 34 // גובה שורה — נותן נשימה לטקסט
+  mainTitle: {
+    fontSize: 22,
+    fontFamily: FONTS?.extraBold || "System",
+    color: "#1A1A1A",
   },
-  // מיכל התפריט הראשי
-  menuContainer: {
-    paddingHorizontal: 25,
-    marginTop: 10 // צמצום המרווח בין הכותרת לכפתורים
+
+  avatar: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
   },
-  // עיצוב כל כפתור בתפריט
-  menuItem: {
-    flexDirection: 'row-reverse', // RTL — אייקון מימין, טקסט משמאל
-    alignItems: 'center',
-    padding: 18, // הקטנה קלה של עובי הכפתור
-    borderRadius: 15, // פינות מעוגלות
-    marginBottom: 12, // צמצום המרווח בין הכפתורים
-    justifyContent: 'space-between' // אייקון בקצה אחד, טקסט בקצה השני
+  avatarFallback: {
+    backgroundColor: "#F5C7B8",
+    justifyContent: "center",
+    alignItems: "center",
   },
-  // טקסט הכפתור
-  menuText: {
-    color: '#333',
-    fontSize: 18,
-    fontFamily: FONTS.bold,
+
+  introSection: {
+    flexDirection: "row-reverse",
+    alignItems: "center",
+    marginBottom: 24,
   },
-  // עיצוב אייקון בודד (לא בשימוש כרגע — עדיין שימושי לעתיד)
-  icon: {
-    fontSize: 22
-  }
+  introText: {
+    flex: 1,
+    fontSize: 14,
+    color: "#7A7A7A",
+    fontFamily: FONTS?.medium || "System",
+    textAlign: "right",
+    paddingHorizontal: 8,
+    lineHeight: 20,
+  },
+
+  menuList: {
+    flex: 1,
+  },
+  tile: {
+    flexDirection: "row-reverse",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingVertical: 14,
+    paddingHorizontal: 16,
+    borderRadius: 18,
+    marginBottom: 12,
+  },
+  tileTextContainer: {
+    flex: 1,
+    alignItems: "flex-end",
+    paddingHorizontal: 12,
+  },
+  tileTitle: {
+    fontSize: 16,
+    fontFamily: FONTS?.bold || "System",
+    color: "#1A1A1A",
+    marginBottom: 4,
+  },
+  tileSub: {
+    fontSize: 12,
+    color: "#7A7A7A",
+    fontFamily: FONTS?.regular || "System",
+  },
+  iconContainer: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: "#fff",
+    justifyContent: "center",
+    alignItems: "center",
+    borderWidth: 1.5,
+  },
+
+  bottomNav: {
+    flexDirection: "row",
+    justifyContent: "space-around",
+    alignItems: "center",
+    paddingVertical: 12,
+    paddingBottom: 14,
+    backgroundColor: "#F5F0E8",
+    borderTopWidth: 1,
+    borderTopColor: "#E5DBC7",
+  },
+  navItem: {
+    width: 56,
+    height: 44,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  navItemActive: {},
 });

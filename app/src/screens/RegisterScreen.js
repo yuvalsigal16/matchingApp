@@ -142,7 +142,6 @@ export default function RegisterScreen({ navigation }) {
   };
 
   return (
-    // SafeAreaView — שומר שהתוכן לא ייחסם על ידי ה-notch
     <SafeAreaView style={styles.safe}>
       {/* KeyboardAvoidingView — מזיז תוכן למעלה כשהמקלדת עולה */}
       <KeyboardAvoidingView
@@ -152,7 +151,7 @@ export default function RegisterScreen({ navigation }) {
         {/* ScrollView — מאפשר גלילה, שימושי כשהטופס ארוך */}
         <ScrollView
           contentContainerStyle={styles.scroll}
-          keyboardShouldPersistTaps="handled" // לחיצה על כפתור סוגרת מקלדת
+          keyboardShouldPersistTaps="handled" 
           showsVerticalScrollIndicator={false}
         >
           {/* ── כותרת ראשית ── */}
@@ -171,8 +170,8 @@ export default function RegisterScreen({ navigation }) {
                 setEmailError("");
               }}
               onBlur={validateEmail}
-              keyboardType="email-address" // מקלדת מותאמת לאימייל
-              autoCapitalize="none" // ללא הגדלת אות ראשונה
+              keyboardType="email-address" 
+              autoCapitalize="none" 
               autoCorrect={false}
               textAlign="right"
             />
