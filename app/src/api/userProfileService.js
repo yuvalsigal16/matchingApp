@@ -1,5 +1,5 @@
-import { BASE_URL } from "./config";
 import { getToken } from "../auth/authStore";
+import { BASE_URL } from "./config";
 
 // בודק אם יש פרופיל למשתמש. מחזיר את אובייקט הפרופיל אם קיים, או null אם לא.
 // 404 מהשרת מתורגם ל-null כי הוא משמעותו הלגיטימית "אין פרופיל".
@@ -16,7 +16,9 @@ export async function getUserProfile(userId) {
     });
   } catch (networkErr) {
     console.error(`[userProfile] ✖ network error:`, networkErr);
-    throw new Error(`לא ניתן להתחבר לשרת (${url}). פרטים: ${networkErr.message}`);
+    throw new Error(
+      `לא ניתן להתחבר לשרת (${url}). פרטים: ${networkErr.message}`,
+    );
   }
 
   console.log(`[userProfile] ← ${res.status} ${res.statusText}`);
@@ -27,7 +29,9 @@ export async function getUserProfile(userId) {
   const text = await res.text();
   if (!res.ok) {
     let msg = text;
-    try { msg = JSON.parse(text)?.message || msg; } catch {}
+    try {
+      msg = JSON.parse(text)?.message || msg;
+    } catch {}
     throw new Error(msg || `שגיאה ${res.status} מהשרת`);
   }
 
@@ -36,6 +40,7 @@ export async function getUserProfile(userId) {
 
 // יוצר פרופיל חדש בטבלת UserProfile.
 // profile = { UserID, FirstName, LastName, BirthDate (ISO string), Gender, City }
+// פונקציית POST ליצירת רשומת פרופיל חדשה עבור המשתמש בבסיס הנתונים
 export async function createUserProfile(profile) {
   const url = `${BASE_URL}/UserProfile`;
   console.log(`[userProfile] → POST ${url}`, profile);
@@ -49,7 +54,9 @@ export async function createUserProfile(profile) {
     });
   } catch (networkErr) {
     console.error(`[userProfile] ✖ network error:`, networkErr);
-    throw new Error(`לא ניתן להתחבר לשרת (${url}). פרטים: ${networkErr.message}`);
+    throw new Error(
+      `לא ניתן להתחבר לשרת (${url}). פרטים: ${networkErr.message}`,
+    );
   }
 
   const text = await res.text();
@@ -57,7 +64,9 @@ export async function createUserProfile(profile) {
 
   if (!res.ok) {
     let msg = text;
-    try { msg = JSON.parse(text)?.message || msg; } catch {}
+    try {
+      msg = JSON.parse(text)?.message || msg;
+    } catch {}
     throw new Error(msg || `שגיאה ${res.status} מהשרת`);
   }
 
@@ -76,6 +85,7 @@ export async function uploadProfileImage(userId, localUri) {
   const ext = (match?.[1] || "jpg").toLowerCase();
   const mime = ext === "png" ? "image/png" : "image/jpeg";
 
+  // שימוש באובייקט FormData לצורך שליחת קובץ תמונה בינארי לשרת
   const formData = new FormData();
   formData.append("file", {
     uri: localUri,
@@ -104,9 +114,12 @@ export async function uploadProfileImage(userId, localUri) {
 
   if (!res.ok) {
     let msg = text;
-    try { msg = JSON.parse(text)?.message || msg; } catch {}
+    try {
+      msg = JSON.parse(text)?.message || msg;
+    } catch {}
     throw new Error(msg || `שגיאה ${res.status} בהעלאת תמונה`);
   }
 
+  // בדיקה אם קיים תוכן בתשובה: אם כן - המרה לאובייקט, אם לא - החזרת null
   return text ? JSON.parse(text) : null;
 }
