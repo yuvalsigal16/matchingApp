@@ -1,7 +1,7 @@
 import { Ionicons } from "@expo/vector-icons";
 import * as ImagePicker from "expo-image-picker";
 import { useRouter } from "expo-router";
-import { ChevronLeft, FileText, Heart, Settings } from "lucide-react-native";
+import { ChevronLeft, FileText, Heart, LogOut, Settings } from "lucide-react-native";
 import React, { useEffect, useState } from "react";
 import {
   ActivityIndicator,
@@ -9,6 +9,7 @@ import {
   Image,
   Modal,
   Pressable,
+  ScrollView,
   StyleSheet,
   Text,
   TouchableOpacity,
@@ -17,7 +18,7 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 import { BASE_URL } from "../src/api/config";
 import { deleteProfileImage, uploadProfileImage } from "../src/api/userProfileService";
-import { getToken, getUser } from "../src/auth/authStore";
+import { clearAuth, getToken, getUser } from "../src/auth/authStore";
 import { FONTS } from "../src/theme/fonts";
 import BottomNav from "../../components/BottomNav";
 
@@ -198,6 +199,28 @@ export default function ProfileScreen() {
     }
   };
 
+  // מנתק את המשתמש: מציג Alert לאישור, מנקה את ה-token ואת פרטי המשתמש מהזיכרון,
+  // ומחזיר אותו למסך ההתחברות. משתמשים ב-replace כדי שלא יהיה אפשר לחזור אחורה
+  // למסך הפרופיל אחרי ההתנתקות.
+  const handleLogout = () => {
+    Alert.alert(
+      "התנתקות",
+      "האם להתנתק מהחשבון?",
+      [
+        { text: "ביטול", style: "cancel" },
+        {
+          text: "התנתק",
+          style: "destructive",
+          onPress: () => {
+            clearAuth();
+            router.replace("/Login");
+          },
+        },
+      ],
+      { cancelable: true },
+    );
+  };
+
   const imageUri = buildImageUri(userData.profileImage);
 
   const renderAvatar = () => {
@@ -237,7 +260,10 @@ export default function ProfileScreen() {
 
   return (
     <SafeAreaView style={styles.container}>
-      <View style={styles.content}>
+      <ScrollView
+        contentContainerStyle={styles.content}
+        showsVerticalScrollIndicator={false}
+      >
 
         {/* Header — רק חץ חזרה ל-Home (אייקון ההגדרות הוסר כי הוא קיים בתפריט למטה) */}
         <View style={styles.header}>
@@ -305,7 +331,17 @@ export default function ProfileScreen() {
             );
           })}
         </View>
-      </View>
+
+        {/* כפתור התנתקות — מובדל ויזואלית מהתפריט הרגיל ע"י צבע אדום וגוון רקע ורדרד */}
+        <TouchableOpacity
+          style={styles.logoutBtn}
+          onPress={handleLogout}
+          activeOpacity={0.85}
+        >
+          <LogOut size={20} color="#C0392B" />
+          <Text style={styles.logoutText}>התנתקות</Text>
+        </TouchableOpacity>
+      </ScrollView>
 
      <BottomNav active="profile" />
 
@@ -360,7 +396,9 @@ export default function ProfileScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: "#F5F0E8" },
-  content: { flex: 1, paddingHorizontal: 20, paddingTop: 28 },
+  // ScrollView contentContainerStyle: לא משתמשים ב-flex:1 כי זה משבית גלילה.
+  // paddingBottom נותן אוויר מתחת לכפתור ההתנתקות לפני ה-BottomNav.
+  content: { paddingHorizontal: 20, paddingTop: 28, paddingBottom: 30 },
 
   header: {
     flexDirection: "row-reverse",
@@ -458,6 +496,25 @@ const styles = StyleSheet.create({
     backgroundColor: "#EEE",
     justifyContent: "center",
     alignItems: "center",
+  },
+
+  // כפתור התנתקות — אדום עדין, מופרד מהתפריט הרגיל ע"י marginTop גדול
+  logoutBtn: {
+    flexDirection: "row-reverse",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 10,
+    backgroundColor: "#FBE9E7",
+    paddingVertical: 14,
+    borderRadius: 16,
+    marginTop: 20,
+    borderWidth: 1,
+    borderColor: "#F5C9C2",
+  },
+  logoutText: {
+    fontSize: 15,
+    fontFamily: FONTS.bold,
+    color: "#C0392B",
   },
 
   bottomNav: {

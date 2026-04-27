@@ -430,11 +430,10 @@ export default function QuizScreen() {
       throw new Error("לא נמצא משתמש מחובר. נא להתחבר מחדש.");
     }
 
-    // ממירים גיל ל-BirthDate (1 בינואר של השנה המתאימה — קירוב מספק לשרת)
-    const ageNum = parseInt(answers.age, 10);
-    const today = new Date();
-    const birthYear = today.getFullYear() - ageNum;
-    const birthDate = new Date(birthYear, 0, 1).toISOString();
+    // תאריך הלידה נשמר כאובייקט Date מבורר התאריכים.
+    // toISOString() ממיר אותו למחרוזת בפורמט תאריך תקני שהשרת מצפה לקבל,
+    // לדוגמה: "1995-04-27T00:00:00.000Z"
+    const birthDate = answers.birthDate.toISOString();
 
     const profile = {
       UserID: u.userID,
@@ -771,6 +770,8 @@ export default function QuizScreen() {
     for (const f of currentQ.fields) {
       if (f.key === "city") {
         rows.push(renderCityInput());
+      } else if (f.key === "birthDate") {
+        rows.push(renderBirthDateInput());
       } else {
         rows.push(
           <TextInput
@@ -779,29 +780,66 @@ export default function QuizScreen() {
             placeholder={f.label}
             placeholderTextColor="#aaa"
             textAlign="right"
-            keyboardType={f.key === "age" ? "numeric" : "default"}
-            onChangeText={(val) => {
-              if (f.key === "age") {
-                // Strip non-digits and clamp to 1–120
-                const clean = val.replace(/[^0-9]/g, "");
-                const num = parseInt(clean, 10);
-                if (clean === "" || (num >= 1 && num <= 120)) {
-                  updateAnswer(f.key, clean);
-                }
-              } else {
-                updateAnswer(f.key, val);
-              }
-            }}
+            onChangeText={(val) => updateAnswer(f.key, val)}
             value={answers[f.key] || ""}
           />,
         );
       }
-      // Inject gender segmented control after the age row
-      if (f.key === "age" && currentQ.hasGender) {
+      // ה-segmented control של מגדר מוצג מיד אחרי שדה תאריך הלידה
+      if (f.key === "birthDate" && currentQ.hasGender) {
         rows.push(renderGenderSelector());
       }
     }
     return rows;
+  };
+
+  // ── שדה תאריך לידה: כפתור שמציג את התאריך הנבחר ופותח לוח שנה ────────────────
+  const renderBirthDateInput = () => {
+    const selected = answers.birthDate instanceof Date ? answers.birthDate : null;
+    // formatHebrewDate ממיר את ה-Date להצגה בפורמט "DD/MM/YYYY" — מה שהמשתמש רואה
+    const display = selected
+      ? `${String(selected.getDate()).padStart(2, "0")}/${String(selected.getMonth() + 1).padStart(2, "0")}/${selected.getFullYear()}`
+      : "תאריך לידה";
+
+    // התאריך המקסימלי המותר: היום (לא ניתן להיוולד בעתיד)
+    // התאריך ההתחלתי בלוח: לפני 25 שנה (קצת ברירת מחדל סבירה למשתמש חדש)
+    const today = new Date();
+    const defaultDate = new Date(today.getFullYear() - 25, today.getMonth(), today.getDate());
+
+    return (
+      <View key="birthDate">
+        <Pressable
+          style={styles.dateInputBtn}
+          onPress={() => setBirthDatePickerVisible(true)}
+        >
+          <Ionicons name="calendar-outline" size={20} color="#9AABAD" />
+          <Text
+            style={[
+              styles.dateInputText,
+              !selected && styles.dateInputPlaceholder,
+            ]}
+          >
+            {display}
+          </Text>
+        </Pressable>
+
+        {birthDatePickerVisible && (
+          <DateTimePicker
+            value={selected || defaultDate}
+            mode="date"
+            display={Platform.OS === "ios" ? "spinner" : "default"}
+            maximumDate={today}
+            onChange={(event, date) => {
+              // ב-Android הבורר נסגר לבד עם הבחירה; ב-iOS צריך לסגור ידנית.
+              setBirthDatePickerVisible(Platform.OS === "ios");
+              if (event.type === "set" && date) {
+                updateAnswer("birthDate", date);
+              }
+            }}
+          />
+        )}
+      </View>
+    );
   };
 
   // ─── Question renderers ───────────────────────────────────────────────────
@@ -1259,6 +1297,30 @@ const styles = StyleSheet.create({
     textAlign: "right",
     color: "#222",
     ...SHADOW,
+  },
+
+  // ── שדה תאריך לידה (לחיץ — פותח לוח שנה native) ──
+  dateInputBtn: {
+    flexDirection: "row-reverse",
+    alignItems: "center",
+    backgroundColor: "#fff",
+    width: "100%",
+    paddingVertical: 16,
+    paddingHorizontal: 18,
+    borderRadius: 14,
+    marginBottom: 14,
+    gap: 10,
+    ...SHADOW,
+  },
+  dateInputText: {
+    flex: 1,
+    fontSize: 16,
+    fontFamily: FONTS.regular,
+    textAlign: "right",
+    color: "#222",
+  },
+  dateInputPlaceholder: {
+    color: "#aaa",
   },
 
   // ── Gender segmented control ──

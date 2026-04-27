@@ -216,16 +216,7 @@ export default function WheelScreen() {
                 >
                   <Text
                     numberOfLines={1} // לא מאפשר ירידת שורה
-                    style={[
-                      styles.sliceText,
-                      {
-                        // צבע הטקסט: אם המקטע צהוב — שחור, אחרת לבן (לקריאות)
-                        color:
-                          COLORS[i % COLORS.length] === "#F4C77B"
-                            ? "#1A3C40"
-                            : "#fff",
-                      },
-                    ]}
+                    style={styles.sliceText}
                   >
                     {item.name}
                   </Text>
@@ -444,23 +435,27 @@ const styles = StyleSheet.create({
     top: WHEEL_SIZE / 2,
     transformOrigin: "0% 0%", // נקודת הסיבוב — הפינה הקרובה למרכז
   },
-  // עטיפת הטקסט של המקטע
+  // עטיפת הטקסט של המקטע — תופסת את כל הגלגל ומסובבת לזווית של המקטע.
+  // justifyContent: "flex-start" מציב את הטקסט בקצה העליון של העטיפה (השוליים
+  // החיצוניים של הגלגל), כך שאחרי הסיבוב כל תווית מופיעה ברדיוס של המקטע
+  // שלה ולא נדחסת למרכז.
   labelContainer: {
     position: "absolute",
     width: WHEEL_SIZE,
     height: WHEEL_SIZE,
     left: 0,
     top: 0,
-    justifyContent: "center",
+    justifyContent: "flex-start",
     alignItems: "center",
+    paddingTop: 38, // מרחק מהקצה החיצוני — מספיק כדי שטקסט לא ייחתך ע"י overflow: hidden
   },
-  // הטקסט של המקטע — שם היעד
+  // הטקסט של המקטע — שם היעד. צבע אחיד לכל המקטעים (לבן).
   sliceText: {
     fontFamily: FONTS.bold,
-    fontSize: 13,
+    fontSize: 12,
     textAlign: "center",
-    width: 80,
-    paddingTop: 22, // מרחיק את הטקסט מהמרכז
+    width: 64,
+    color: "#fff",
   },
   // העיגול המרכזי של הגלגל
   centerHub: {
