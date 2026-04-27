@@ -1,6 +1,17 @@
 import { getToken } from "../auth/authStore";
 import { BASE_URL } from "./config";
 
+// helper פנימי: מנסה לפרסר את הטקסט כ-JSON. אם הוא לא JSON תקין
+// (השרת מחזיר טקסט רגיל כמו "Added"), מחזיר את הטקסט עצמו ולא זורק שגיאה.
+function safeParse(text) {
+  if (!text) return null;
+  try {
+    return JSON.parse(text);
+  } catch {
+    return text;
+  }
+}
+
 // יוצר Trip חדש ב-DB. חובת [Authorize] בשרת — שולחים JWT.
 // trip = { CreatedByUserID, Destination, StartDate (ISO), EndDate (ISO) }
 export async function createTrip(trip) {
@@ -38,7 +49,7 @@ export async function createTrip(trip) {
   }
 
   // ה-controller מחזיר int (tripID)
-  return text ? JSON.parse(text) : null;
+  return safeParse(text);
 }
 
 // יוצר העדפות לטיול. UNIQUE על TripID.
@@ -75,7 +86,7 @@ export async function createTripPreferences(pref) {
 
   // ה-controller מחזיר int (tripPreferenceID)
   //הפונקציה מחזירה את ה-ID של ההעדפות שנוצרו בשרת, כדי שנוכל להשתמש בו מיד אחר כך כדי להוסיף תחומי עניין לטיול
-  return text ? JSON.parse(text) : null;
+  return safeParse(text);
 }
 
 // מקשר תחום עניין להעדפת טיול. השרת מצפה ל-query string (אין [FromBody] ב-controller).
@@ -103,5 +114,5 @@ export async function addTripPreferenceInterest(tripPreferenceId, interestId) {
     throw new Error(msg || `שגיאה ${res.status} מהשרת`);
   }
 
-  return text ? JSON.parse(text) : null;
+  return safeParse(text);
 }
