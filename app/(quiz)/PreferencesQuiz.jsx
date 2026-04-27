@@ -1,5 +1,7 @@
 // ── ייבואים ──
 import { Ionicons } from "@expo/vector-icons"; // אייקונים מוכרים (V/X וכו')
+import { Slider } from "@miblanchard/react-native-slider";
+import DateTimePicker from "@react-native-community/datetimepicker";
 import { useRouter } from "expo-router";
 // אייקונים מותאמים אישית — Globe2 לכותרת ה-intro, Plane/Home לתאריכים, Calendar למועדים
 import { Globe2, Plane, Home, Calendar } from "lucide-react-native";
@@ -134,18 +136,23 @@ function getIsAnswered(question, data) {
       return !!(data[question.id] || "").trim(); // חובה שיהיה טקסט אחרי trim
     }
     case "dates": {
-      // שני התאריכים חייבים להיות תקינים
-      const start = parseDDMMYY(data.startDate);
-      const end = parseDDMMYY(data.endDate);
-      if (!start || !end) return false;
+      // startDate ו-endDate נשמרים כאובייקטי Date מבורר התאריכים
+      const start = data.startDate;
+      const end = data.endDate;
+      if (!(start instanceof Date) || !(end instanceof Date)) return false;
       if (end < start) return false; // תאריך חזרה לא יכול להיות לפני יציאה
       return true;
     }
     case "single-select":
       return !!data[question.id]; // חובה לבחור אופציה
     case "age": {
-      const n = parseInt(data.ageRange, 10);
-      return !isNaN(n) && n >= 18 && n <= 99; // טווח חוקי: 18-99
+      // ageRange הוא אובייקט { min, max } — שניהם חייבים להיות בטווח 18-60+
+      // והגיל המינימלי לא יכול לעבור את המקסימלי
+      const r = data.ageRange;
+      if (!r || typeof r !== "object") return false;
+      const okMin = r.min >= 18 && r.min <= 60;
+      const okMax = r.max >= 18 && r.max <= 60;
+      return okMin && okMax && r.min <= r.max;
     }
     case "multi-select":
       // חייב לפחות תחום עניין אחד
@@ -166,11 +173,11 @@ export default function PreferencesQuizScreen() {
   const [data, setData] = useState({
     tripName: "",        // שם הטיול
     destination: "",     // יעד
-    startDate: "",       // תאריך יציאה
-    endDate: "",         // תאריך חזרה
+    startDate: null,     // תאריך יציאה (Date מבורר התאריכים)
+    endDate: null,       // תאריך חזרה (Date מבורר התאריכים)
     recommendPeriod: false, // האם להמליץ על תקופה?
     gender: "",          // העדפת מגדר
-    ageRange: "",        // העדפת גיל
+    ageRange: { min: 24, max: 38 }, // העדפת גיל — טווח עם min/max
     interests: [],       // מערך IDs של תחומי עניין
   });
 
@@ -178,6 +185,9 @@ export default function PreferencesQuizScreen() {
   const [interestOptions, setInterestOptions] = useState([]);     // הרשימה שנטענה
   const [interestsLoading, setInterestsLoading] = useState(true); // האם בטעינה?
   const [interestsLoadError, setInterestsLoadError] = useState(""); // שגיאת טעינה
+
+  // ── בוררי תאריכים: איזה בורר פתוח כרגע (null = שום בורר לא פתוח) ──
+  const [datePickerOpen, setDatePickerOpen] = useState(null); // "start" | "end" | null
 
   // ── מצב שליחה לשרת ──
   const [submitting, setSubmitting] = useState(false); // האם בתהליך שליחה?
@@ -293,8 +303,9 @@ export default function PreferencesQuizScreen() {
 
     // המרת המידע לפורמט שהשרת מצפה לו
     const dest = (data.destination || "").trim();
-    const start = parseDDMMYY(data.startDate);
-    const end = parseDDMMYY(data.endDate);
+    // התאריכים כבר אובייקטי Date מבורר לוח השנה — אין צורך ב-parsing
+    const start = data.startDate;
+    const end = data.endDate;
 
     // ולידציה: תאריך יציאה לא יכול להיות בעבר
     const today = new Date();
@@ -310,14 +321,12 @@ export default function PreferencesQuizScreen() {
     });
 
     // ── שלב 2: יצירת רשומת TripPreferences (קשורה ל-Trip) ──
-    const ageNum = parseInt(data.ageRange, 10);
-    const ageValid = !isNaN(ageNum) && ageNum > 0;
+    // טווח הגיל מגיע כ-{ min, max } מסליידר הטווח
     const prefId = await createTripPreferences({
       TripID: tripId, // מזהה הטיול שנוצר בשלב 1
       PreferredGender: GENDER_HE_TO_DB[data.gender] || null,
-      // אותו גיל ל-Min ול-Max (בעתיד יהיה טווח)
-      PreferredAgeMin: ageValid ? ageNum : null,
-      PreferredAgeMax: ageValid ? ageNum : null,
+      PreferredAgeMin: data.ageRange?.min ?? null,
+      PreferredAgeMax: data.ageRange?.max ?? null,
       // שדות לא רלוונטיים לטיול (שייכים לפרופיל המשתמש)
       IsSmoker: null,
       KeepsKosher: null,
@@ -431,45 +440,96 @@ export default function PreferencesQuizScreen() {
   );
 
   // ── שאלת תאריכים: יציאה + חזרה + checkbox המלצה ──
-  const renderDates = () => (
+  // formatDate ממיר Date → "DD/MM/YYYY" להצגה למשתמש (שאר ה-app עובד עם אובייקט Date)
+  const formatDate = (d) =>
+    d
+      ? `${String(d.getDate()).padStart(2, "0")}/${String(d.getMonth() + 1).padStart(2, "0")}/${d.getFullYear()}`
+      : "DD/MM/YYYY";
+
+  const renderDates = () => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    return (
     <View style={styles.fieldsWrapper}>
       {/* תווית "תאריך יציאה" עם אייקון מטוס */}
       <View style={styles.dateLabelRow}>
         <Plane size={18} color="#1A3C40" strokeWidth={1.8} />
         <Text style={styles.dateLabel}>תאריך יציאה</Text>
       </View>
-      {/* שדה קלט עם אייקון לוח שנה — תאריך יציאה */}
-      <View style={styles.dateInputCard}>
+      {/* כפתור שפותח לוח שנה — תאריך יציאה */}
+      <Pressable
+        style={styles.dateInputCard}
+        onPress={() => setDatePickerOpen("start")}
+      >
         <Calendar size={18} color="#9AABAD" strokeWidth={1.8} />
-        <TextInput
-          style={styles.dateTextInput}
-          placeholder="DD/MM/YY"
-          placeholderTextColor="#aaa"
-          textAlign="right"
-          value={data.startDate}
-          onChangeText={(v) => updateField("startDate", v)}
-          keyboardType="numbers-and-punctuation" // מקלדת מספרים+סימני פיסוק
-        />
-      </View>
+        <Text
+          style={[
+            styles.dateTextInput,
+            !data.startDate && styles.dateTextPlaceholder,
+          ]}
+        >
+          {formatDate(data.startDate)}
+        </Text>
+      </Pressable>
 
       {/* תווית "תאריך חזרה" עם אייקון בית */}
       <View style={styles.dateLabelRow}>
         <Home size={18} color="#1A3C40" strokeWidth={1.8} />
         <Text style={styles.dateLabel}>תאריך חזרה</Text>
       </View>
-      {/* שדה קלט — תאריך חזרה */}
-      <View style={styles.dateInputCard}>
+      {/* כפתור שפותח לוח שנה — תאריך חזרה */}
+      <Pressable
+        style={styles.dateInputCard}
+        onPress={() => setDatePickerOpen("end")}
+      >
         <Calendar size={18} color="#9AABAD" strokeWidth={1.8} />
-        <TextInput
-          style={styles.dateTextInput}
-          placeholder="DD/MM/YY"
-          placeholderTextColor="#aaa"
-          textAlign="right"
-          value={data.endDate}
-          onChangeText={(v) => updateField("endDate", v)}
-          keyboardType="numbers-and-punctuation"
+        <Text
+          style={[
+            styles.dateTextInput,
+            !data.endDate && styles.dateTextPlaceholder,
+          ]}
+        >
+          {formatDate(data.endDate)}
+        </Text>
+      </Pressable>
+
+      {/* בורר תאריכים native — מוצג רק כש-datePickerOpen אינו null.
+          minimumDate משתנה לפי איזה בורר פתוח: יציאה לא יכול להיות בעבר,
+          חזרה לא יכול להיות לפני יציאה. */}
+      {datePickerOpen && (
+        <DateTimePicker
+          value={
+            datePickerOpen === "start"
+              ? data.startDate || today
+              : data.endDate || data.startDate || today
+          }
+          mode="date"
+          display={Platform.OS === "ios" ? "spinner" : "default"}
+          minimumDate={datePickerOpen === "start" ? today : data.startDate || today}
+          onChange={(event, date) => {
+            // ב-Android הבורר נסגר לבד; ב-iOS משאירים פתוח עד שהמשתמש יגלול
+            const isIos = Platform.OS === "ios";
+            // datePickerOpen הוא "start"/"end" — ממפים לשם השדה האמיתי ב-data
+            const fieldName = datePickerOpen === "start" ? "startDate" : "endDate";
+            if (event.type === "set" && date) {
+              updateField(fieldName, date);
+              if (!isIos) setDatePickerOpen(null);
+            } else if (!isIos) {
+              setDatePickerOpen(null);
+            }
+          }}
         />
-      </View>
+      )}
+      {/* ב-iOS הבורר נשאר פתוח — מוסיפים כפתור "סיום" לסגירה ידנית */}
+      {datePickerOpen && Platform.OS === "ios" && (
+        <Pressable
+          style={styles.dateDoneBtn}
+          onPress={() => setDatePickerOpen(null)}
+        >
+          <Text style={styles.dateDoneText}>סיום</Text>
+        </Pressable>
+      )}
 
       {/* checkbox עם טקסט — לחיצה הופכת את המצב הבוליאני */}
       <Pressable
@@ -493,7 +553,8 @@ export default function PreferencesQuizScreen() {
         <Text style={styles.checkboxLabel}>תמליצי לי על תקופה טובה לטיסה</Text>
       </Pressable>
     </View>
-  );
+    );
+  };
 
   // ── שאלת בחירה יחידה (single-select) — בחירת מגדר ──
   const renderSingleSelect = () => (
@@ -525,26 +586,58 @@ export default function PreferencesQuizScreen() {
     </View>
   );
 
-  // ── שאלת גיל — שדה מספר עם ולידציה (18-99) ──
-  const renderAge = () => (
-    <View style={styles.fieldsWrapper}>
-      <Text style={styles.ageHint}>גיל מועדף לפרטנר/ית</Text>
-      <TextInput
-        style={[styles.input, styles.ageInput]}
-        placeholder="הקלידי גיל (18-99)"
-        placeholderTextColor="#aaa"
-        textAlign="center"
-        keyboardType="numeric" // רק מקלדת מספרים
-        maxLength={2}           // מקסימום 2 ספרות
-        value={String(data.ageRange || "")}
-        onChangeText={(v) => {
-          // מסיר כל תו שאינו ספרה (אבטחה נוספת)
-          const clean = v.replace(/[^0-9]/g, "");
-          updateField("ageRange", clean);
-        }}
-      />
-    </View>
-  );
+  // ── שאלת גיל — סליידר טווח עם שני handles (min ו-max) ──
+  // הסליידר נע בין AGE_MIN ל-AGE_MAX. data.ageRange = { min, max }.
+  // המספרים מעל ה-handles מוצגים ב-row-reverse (RTL), כך ש-max מופיע מימין-שמאל.
+  const renderAge = () => {
+    const AGE_MIN = 18;
+    const AGE_MAX = 60;
+    const r = data.ageRange || { min: AGE_MIN, max: AGE_MAX };
+
+    return (
+      <View style={styles.fieldsWrapper}>
+        <Text style={styles.ageHint}>טווח גילאים</Text>
+
+        {/* תצוגה מרכזית של הטווח הנבחר — שני pills עם קו מקשר באמצע.
+            ממורכז ויזואלית כדי שלא יזוז בעת גרירה של ה-handles. */}
+        <View style={styles.ageRangeDisplay}>
+          <View style={styles.ageNumberPill}>
+            <Text style={styles.ageNumberText}>{r.min}</Text>
+          </View>
+          <View style={styles.ageRangeDash} />
+          <View style={styles.ageNumberPill}>
+            <Text style={styles.ageNumberText}>
+              {r.max}
+              {r.max >= AGE_MAX ? "+" : ""}
+            </Text>
+          </View>
+        </View>
+
+        <Slider
+          value={[r.min, r.max]}
+          minimumValue={AGE_MIN}
+          maximumValue={AGE_MAX}
+          step={1}
+          minimumTrackTintColor="#1A3C40"
+          maximumTrackTintColor="#D8E0E1"
+          thumbTintColor="#fff"
+          thumbStyle={styles.ageThumb}
+          trackStyle={styles.ageTrack}
+          containerStyle={styles.ageSliderContainer}
+          onValueChange={(values) => {
+            // הספרייה מחזירה [min, max] — שומרים כאובייקט נגיש בשאר הקוד
+            updateField("ageRange", { min: values[0], max: values[1] });
+          }}
+        />
+
+        {/* תוויות גבולות הסקלה — מתואמות לכיוון הסליידר */}
+        <View style={styles.ageBoundsRow}>
+          <Text style={styles.ageBound}>{AGE_MIN}</Text>
+          <Text style={styles.ageBound}>+{AGE_MAX}</Text>
+        </View>
+      </View>
+    );
+  };
 
   // ── שאלת multi-select — תחומי עניין מהשרת ──
   const renderMultiSelect = () => {
@@ -882,6 +975,22 @@ const styles = StyleSheet.create({
     textAlign: "right",
     color: "#222",
   },
+  // צבע אפור כשעוד לא נבחר תאריך — אפקט "placeholder"
+  dateTextPlaceholder: {
+    color: "#aaa",
+  },
+  // כפתור "סיום" שסוגר את בורר התאריכים ב-iOS
+  dateDoneBtn: {
+    alignSelf: "flex-end",
+    paddingVertical: 8,
+    paddingHorizontal: 18,
+    marginBottom: 8,
+  },
+  dateDoneText: {
+    fontSize: 15,
+    fontFamily: FONTS.bold,
+    color: "#1A3C40",
+  },
   checkboxRow: {
     flexDirection: "row-reverse",
     alignItems: "center",
@@ -936,20 +1045,84 @@ const styles = StyleSheet.create({
     marginLeft: 6,
   },
 
-  // ── Age input ──
+  // ── Age range slider ──
   ageHint: {
-    fontSize: 14,
-    fontFamily: FONTS.regular,
-    color: "#666",
-    textAlign: "center",
+    fontSize: 15,
+    fontFamily: FONTS.bold,
+    color: "#1A3C40",
+    textAlign: "right",
     marginBottom: 14,
   },
-  ageInput: {
-    fontSize: 22,
+  // תצוגה מרכזית של הטווח: [min] — [max], pills יפים עם קו מקשר באמצע
+  ageRangeDisplay: {
+    flexDirection: "row",
+    justifyContent: "center",
+    alignItems: "center",
+    gap: 12,
+    marginBottom: 16,
+  },
+  // pill לכל אחד מהמספרים — רקע turquoise כהה (כצבע הראשי), טקסט לבן
+  ageNumberPill: {
+    minWidth: 64,
+    paddingVertical: 10,
+    paddingHorizontal: 18,
+    borderRadius: 14,
+    backgroundColor: "#1A3C40",
+    alignItems: "center",
+    shadowColor: "#1A3C40",
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.18,
+    shadowRadius: 6,
+    elevation: 3,
+  },
+  ageNumberText: {
+    fontSize: 20,
     fontFamily: FONTS.bold,
-    textAlign: "center",
-    color: "#1A3C40",
-    letterSpacing: 2,
+    color: "#fff",
+    letterSpacing: 0.5,
+  },
+  // קו מקשר עדין בין שני ה-pills
+  ageRangeDash: {
+    width: 14,
+    height: 2,
+    borderRadius: 1,
+    backgroundColor: "#1A3C40",
+    opacity: 0.45,
+  },
+  // עיצוב הסליידר עצמו
+  ageSliderContainer: {
+    height: 40,
+    width: "100%",
+  },
+  ageTrack: {
+    height: 6,
+    borderRadius: 3,
+  },
+  // ראשי הסליידר — לבנים עם מסגרת turquoise כדי להבליט
+  ageThumb: {
+    width: 26,
+    height: 26,
+    borderRadius: 13,
+    backgroundColor: "#fff",
+    borderWidth: 3,
+    borderColor: "#1A3C40",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.18,
+    shadowRadius: 3,
+    elevation: 3,
+  },
+  // שורת התוויות של גבולות הסקלה (+60 בצד שמאל, 18 בצד ימין)
+  ageBoundsRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    paddingHorizontal: 4,
+    marginTop: 2,
+  },
+  ageBound: {
+    fontSize: 13,
+    fontFamily: FONTS.regular,
+    color: "#9AABAD",
   },
 
   // ── Tags grid (multi-select) ──
