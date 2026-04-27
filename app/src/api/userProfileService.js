@@ -74,6 +74,44 @@ export async function createUserProfile(profile) {
   return text ? JSON.parse(text) : null;
 }
 
+// מעדכן פרופיל קיים ב-DB (PUT /api/UserProfile).
+// profile = { UserID, FirstName, LastName, BirthDate (ISO), Gender, City }
+// השרת מעדכן את הרשומה הקיימת לפי UserID.
+export async function updateUserProfile(profile) {
+  const url = `${BASE_URL}/UserProfile`;
+  console.log(`[userProfile] → PUT ${url}`, profile);
+
+  const token = getToken();
+  let res;
+  try {
+    res = await fetch(url, {
+      method: "PUT",
+      headers: {
+        "Content-Type": "application/json",
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      },
+      body: JSON.stringify(profile),
+    });
+  } catch (networkErr) {
+    console.error(`[userProfile] ✖ network error:`, networkErr);
+    throw new Error(
+      `לא ניתן להתחבר לשרת (${url}). פרטים: ${networkErr.message}`,
+    );
+  }
+
+  const text = await res.text();
+  console.log(`[userProfile] ← ${res.status} ${res.statusText}`, text);
+
+  if (!res.ok) {
+    let msg = text;
+    try { msg = JSON.parse(text)?.message || msg; } catch {}
+    throw new Error(msg || `שגיאה ${res.status} בעדכון פרופיל`);
+  }
+
+  // השרת עשוי להחזיר טקסט פשוט "Updated" — נסיון פרסור עם נפילה לטקסט הגולמי
+  try { return JSON.parse(text); } catch { return text; }
+}
+
 // מעלה תמונת פרופיל לשרת. localUri הוא ה-uri של התמונה מהמצלמה/גלריה.
 // השרת מצפה לפורט multipart/form-data ב-PUT /api/UserProfile/updateImage/{userId}
 export async function uploadProfileImage(userId, localUri) {

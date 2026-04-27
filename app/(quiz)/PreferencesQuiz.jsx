@@ -796,7 +796,7 @@ export default function PreferencesQuizScreen() {
                   ]}
                 >
                   {currentQ.type === "intro"
-                    ? "בואי נתחיל"
+                    ? "בואו נתחיל"
                     : isLastStep
                       ? "מוכנים למצוא התאמות"
                       : "נמשיך הלאה?"}

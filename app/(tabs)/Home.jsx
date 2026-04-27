@@ -120,7 +120,6 @@ export default function Home() {
     {
       key: "matches",
       title: "התאמות עבורך",
-      sub: "3 התאמות חדשות",
       Icon: MessageCircle,
       bg: "#D4E8E6",
       iconBorder: "#7BBDBF",
@@ -128,7 +127,6 @@ export default function Home() {
     {
       key: "trips",
       title: "הטיולים שלי",
-      sub: "2 טיולים פעילים",
       Icon: MapPin,
       bg: "#EADFCB",
       iconBorder: "#C9A876",
@@ -136,7 +134,6 @@ export default function Home() {
     {
       key: "notifications",
       title: "התראות ופעילויות",
-      sub: "5 התראות",
       Icon: Bell,
       bg: "#F4D9D9",
       iconBorder: "#D88B8B",
@@ -144,7 +141,6 @@ export default function Home() {
     {
       key: "community",
       title: "גילוי וקהילה",
-      sub: "בקרב המטיילים",
       Icon: Users,
       bg: "#E0D5E8",
       iconBorder: "#9A7BBE",
@@ -192,26 +188,6 @@ export default function Home() {
       </View>
 
       <BottomNav active="home" />
-      {/* <View style={styles.bottomNav}>
-        <TouchableOpacity
-        style={styles.navItem}
-        activeOpacity={0.7}
-        >
-          <Ionicons name="person-outline" size={26} color="#1A3C40" />
-        </TouchableOpacity>
-
-        <TouchableOpacity style={styles.navItem} activeOpacity={0.7}>
-          <Ionicons name="chatbubble-outline" size={26} color="#1A3C40" />
-        </TouchableOpacity>
-
-        <TouchableOpacity style={styles.navItem} activeOpacity={0.7}>
-          <Ionicons name="compass-outline" size={26} color="#1A3C40" />
-        </TouchableOpacity>
-
-        <TouchableOpacity style={[styles.navItem, styles.navItemActive]} activeOpacity={0.7}>
-          <Ionicons name="home" size={26} color="#1A3C40" />
-        </TouchableOpacity>
-      </View> */}
     </SafeAreaView>
   );
 }
