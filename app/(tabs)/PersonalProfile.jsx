@@ -243,18 +243,22 @@ export default function ProfileScreen() {
     );
   };
 
+  // route = ה-path אליו הכפתור מנווט (null = לא לחיץ עדיין, כמו "הגדרות" שטרם פותח)
   const MENU = [
     {
       title: "הגדרות",
       Icon: Settings,
+      route: null,
     },
     {
-      title: "עדכון שאלון היכרות",
+      title: "עדכון פרטים אישיים",
       Icon: FileText,
+      route: "/UpdateIntroQuiz",
     },
     {
-      title: "העדפות טיול",
+      title: "עדכון העדפות טיול",
       Icon: Heart,
+      route: null, // יבוא בעתיד — מסך עדכון העדפות הוסר זמנית
     },
   ];
 
@@ -321,7 +325,12 @@ export default function ProfileScreen() {
           {MENU.map((item, index) => {
             const Icon = item.Icon;
             return (
-              <TouchableOpacity key={index} style={styles.menuItem}>
+              <TouchableOpacity
+                key={index}
+                style={styles.menuItem}
+                disabled={!item.route}
+                onPress={() => item.route && router.push(item.route)}
+              >
                 <ChevronLeft size={20} color="#999" />
                 <Text style={styles.menuText}>{item.title}</Text>
                 <View style={styles.menuIcon}>

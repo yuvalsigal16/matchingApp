@@ -2,6 +2,12 @@ import { Ionicons } from "@expo/vector-icons";
 import DateTimePicker from "@react-native-community/datetimepicker";
 import * as ImagePicker from "expo-image-picker";
 import { useRouter } from "expo-router";
+import {
+  Cigarette,        // מעשן
+  CigaretteOff,     // לא מעשן
+  MoonStar,         // שומר שבת — סמל של מנוחה ושבת קודש
+  UtensilsCrossed,  // שומר כשרות — סמל של כללי אכילה
+} from "lucide-react-native";
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
@@ -183,7 +189,10 @@ const QUESTIONS = [
     id: "smoking",
     title: "מעשן?",
     type: "single-select",
-    options: ["מעשן/ת 🚬", "לא מעשן/ת 🚭"],
+    options: [
+      { value: "מעשן/ת", label: "מעשן/ת", Icon: Cigarette },
+      { value: "לא מעשן/ת", label: "לא מעשן/ת", Icon: CigaretteOff },
+    ],
     progress: 25,
   },
   {
@@ -191,8 +200,8 @@ const QUESTIONS = [
     title: "מסורת ואורח חיים",
     type: "yes-no-list",
     options: [
-      { key: "shabbat", label: "שומר/ת שבת? 🕯️" },
-      { key: "kosher", label: "שומר/ת כשרות? ✡️" },
+      { key: "shabbat", label: "שומר/ת שבת?", Icon: MoonStar },
+      { key: "kosher", label: "שומר/ת כשרות?", Icon: UtensilsCrossed },
     ],
     progress: 40,
   },
@@ -481,7 +490,7 @@ export default function QuizScreen() {
 
     // smoking שמור כ-array (single-select) — הערך היחיד הוא ה-string שנבחר
     const smokingVal = answers.smoking?.[0];
-    const isSmoker = smokingVal == null ? null : smokingVal === "מעשן/ת 🚬";
+    const isSmoker = smokingVal == null ? null : smokingVal === "מעשן/ת";
 
     // shabbat / kosher שמורים כ-"כן"/"לא" (yes-no-list)
     const toBool = (v) => (v == null ? null : v === "כן");
@@ -867,13 +876,17 @@ export default function QuizScreen() {
       );
     }
 
-    // נורמליזציה: כל אופציה הופכת לאובייקט { value, label }
+    // נורמליזציה: כל אופציה הופכת לאובייקט { value, label, Icon? }.
+    // אם האופציה היא אובייקט (למשל smoking עם Icon) — משאירים כמו שהיא;
+    // אם היא string (כמו תחומי עניין) — עוטפים ב-{ value, label }.
     const items = isInterests
       ? interestOptions.map((o) => ({
           value: o.interestID,
           label: o.interestName,
         }))
-      : currentQ.options.map((o) => ({ value: o, label: o }));
+      : currentQ.options.map((o) =>
+          typeof o === "string" ? { value: o, label: o } : o,
+        );
 
     const currentVal = answers[currentQ.id] || [];
 
@@ -881,6 +894,7 @@ export default function QuizScreen() {
       <View style={styles.optionsContainer}>
         {items.map((item) => {
           const isSelected = currentVal.includes(item.value);
+          const Icon = item.Icon;
           return (
             <Pressable
               key={String(item.value)}
@@ -900,11 +914,20 @@ export default function QuizScreen() {
                 }
               }}
             >
-              <Text
-                style={[styles.optionText, isSelected && styles.selectedText]}
-              >
-                {item.label}
-              </Text>
+              <View style={styles.optionLabelRow}>
+                {Icon ? (
+                  <Icon
+                    size={20}
+                    color={isSelected ? "#fff" : "#1A3C40"}
+                    strokeWidth={2}
+                  />
+                ) : null}
+                <Text
+                  style={[styles.optionText, isSelected && styles.selectedText]}
+                >
+                  {item.label}
+                </Text>
+              </View>
               {isSelected && <Text style={styles.checkmark}>✓</Text>}
             </Pressable>
           );
@@ -914,36 +937,44 @@ export default function QuizScreen() {
   };
 
   const renderYesNoList = () =>
-    currentQ.options.map((item) => (
-      <View key={item.key} style={styles.yesNoContainer}>
-        <Text style={styles.yesNoLabel}>{item.label}</Text>
-        <View style={styles.yesNoButtonsRow}>
-          {["כן", "לא"].map((val) => {
-            const isSelected = answers[item.key] === val;
-            return (
-              <Pressable
-                key={val}
-                style={({ pressed }) => [
-                  styles.smallOptionBtn,
-                  isSelected && styles.selectedBtn,
-                  pressed && !isSelected && styles.pressedBtn,
-                ]}
-                onPress={() => updateAnswer(item.key, val)}
-              >
-                <Text
-                  style={[
-                    styles.smallOptionText,
-                    isSelected && styles.selectedText,
+    currentQ.options.map((item) => {
+      const Icon = item.Icon;
+      return (
+        <View key={item.key} style={styles.yesNoContainer}>
+          <View style={styles.yesNoLabelRow}>
+            {Icon ? (
+              <Icon size={20} color="#1A3C40" strokeWidth={2} />
+            ) : null}
+            <Text style={styles.yesNoLabel}>{item.label}</Text>
+          </View>
+          <View style={styles.yesNoButtonsRow}>
+            {["כן", "לא"].map((val) => {
+              const isSelected = answers[item.key] === val;
+              return (
+                <Pressable
+                  key={val}
+                  style={({ pressed }) => [
+                    styles.smallOptionBtn,
+                    isSelected && styles.selectedBtn,
+                    pressed && !isSelected && styles.pressedBtn,
                   ]}
+                  onPress={() => updateAnswer(item.key, val)}
                 >
-                  {val}
-                </Text>
-              </Pressable>
-            );
-          })}
+                  <Text
+                    style={[
+                      styles.smallOptionText,
+                      isSelected && styles.selectedText,
+                    ]}
+                  >
+                    {val}
+                  </Text>
+                </Pressable>
+              );
+            })}
+          </View>
         </View>
-      </View>
-    ));
+      );
+    });
 
   const renderRating = () => (
     <View style={styles.ratingWrapper}>
@@ -1452,6 +1483,13 @@ const styles = StyleSheet.create({
   },
   pressedBtn: { backgroundColor: "#F0F4F5" },
   selectedBtn: { backgroundColor: "#1A3C40", shadowOpacity: 0.18 },
+  // עוטף Icon + Text כך שהשניים צמודים זה לזה (RTL: אייקון מימין, טקסט אחריו)
+  optionLabelRow: {
+    flexDirection: "row-reverse",
+    alignItems: "center",
+    gap: 10,
+    flexShrink: 1,
+  },
   optionText: { fontSize: 17, fontFamily: FONTS.regular, color: "#333" },
   selectedText: { color: "#fff", fontFamily: FONTS.bold },
   checkmark: {
@@ -1473,6 +1511,13 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     alignItems: "center",
     ...SHADOW,
+  },
+  // עוטף את האייקון והתווית של שאלת "כן/לא" — אייקון בצד ימין, טקסט צמוד לידו
+  yesNoLabelRow: {
+    flexDirection: "row-reverse",
+    alignItems: "center",
+    gap: 10,
+    flexShrink: 1,
   },
   yesNoLabel: {
     fontSize: 17,

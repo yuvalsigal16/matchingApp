@@ -18,7 +18,10 @@ namespace MatchingAppServer.Controllers
                 int result = bl.Add(tripPreferenceID, interestID);
 
                 if (result > 0)
-                    return Ok("Added");
+                    return Ok(new 
+                    { 
+                        message = "Interest added successfully" 
+                    });
 
                 return BadRequest();
             }
@@ -37,8 +40,10 @@ namespace MatchingAppServer.Controllers
                 int result = bl.Delete(tripPreferenceID, interestID);
 
                 if (result > 0)
-                    return Ok("Deleted");
-
+                    return Ok(new 
+                    { 
+                        message = "Interest deleted successfully" 
+                    });
                 return NotFound();
             }
             catch (Exception ex)
