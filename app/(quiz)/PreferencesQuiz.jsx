@@ -313,11 +313,15 @@ export default function PreferencesQuizScreen() {
     if (start < today) throw new Error("תאריך יציאה חייב להיות בעתיד");
 
     // ── שלב 1: יצירת רשומת Trip ──
+    // Status הוא שדה חובה במודל בצד השרת. "Active" הוא ערך ברירת מחדל סביר
+    // לטיול חדש שנוצר זה עתה. אם השרת מצפה לערך אחר (למשל "Open"/"Planning") —
+    // יש לעדכן כאן.
     const tripId = await createTrip({
       CreatedByUserID: u.userID,
       Destination: dest,
       StartDate: toIsoDateOnly(start), // YYYY-MM-DD
       EndDate: toIsoDateOnly(end),
+      Status: "Active",
     });
 
     // ── שלב 2: יצירת רשומת TripPreferences (קשורה ל-Trip) ──
