@@ -4,6 +4,7 @@
 let _token = null;
 let _user = null;
 
+// פונקציות לעדכון ושליפת נתוני האבטחה והמשתמש מתוך הזיכרון
 export function setAuth(token, user) {
   _token = token;
   _user = user;
@@ -17,6 +18,7 @@ export function getUser() {
   return _user;
 }
 
+// איפוס נתוני המשתמש והטוקן לצורך ביצוע התנתקות (Logout)
 export function clearAuth() {
   _token = null;
   _user = null;
