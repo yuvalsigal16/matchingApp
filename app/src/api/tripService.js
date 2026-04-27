@@ -62,6 +62,7 @@ export async function updateTrip(trip) {
 
   const text = await res.text();
   console.log(`[trip] ← ${res.status}`, text);
+  
   if (!res.ok) {
     let msg = text;
     try { msg = JSON.parse(text)?.message || msg; } catch {}

@@ -115,12 +115,17 @@ export async function updateUserProfile(profile) {
 // מעלה תמונת פרופיל לשרת. localUri הוא ה-uri של התמונה מהמצלמה/גלריה.
 // השרת מצפה לפורט multipart/form-data ב-PUT /api/UserProfile/updateImage/{userId}
 export async function uploadProfileImage(userId, localUri) {
+
   const url = `${BASE_URL}/UserProfile/updateImage/${userId}`;
   console.log(`[userProfile] → PUT ${url} (image)`);
 
-  // לחלץ סיומת מה-uri כדי לבנות filename ו-mime type
+  //מנסה למצוא את סוג הקובץ מתוך הכתובת
   const match = /\.([a-zA-Z0-9]+)$/.exec(localUri);
+  //לוקח את הסיומת של הקובץ
+  //אם לא מצא → ברירת מחדל jpg
   const ext = (match?.[1] || "jpg").toLowerCase();
+
+  //קובע סוג קובץ לפי הסיומת (png או jpeg)
   const mime = ext === "png" ? "image/png" : "image/jpeg";
 
   // שימוש באובייקט FormData לצורך שליחת קובץ תמונה בינארי לשרת
@@ -136,10 +141,8 @@ export async function uploadProfileImage(userId, localUri) {
   try {
     res = await fetch(url, {
       method: "PUT",
-      headers: {
-        // שים לב: לא מגדירים Content-Type ידנית — fetch מחשב אוטומטית את ה-boundary
-        ...(token ? { Authorization: `Bearer ${token}` } : {}),
-      },
+      //אם יש תוקן אז נשלח Authorization אם לא נשלח אובייקט ריק
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
       body: formData,
     });
   } catch (networkErr) {
@@ -173,6 +176,7 @@ export async function deleteProfileImage(userId) {
   try {
     res = await fetch(url, {
       method: "DELETE",
+      //אם יש תוקן אז נשלח Authorization אם לא נשלח אובייקט ריק
       headers: token ? { Authorization: `Bearer ${token}` } : {},
     });
   } catch (networkErr) {
