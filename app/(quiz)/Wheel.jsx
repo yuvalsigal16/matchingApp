@@ -86,7 +86,8 @@ export default function WheelScreen() {
   // ── פונקציה ראשית: מסובבת את הגלגל ──
   const spinWheel = () => {
     // אם הגלגל כבר מסתובב — לא לעשות כלום (מניעת לחיצה כפולה)
-    if (isSpinning) return;
+    if (isSpinning) 
+      return;
     setIsSpinning(true);
     setResult(null); // מנקה תוצאה קודמת
 

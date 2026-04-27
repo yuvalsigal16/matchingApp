@@ -45,18 +45,20 @@ const GENDER_OPTIONS = ["זכר", "נקבה", "אחר"];
 const GEOAPIFY_API_KEY = "b7fddb151bdd4eae8f4afe871bff1da1";
 const GEOAPIFY_URL = "https://api.geoapify.com/v1/geocode/autocomplete";
 
-// Module-level LRU-style cache — avoids redundant API calls for the same query
+//NEW MAP() = זה מבנה נתונים -כמו אובייקט 
+//זיכרון מקומי = cityCache
+//שומר תוצאות שכבר חיפשת כדי לא לשלוח שוב בקשות
 const cityCache = new Map();
 
-/**
- * Fetches city suggestions from Geoapify.
- * Returns an array of { label, city, country, lat, lon } objects.
- * Falls back to the local ISRAELI_CITIES array on any network/API failure.
- */
+//פונקציה שמביאה ערים לפי מה שהמשתמש מקליד
 async function fetchCitySuggestions(query, signal) {
-  const cacheKey = query.toLowerCase().trim();
-  if (cityCache.has(cacheKey)) return cityCache.get(cacheKey);
 
+   //אם כבר חיפשו את המילה הזאת → תחזיר מהזיכרון 
+  const cacheKey = query.toLowerCase().trim();
+  if (cityCache.has(cacheKey)) 
+    return cityCache.get(cacheKey);
+
+  //בניית פרמטרים לURL
   try {
     const params = new URLSearchParams({
       text: query,
@@ -67,24 +69,33 @@ async function fetchCitySuggestions(query, signal) {
       apiKey: GEOAPIFY_API_KEY,
     });
 
+    //קריאת API עם הפרמטרים והטיפול בתשובה
     const res = await fetch(`${GEOAPIFY_URL}?${params}`, { signal });
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    if (!res.ok) 
+        throw new Error(`HTTP ${res.status}`);
 
     const data = await res.json();
 
+    //אם אין features → משתמש ברשימה ריקה
     const results = (data.features ?? [])
+    //filter = סינון
+    //הוא עובר על כל איבר במערך ומשאיר רק מה שעומד בתנאי
       .filter((f) => f.properties?.city)
       .map((f) => ({
         label: f.properties.formatted ?? f.properties.city,
         city: f.properties.city,
         country: f.properties.country ?? "",
+        //קו רוחב
         lat: f.properties.lat ?? f.geometry?.coordinates[1] ?? 0,
+        //קו אורך
         lon: f.properties.lon ?? f.geometry?.coordinates[0] ?? 0,
       }))
+      // מגביל ל-5 תוצאות כדי לא להעמיס על המשתמש
       .slice(0, 5);
 
     // Keep cache bounded
-    if (cityCache.size >= 60) cityCache.clear();
+    if (cityCache.size >= 60) 
+        cityCache.clear();
     cityCache.set(cacheKey, results);
 
     return results;
@@ -109,11 +120,17 @@ async function fetchCitySuggestions(query, signal) {
 // debounce fires) so the dropdown never flickers to an empty-results state
 // while the user is still typing.
 
+//פונקציה שלוקחת טקסט שהמשתמש מקליד
+// מביא הצעות לערים
+// ומעדכן את המסך
 function useCitySearch(query) {
+    //רשימת הערים שמצאנו
   const [suggestions, setSuggestions] = useState([]);
   const [status, setStatus] = useState("idle"); // "idle"|"loading"|"done"
+  //שומר את הבקשה הנוכחית כדי שאפשר יהיה לבטל אותה
   const controllerRef = useRef(null);
 
+  //כל פעם שהQUERY משתנה אז useEffect רץ
   useEffect(() => {
     const trimmed = query.trim();
 
@@ -125,13 +142,17 @@ function useCitySearch(query) {
 
     setStatus("loading"); // show spinner before debounce fires
 
+    //מחכה לפני שליחה כדי לא לשלוח בקשה על כל אות
     const timer = setTimeout(async () => {
+        //אם יש בקשה קודמת מבטל אותה
       controllerRef.current?.abort();
+      //יצירת בקשה חדשה ושמירתה
       const controller = new AbortController();
       controllerRef.current = controller;
 
       try {
         const results = await fetchCitySuggestions(trimmed, controller.signal);
+        //אם הבקשה עדיין רלוונטית (לא בוטלה) אז מעדכן את ההצעות והסטטוס
         if (!controller.signal.aborted) {
           setSuggestions(results);
           setStatus("done");
@@ -147,6 +168,7 @@ function useCitySearch(query) {
     return () => clearTimeout(timer);
   }, [query]);
 
+  //מתבצע שיוצאים מהמסך - מבטל בקשה שעדיין רצה
   useEffect(() => () => controllerRef.current?.abort(), []); // abort on unmount
 
   return { suggestions, loading: status === "loading" };
@@ -229,30 +251,44 @@ const QUESTIONS = [
 
 // ─── Validation ───────────────────────────────────────────────────────────────
 
+//פונקציה שבודקת האם המשתמש מילא את השאלה כמו שצריך
+//question → השאלה הנוכחית
+//answers → כל התשובות של המשתמש
 function getIsAnswered(question, answers) {
+    //כל סוג שאלה נבדק אחרת
   switch (question.type) {
+    //השלב של הפרטים האישיים
     case "fields": {
+        //מחזיר true רק אם כל השדות תקינים
+        //אם אחד לא תקין → הכל נכשל
       const fieldsOk = question.fields.every((f) => {
         if (f.key === "city") {
           // Must be a selected suggestion object, not just free-typed text
           return (
+            //יש ערך (לא null/undefined)
             answers.city != null &&
+            //זה אובייקט (לא סתם טקסט)
             typeof answers.city === "object" &&
+            //יש שם עיר אמיתי
             !!answers.city.city
           );
         }
         if (f.key === "birthDate") {
           // birthDate נשמר כאובייקט Date — חייב להיות בתאריך תקף וגיל 18+
           const d = answers.birthDate;
-          if (!(d instanceof Date) || isNaN(d.getTime())) return false;
+          //אם זה לא אובייקט Date או אם התאריך לא חוקי 
+          if (!(d instanceof Date) || isNaN(d.getTime())) 
+            return false;
           const today = new Date();
           let age = today.getFullYear() - d.getFullYear();
           const m = today.getMonth() - d.getMonth();
           if (m < 0 || (m === 0 && today.getDate() < d.getDate())) age--;
           return age >= 18 && age <= 120;
         }
+        //כל שאר השדות — פשוט חייבים להיות לא ריקים
         const val = (answers[f.key] || "").trim();
-        if (!val) return false;
+        if (!val) 
+            return false;
         return true;
       });
       const genderOk = !question.hasGender || !!answers.gender;
@@ -261,12 +297,16 @@ function getIsAnswered(question, answers) {
     }
     case "multi-select":
     case "single-select":
+        //חייב לפחות פריט אחד מסומן בשאלה מסוג בחירה
       return (answers[question.id] || []).length > 0;
     case "yes-no-list":
+        //כל שאלה חייבת תשובה — לא יכול להשאיר שאלה בלי לענות
       return question.options.every((item) => answers[item.key] != null);
     case "rating":
+        //חייב לבחור מספר בשאלה מסוג דירוג
       return answers[question.id] != null;
     case "social-links":
+        //לא חובה
       return true;
     default:
       return false;

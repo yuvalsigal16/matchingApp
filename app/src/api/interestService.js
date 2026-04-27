@@ -1,7 +1,7 @@
 import { BASE_URL } from "./config";
 
 // מחזיר את כל תחומי העניין מטבלת Interests.
-// השרת מחזיר camelCase: { interestID, interestName }
+// השרת מחזיר : { interestID, interestName }
 export async function getAllInterests() {
   const url = `${BASE_URL}/Interest`;
   console.log(`[interest] → GET ${url}`);
@@ -80,7 +80,7 @@ export async function removeUserInterest(userId, interestId) {
   try { return JSON.parse(text); } catch { return text; }
 }
 
-// הוספת תחום עניין למשתמש ספציפי על ידי שליחת המזהים כפרמטרים בכתובת ה-URL (Query String)
+// הוספת תחום עניין למשתמש לפי פרמטרים בכתובת (שאילתה ב-URL)
 // (ב-controller אין [FromBody], ברירת המחדל היא [FromQuery]).
 export async function addUserInterest(userId, interestId) {
   const url = `${BASE_URL}/UserInterest?userId=${userId}&interestId=${interestId}`;
