@@ -1,60 +1,199 @@
+import React, { useEffect, useState } from "react";
+import {
+  ActivityIndicator,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
+} from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
-import { SafeAreaView, StyleSheet, Text, TouchableOpacity, View } from "react-native";
-import { FONTS } from "../../src/theme/fonts";
+import { Ionicons } from "@expo/vector-icons";
 
+import { FONTS } from "../src/theme/fonts";
+import { getUser } from "../src/auth/authStore";
+import { getMyMatches } from "../src/api/notificationService";
+import BottomNav from "../../components/BottomNav";
+
+// מסך הצ'אטים הפעילים - מציג את כל ההתאמות הפעילות של המשתמש
 export default function ActiveChatsScreen() {
   const router = useRouter();
 
+  const [matches, setMatches] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    loadMatches();
+  }, []);
+
+  const loadMatches = async () => {
+    setLoading(true);
+    const userId = getUser()?.userID;
+    if (!userId) {
+      setLoading(false);
+      return;
+    }
+
+    // משיכת ההתאמות מהשרת
+    const data = await getMyMatches(userId);
+
+    // מציגים רק התאמות פעילות (לא סגורות)
+    const active = data.filter((m) => m.status !== "Closed");
+
+    setMatches(active);
+    setLoading(false);
+  };
+
+  // קביעת ה-userID של הצד השני בהתאמה
+  const getOtherUserId = (match) => {
+    const me = getUser()?.userID;
+    return match.user1ID === me ? match.user2ID : match.user1ID;
+  };
+
+  if (loading) {
+    return (
+      <SafeAreaView style={styles.center}>
+        <ActivityIndicator size="large" color="#1A3C40" />
+      </SafeAreaView>
+    );
+  }
+
   return (
     <SafeAreaView style={styles.container}>
-      <View style={styles.content}>
-        <Text style={styles.header}>צ'אטים פעילים</Text>
-        
-        <View style={styles.whiteBox}>
-          {[1, 2, 3, 4, 5].map((item) => (
-            <TouchableOpacity key={item} style={styles.chatItem}>
-              <View style={styles.chatText}>
-                <Text style={styles.chatName}>שם המשתמש {item}</Text>
-                <Text style={styles.lastMsg}>הודעה אחרונה שנשלחה...</Text>
-              </View>
-              <View style={styles.avatarLarge} />
-            </TouchableOpacity>
-          ))}
-        </View>
-
-        <TouchableOpacity style={styles.backBtn} onPress={() => router.push("/notifications")}>
-          <Text style={styles.backText}>התראות ופעולות</Text>
+      {/* Header עם חץ חזרה */}
+      <View style={styles.headerRow}>
+        <TouchableOpacity onPress={() => router.back()}>
+          <Ionicons name="arrow-forward" size={26} color="#1A3C40" />
         </TouchableOpacity>
+        <Text style={styles.header}>צ'אטים פעילים</Text>
+        <View style={{ width: 26 }} />
       </View>
+
+      <ScrollView contentContainerStyle={styles.content}>
+        {matches.length === 0 ? (
+          <View style={styles.emptyBox}>
+            <Ionicons name="chatbubbles-outline" size={40} color="#aaa" />
+            <Text style={styles.emptyText}>אין צ'אטים פעילים עדיין</Text>
+          </View>
+        ) : (
+          matches.map((match) => {
+            const otherId = getOtherUserId(match);
+            return (
+              <TouchableOpacity
+                key={match.matchID}
+                style={styles.card}
+                activeOpacity={0.85}
+                onPress={() =>
+                  // בעתיד - ינווט למסך הצ'אט עצמו עם matchID
+                  router.push({
+                    pathname: "/profile/[userId]",
+                    params: { userId: otherId },
+                  })
+                }
+              >
+                {/* אווטר זמני */}
+                <View style={styles.avatar}>
+                  <Ionicons name="person" size={24} color="#fff" />
+                </View>
+
+                {/* פרטי הצ'אט */}
+                <View style={styles.cardText}>
+                  <Text style={styles.name}>משתמש #{otherId}</Text>
+                  <Text style={styles.lastMsg}>לחץ כדי להתחיל לשוחח</Text>
+                </View>
+
+                <Ionicons name="chevron-back" size={20} color="#1A3C40" />
+              </TouchableOpacity>
+            );
+          })
+        )}
+      </ScrollView>
+
+      <BottomNav active="notifications" />
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: "#F5F0E8" },
-  content: { paddingHorizontal: 25, paddingTop: 40 },
-  header: { fontSize: 22, fontFamily: FONTS.bold, color: "#1A3C40", textAlign: 'center', marginBottom: 20 },
-  whiteBox: { backgroundColor: '#fff', borderRadius: 20, padding: 10 },
-  chatItem: { 
-    flexDirection: 'row', 
-    justifyContent: 'flex-end', 
-    alignItems: 'center', 
-    padding: 15,
-    borderBottomWidth: 1,
-    borderBottomColor: '#F0F0F0'
+  center: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    backgroundColor: "#F5F0E8",
   },
-  chatText: { marginRight: 15, alignItems: 'flex-end' },
-  chatName: { fontFamily: FONTS.bold, fontSize: 16 },
-  lastMsg: { fontFamily: FONTS.regular, fontSize: 12, color: '#666' },
-  avatarLarge: { width: 50, height: 50, borderRadius: 25, backgroundColor: '#E0E0E0' },
-  backBtn: {
-    marginTop: 40,
-    backgroundColor: '#fff',
-    paddingVertical: 12,
-    paddingHorizontal: 30,
-    borderRadius: 25,
-    alignSelf: 'center',
-    elevation: 2
+
+  headerRow: {
+    flexDirection: "row-reverse",
+    justifyContent: "space-between",
+    alignItems: "center",
+    paddingHorizontal: 20,
+    paddingTop: 20,
+    paddingBottom: 10,
   },
-  backText: { fontFamily: FONTS.bold, color: '#1A3C40' }
+
+  header: {
+    fontSize: 20,
+    fontFamily: FONTS.bold,
+    color: "#1A3C40",
+  },
+
+  content: {
+    paddingHorizontal: 20,
+    paddingBottom: 40,
+  },
+
+  card: {
+    flexDirection: "row-reverse",
+    alignItems: "center",
+    backgroundColor: "#fff",
+    padding: 14,
+    borderRadius: 16,
+    marginBottom: 10,
+    shadowColor: "#000",
+    shadowOpacity: 0.05,
+    shadowRadius: 6,
+    elevation: 2,
+  },
+
+  avatar: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: "#1A3C40",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+
+  cardText: {
+    flex: 1,
+    marginHorizontal: 12,
+    alignItems: "flex-end",
+  },
+
+  name: {
+    fontSize: 16,
+    fontFamily: FONTS.bold,
+    color: "#1A3C40",
+  },
+
+  lastMsg: {
+    fontSize: 13,
+    fontFamily: FONTS.regular,
+    color: "#666",
+    marginTop: 2,
+  },
+
+  emptyBox: {
+    marginTop: 80,
+    alignItems: "center",
+  },
+
+  emptyText: {
+    marginTop: 10,
+    fontSize: 16,
+    color: "#888",
+    fontFamily: FONTS.regular,
+  },
 });

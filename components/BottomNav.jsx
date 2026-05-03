@@ -3,39 +3,54 @@ import { useRouter } from "expo-router";
 import React from "react";
 import { StyleSheet, TouchableOpacity, View } from "react-native";
 
+// תפריט תחתון - מופיע בכל מסכי הטאבים
+// קלט: active = שם המסך הנוכחי כדי לסמן את האייקון בצבע פעיל
 export default function BottomNav({ active }) {
   const router = useRouter();
 
+  // צבע לפי סטטוס - כחול כהה אם זה המסך הפעיל, אחרת אפור
+  const colorFor = (key) => (active === key ? "#1A3C40" : "#9A9A9A");
+
   return (
     <View style={styles.bottomNav}>
+      {/* פרופיל */}
       <TouchableOpacity
         style={styles.navItem}
         onPress={() => router.push("/PersonalProfile")}
       >
+        <Ionicons name="person-outline" size={26} color={colorFor("profile")} />
+      </TouchableOpacity>
+
+      {/* התראות וצ'אטים */}
+      <TouchableOpacity
+        style={styles.navItem}
+        onPress={() => router.push("/notifications")}
+      >
         <Ionicons
-          name="person-outline"
+          name="notifications-outline"
           size={26}
-          color={active === "profile" ? "#1A3C40" : "#9A9A9A"}
+          color={colorFor("notifications")}
         />
       </TouchableOpacity>
 
-      <TouchableOpacity style={styles.navItem}>
-        <Ionicons name="chatbubble-outline" size={26} color="#9A9A9A" />
+      {/* גילוי וקהילה */}
+      <TouchableOpacity
+        style={styles.navItem}
+        onPress={() => router.push("/discovery")}
+      >
+        <Ionicons
+          name="compass-outline"
+          size={26}
+          color={colorFor("discovery")}
+        />
       </TouchableOpacity>
 
-      <TouchableOpacity style={styles.navItem}>
-        <Ionicons name="compass-outline" size={26} color="#9A9A9A" />
-      </TouchableOpacity>
-
+      {/* בית */}
       <TouchableOpacity
         style={styles.navItem}
         onPress={() => router.push("/Home")}
       >
-        <Ionicons
-          name="home"
-          size={26}
-          color={active === "home" ? "#1A3C40" : "#9A9A9A"}
-        />
+        <Ionicons name="home" size={26} color={colorFor("home")} />
       </TouchableOpacity>
     </View>
   );

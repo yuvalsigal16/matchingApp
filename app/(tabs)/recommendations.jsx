@@ -1,83 +1,253 @@
-import { Ionicons } from "@expo/vector-icons";
+import React, { useEffect, useState } from "react";
+import {
+  ActivityIndicator,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
+} from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
-import { SafeAreaView, ScrollView, StyleSheet, Text, TouchableOpacity, View } from "react-native";
-import { FONTS } from "../../src/theme/fonts";
+import { Ionicons } from "@expo/vector-icons";
 
+import { BASE_URL } from "../src/api/config";
+import { getToken, getUser } from "../src/auth/authStore";
+import { FONTS } from "../src/theme/fonts";
+import BottomNav from "../../components/BottomNav";
+
+// מסך המלצות - מציג המלצות שהתקבלו על מקומות בטיולים של המשתמש
 export default function RecommendationsScreen() {
   const router = useRouter();
 
-  const places = [
-    { id: 1, name: "Daris", desc: "Private City - Theatre Exit", stars: "4.8" },
-    { id: 2, name: "Exhostionis", desc: "Ancient City Golding Maks", stars: "4.5" },
-    { id: 3, name: "Flent Casion", desc: "Nome, kka Cile With Indeed", stars: "4.9" },
-  ];
+  const [recommendations, setRecommendations] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    loadRecommendations();
+  }, []);
+
+  // טעינת ההמלצות: קודם משיכת הטיולים של המשתמש, ואז המלצות לכל טיול
+  const loadRecommendations = async () => {
+    setLoading(true);
+    try {
+      const userId = getUser()?.userID;
+      const token = getToken();
+      if (!userId || !token) {
+        setLoading(false);
+        return;
+      }
+
+      const headers = { Authorization: `Bearer ${token}` };
+
+      // 1. משיכת כל הטיולים של המשתמש
+      const tripsRes = await fetch(`${BASE_URL}/Trips/user/${userId}`, {
+        headers,
+      });
+      if (!tripsRes.ok) {
+        setLoading(false);
+        return;
+      }
+      const trips = await tripsRes.json();
+
+      // 2. לכל טיול - משיכת ההמלצות שלו (במקביל לכולם)
+      const allRecs = await Promise.all(
+        trips.map(async (trip) => {
+          const res = await fetch(
+            `${BASE_URL}/Recommendation/trip/${trip.tripID}`,
+            { headers }
+          );
+          if (!res.ok) return [];
+          const recs = await res.json();
+          // מצרפים את שם הטיול לכל המלצה כדי שנציג אותו
+          return recs.map((r) => ({ ...r, tripName: trip.destination }));
+        })
+      );
+
+      // 3. שטיחה של כל המערכים לרשימה אחת
+      setRecommendations(allRecs.flat());
+    } catch (err) {
+      console.error("loadRecommendations:", err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // הצגת כוכבים לפי דירוג
+  const renderStars = (rating) => {
+    const r = rating || 0;
+    return "⭐".repeat(r) + "☆".repeat(5 - r);
+  };
+
+  if (loading) {
+    return (
+      <SafeAreaView style={styles.center}>
+        <ActivityIndicator size="large" color="#1A3C40" />
+      </SafeAreaView>
+    );
+  }
 
   return (
     <SafeAreaView style={styles.container}>
+      {/* Header עם חץ חזרה */}
+      <View style={styles.headerRow}>
+        <TouchableOpacity onPress={() => router.back()}>
+          <Ionicons name="arrow-forward" size={26} color="#1A3C40" />
+        </TouchableOpacity>
+        <Text style={styles.header}>המלצות</Text>
+        <View style={{ width: 26 }} />
+      </View>
+
       <ScrollView contentContainerStyle={styles.content}>
-        <Text style={styles.header}>המלצות מהעולם</Text>
-        
-        {places.map((place) => (
-          <View key={place.id} style={styles.card}>
-            <Ionicons name="heart-outline" size={20} color="#1A3C40" style={styles.heart} />
-            <View style={styles.cardText}>
-              <Text style={styles.placeName}>{place.name}</Text>
-              <Text style={styles.placeDesc}>{place.desc}</Text>
-              <Text style={styles.stars}>⭐⭐⭐⭐⭐ {place.stars}</Text>
-            </View>
-            <View style={styles.imagePlaceholder} />
+        {recommendations.length === 0 ? (
+          <View style={styles.emptyBox}>
+            <Ionicons name="star-outline" size={40} color="#aaa" />
+            <Text style={styles.emptyText}>אין המלצות עדיין</Text>
           </View>
-        ))}
+        ) : (
+          recommendations.map((rec) => (
+            <View key={rec.recommendationID} style={styles.card}>
+              {/* אייקון */}
+              <View style={styles.iconBox}>
+                <Ionicons name="location-outline" size={22} color="#1A3C40" />
+              </View>
 
-        <TouchableOpacity style={styles.fabGreen}>
-          <Ionicons name="add" size={30} color="#fff" />
-        </TouchableOpacity>
-
-        <TouchableOpacity style={styles.backBtn} onPress={() => router.push("/discovery")}>
-          <Text style={styles.backText}>גילוי וקהילה</Text>
-        </TouchableOpacity>
+              {/* פרטי המלצה */}
+              <View style={styles.cardText}>
+                <Text style={styles.title}>{rec.placeName}</Text>
+                {rec.tripName && (
+                  <Text style={styles.tripName}>בטיול: {rec.tripName}</Text>
+                )}
+                {rec.description && (
+                  <Text style={styles.subtitle} numberOfLines={2}>
+                    {rec.description}
+                  </Text>
+                )}
+                <Text style={styles.stars}>{renderStars(rec.rating)}</Text>
+              </View>
+            </View>
+          ))
+        )}
       </ScrollView>
+
+      {/* כפתור צף להוספת המלצה (יבנה בעתיד) */}
+      <TouchableOpacity
+        style={styles.fab}
+        onPress={() => console.log("Add new recommendation")}
+      >
+        <Ionicons name="add" size={28} color="#fff" />
+      </TouchableOpacity>
+
+      <BottomNav active="discovery" />
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: "#F5F0E8" },
-  content: { paddingHorizontal: 20, paddingTop: 40, alignItems: 'center', paddingBottom: 40 },
-  header: { fontSize: 22, fontFamily: FONTS.bold, color: "#1A3C40", marginBottom: 20 },
+  center: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    backgroundColor: "#F5F0E8",
+  },
+
+  headerRow: {
+    flexDirection: "row-reverse",
+    justifyContent: "space-between",
+    alignItems: "center",
+    paddingHorizontal: 20,
+    paddingTop: 20,
+    paddingBottom: 10,
+  },
+
+  header: {
+    fontSize: 20,
+    fontFamily: FONTS.bold,
+    color: "#1A3C40",
+  },
+
+  content: {
+    paddingHorizontal: 20,
+    paddingBottom: 100,
+  },
+
   card: {
-    backgroundColor: '#fff',
-    borderRadius: 15,
-    padding: 12,
-    flexDirection: 'row',
-    marginBottom: 15,
-    width: '100%',
-    alignItems: 'center',
-    elevation: 2
+    flexDirection: "row-reverse",
+    alignItems: "flex-start",
+    backgroundColor: "#fff",
+    padding: 14,
+    borderRadius: 16,
+    marginBottom: 10,
+    shadowColor: "#000",
+    shadowOpacity: 0.05,
+    shadowRadius: 6,
+    elevation: 2,
   },
-  heart: { position: 'absolute', top: 10, right: 10 },
-  imagePlaceholder: { width: 70, height: 70, borderRadius: 10, backgroundColor: '#E0E0E0' },
-  cardText: { flex: 1, marginRight: 12, alignItems: 'flex-end' },
-  placeName: { fontFamily: FONTS.bold, fontSize: 16, color: '#1A3C40' },
-  placeDesc: { fontFamily: FONTS.regular, fontSize: 12, color: '#666', textAlign: 'right' },
-  stars: { fontSize: 10, marginTop: 4 },
-  fabGreen: {
-    backgroundColor: '#81C784',
-    width: 50,
-    height: 50,
-    borderRadius: 25,
-    justifyContent: 'center',
-    alignItems: 'center',
+
+  iconBox: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: "#D4E8E6",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+
+  cardText: {
+    flex: 1,
+    marginHorizontal: 12,
+    alignItems: "flex-end",
+  },
+
+  title: {
+    fontSize: 16,
+    fontFamily: FONTS.bold,
+    color: "#1A3C40",
+  },
+
+  tripName: {
+    fontSize: 12,
+    fontFamily: FONTS.regular,
+    color: "#7BBDBF",
+    marginTop: 2,
+  },
+
+  subtitle: {
+    fontSize: 13,
+    fontFamily: FONTS.regular,
+    color: "#666",
+    marginTop: 4,
+    textAlign: "right",
+  },
+
+  stars: {
+    fontSize: 13,
+    marginTop: 6,
+  },
+
+  emptyBox: {
+    marginTop: 80,
+    alignItems: "center",
+  },
+
+  emptyText: {
     marginTop: 10,
+    fontSize: 16,
+    color: "#888",
+    fontFamily: FONTS.regular,
   },
-  backBtn: {
-    marginTop: 20,
-    backgroundColor: '#fff',
-    paddingVertical: 10,
-    paddingHorizontal: 30,
-    borderRadius: 25,
-    borderWidth: 1,
-    borderColor: '#1A3C40'
+
+  fab: {
+    position: "absolute",
+    bottom: 90,
+    alignSelf: "center",
+    backgroundColor: "#1A3C40",
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    justifyContent: "center",
+    alignItems: "center",
+    elevation: 5,
   },
-  backText: { fontFamily: FONTS.bold, color: '#1A3C40' }
 });

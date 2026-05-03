@@ -2,9 +2,9 @@ import React, { useEffect, useState } from "react";
 import { View, Text, StyleSheet, ActivityIndicator, ScrollView } from "react-native";
 import { useLocalSearchParams } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { BASE_URL } from "../../src/api/config";
-import { getToken } from "../../src/auth/authStore";
-import { FONTS } from "../../src/theme/fonts";
+import { BASE_URL } from "../src/api/config";
+import { getToken } from "../src/auth/authStore";
+import { FONTS } from "../src/theme/fonts";
 
 export default function UserProfileScreen() {
   const { userId } = useLocalSearchParams();

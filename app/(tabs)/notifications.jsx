@@ -1,30 +1,58 @@
+import React from "react";
+import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
-import { SafeAreaView, StyleSheet, Text, TouchableOpacity, View } from "react-native";
-import BottomNav from "../../components/BottomNav";
-import { FONTS } from "../../src/theme/fonts";
+import { Ionicons } from "@expo/vector-icons";
 
+import { FONTS } from "../src/theme/fonts";
+import BottomNav from "../../components/BottomNav";
+
+// מסך התראות - מציג שני כפתורים: סטטוס בקשות ששלחתי, וצ'אטים פעילים
 export default function NotificationsScreen() {
   const router = useRouter();
 
+  // הגדרת הפריטים בתפריט - כל פריט מוביל למסך אחר
+  const items = [
+    {
+      title: "סטטוס בקשות ששלחתי",
+      icon: "send-outline",
+      route: "/requestStatus",
+    },
+    {
+      title: "צ'אטים פעילים",
+      icon: "chatbubbles-outline",
+      route: "/activeChats",
+    },
+  ];
+
   return (
     <SafeAreaView style={styles.container}>
-      <View style={styles.content}>
+      {/* Header עם חץ חזרה למסך הראשי */}
+      <View style={styles.headerRow}>
+        <TouchableOpacity onPress={() => router.back()}>
+          <Ionicons name="arrow-forward" size={26} color="#1A3C40" />
+        </TouchableOpacity>
         <Text style={styles.header}>התראות ופעולות</Text>
-        
-        <TouchableOpacity 
-          style={styles.menuButton}
-          onPress={() => router.push("/requestStatus")}
-        >
-          <Text style={styles.menuText}>סטטוס בקשות ששלחתי</Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity 
-          style={styles.menuButton}
-          onPress={() => router.push("/activeChats")}
-        >
-          <Text style={styles.menuText}>צ'אטים פעילים כלליים</Text>
-        </TouchableOpacity>
+        <View style={{ width: 26 }} />
       </View>
+
+      <ScrollView contentContainerStyle={styles.content}>
+        {items.map((item, index) => (
+          <TouchableOpacity
+            key={index}
+            style={styles.card}
+            activeOpacity={0.85}
+            onPress={() => router.push(item.route)}
+          >
+            <Ionicons name="chevron-back" size={20} color="#1A3C40" />
+            <Text style={styles.cardText}>{item.title}</Text>
+            <View style={styles.iconBox}>
+              <Ionicons name={item.icon} size={22} color="#1A3C40" />
+            </View>
+          </TouchableOpacity>
+        ))}
+      </ScrollView>
+
       <BottomNav active="notifications" />
     </SafeAreaView>
   );
@@ -32,18 +60,52 @@ export default function NotificationsScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: "#F5F0E8" },
-  content: { paddingHorizontal: 20, paddingTop: 60, alignItems: 'center' },
-  header: { fontSize: 24, fontFamily: FONTS.bold, color: "#1A3C40", marginBottom: 40 },
-  menuButton: {
+  content: { paddingHorizontal: 20, paddingTop: 10, paddingBottom: 40 },
+
+  headerRow: {
+    flexDirection: "row-reverse",
+    justifyContent: "space-between",
+    alignItems: "center",
+    paddingHorizontal: 20,
+    paddingTop: 20,
+    paddingBottom: 10,
+  },
+
+  header: {
+    fontSize: 20,
+    fontFamily: FONTS.bold,
+    color: "#1A3C40",
+  },
+
+  card: {
+    flexDirection: "row-reverse",
+    alignItems: "center",
+    justifyContent: "space-between",
     backgroundColor: "#fff",
-    width: '100%',
-    paddingVertical: 25,
-    borderRadius: 15,
-    marginBottom: 20,
-    alignItems: 'center',
+    padding: 16,
+    borderRadius: 16,
+    marginBottom: 12,
     shadowColor: "#000",
     shadowOpacity: 0.05,
-    elevation: 3,
+    shadowRadius: 6,
+    elevation: 2,
   },
-  menuText: { fontSize: 20, fontFamily: FONTS.bold, color: "#1A3C40" }
+
+  cardText: {
+    flex: 1,
+    fontSize: 16,
+    fontFamily: FONTS.bold,
+    color: "#1A3C40",
+    textAlign: "right",
+    marginHorizontal: 12,
+  },
+
+  iconBox: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: "#EADFCB",
+    justifyContent: "center",
+    alignItems: "center",
+  },
 });
