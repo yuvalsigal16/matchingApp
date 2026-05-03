@@ -166,6 +166,7 @@ function getIsAnswered(question, data) {
 
 export default function PreferencesQuizScreen() {
   const router = useRouter();
+  const { mode } = useLocalSearchParams();
   // מספר השאלה הנוכחית (אינדקס במערך QUESTIONS)
   const [step, setStep] = useState(0);
 
@@ -180,6 +181,7 @@ export default function PreferencesQuizScreen() {
     ageRange: { min: 24, max: 38 }, // העדפת גיל — טווח עם min/max
     interests: [],       // מערך IDs של תחומי עניין
   });
+  const isNewTripFlow = mode === "newTrip" || mode === "editTrip";
 
   // ── תחומי עניין מהשרת ──
   const [interestOptions, setInterestOptions] = useState([]);     // הרשימה שנטענה
@@ -368,7 +370,12 @@ export default function PreferencesQuizScreen() {
       setSubmitting(true);
       try {
         await submitFullTrip();
-        router.replace("/Home"); // מצליח → מסך הבית
+        if (isNewTripFlow) {
+          router.replace("/MyTrips");
+        }  
+        else {
+          router.replace("/Home");
+        }
       } catch (err) {
         setSubmitError(err.message); // נכשל → מציג שגיאה
       } finally {
