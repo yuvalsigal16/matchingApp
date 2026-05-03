@@ -13,9 +13,9 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
-import { BASE_URL } from "../src/api/config";
-import { getToken } from "../src/auth/authStore";
-import { FONTS } from "../src/theme/fonts";
+import { BASE_URL } from "../../src/api/config";
+import { getToken } from "../../src/auth/authStore";
+import { FONTS } from "../../src/theme/fonts";
 
 export default function EditTrip() {
   const router = useRouter();

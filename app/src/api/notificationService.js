@@ -1,28 +1,57 @@
 import { getToken } from "../auth/authStore";
 import { BASE_URL } from "./config";
 
-// פונקציה למשיכת סטטוס בקשות ששלחתי (ה-V וה-X בתרשים)
-export async function getMyRequestsStatus(userId) {
+// בונה את ה-headers (טוקן + Content-Type) לכל הקריאות
+function authHeaders() {
+  const token = getToken();
+  return {
+    "Content-Type": "application/json",
+    Authorization: `Bearer ${token}`,
+  };
+}
+
+// משיכת בקשות ההתאמה הממתינות של המשתמש (גם נכנסות וגם יוצאות)
+export async function getPendingRequests(userId) {
   try {
-    const response = await fetch(`${BASE_URL}/UserRequests/MyStatus/${userId}`, {
-      headers: { Authorization: `Bearer ${getToken()}` }
+    const res = await fetch(`${BASE_URL}/MatchRequest/pending/${userId}`, {
+      headers: authHeaders(),
     });
-    return await response.json();
-  } catch (error) {
-    console.error("Error fetching request status:", error);
+    if (!res.ok) return [];
+    return await res.json();
+  } catch (err) {
+    console.error("getPendingRequests:", err);
     return [];
   }
 }
 
-// פונקציה למשיכת הצ'אטים הפעילים
-export async function getActiveChats(userId) {
+// משיכת ההתאמות (Matches) הפעילות של המשתמש — אלו הצ'אטים הפעילים
+export async function getMyMatches(userId) {
   try {
-    const response = await fetch(`${BASE_URL}/Chats/Active/${userId}`, {
-      headers: { Authorization: `Bearer ${getToken()}` }
+    const res = await fetch(`${BASE_URL}/Match/user/${userId}`, {
+      headers: authHeaders(),
     });
-    return await response.json();
-  } catch (error) {
-    console.error("Error fetching active chats:", error);
+    if (!res.ok) return [];
+    return await res.json();
+  } catch (err) {
+    console.error("getMyMatches:", err);
     return [];
   }
+}
+
+// ביטול בקשה ששלחתי
+export async function cancelRequest(requestId) {
+  const res = await fetch(`${BASE_URL}/MatchRequest/cancel/${requestId}`, {
+    method: "PUT",
+    headers: authHeaders(),
+  });
+  return res.ok;
+}
+
+// דחייה של בקשה שקיבלתי
+export async function rejectRequest(requestId) {
+  const res = await fetch(`${BASE_URL}/MatchRequest/reject/${requestId}`, {
+    method: "PUT",
+    headers: authHeaders(),
+  });
+  return res.ok;
 }

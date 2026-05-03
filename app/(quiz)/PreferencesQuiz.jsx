@@ -2,7 +2,7 @@
 import { Ionicons } from "@expo/vector-icons"; // אייקונים מוכרים (V/X וכו')
 import { Slider } from "@miblanchard/react-native-slider";
 import DateTimePicker from "@react-native-community/datetimepicker";
-import { useRouter } from "expo-router";
+import { useLocalSearchParams, useRouter } from "expo-router";
 // אייקונים מותאמים אישית — Globe2 לכותרת ה-intro, Plane/Home לתאריכים, Calendar למועדים
 import { Globe2, Plane, Home, Calendar } from "lucide-react-native";
 import React, { useCallback, useEffect, useRef, useState } from "react";

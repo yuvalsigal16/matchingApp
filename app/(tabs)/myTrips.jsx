@@ -14,7 +14,6 @@ import { Ionicons } from "@expo/vector-icons";
 import { BASE_URL } from "../src/api/config";
 import { getToken, getUser } from "../src/auth/authStore";
 import { FONTS } from "../src/theme/fonts";
-import { Ionicons } from "@expo/vector-icons";
 import BottomNav from "../../components/BottomNav";
 
 export default function MyTripsScreen() {
@@ -128,10 +127,16 @@ export default function MyTripsScreen() {
 
   return (
     <SafeAreaView style={styles.container}>
-      <ScrollView contentContainerStyle={styles.content}>
-        {/* כותרת */}
-        <Text style={styles.header}>הטיולים שלי</Text>
+      {/* Header עם חץ חזרה למסך הראשי */}
+      <View style={styles.headerRow}>
+        <TouchableOpacity onPress={() => router.back()}>
+          <Ionicons name="arrow-forward" size={26} color="#1A3C40" />
+        </TouchableOpacity>
+        <Text style={styles.headerTitle}>הטיולים שלי</Text>
+        <View style={{ width: 26 }} />
+      </View>
 
+      <ScrollView contentContainerStyle={styles.content}>
         {/* ריק */}
         {trips.length === 0 ? (
           <View style={styles.emptyBox}>
@@ -169,16 +174,23 @@ const styles = StyleSheet.create({
 
   content: {
     paddingHorizontal: 20,
-    paddingTop: 28,
+    paddingTop: 10,
     paddingBottom: 40,
   },
 
-  header: {
-    fontSize: 22,
+  headerRow: {
+    flexDirection: "row-reverse",
+    justifyContent: "space-between",
+    alignItems: "center",
+    paddingHorizontal: 20,
+    paddingTop: 20,
+    paddingBottom: 10,
+  },
+
+  headerTitle: {
+    fontSize: 20,
     fontFamily: FONTS.bold,
     color: "#1A3C40",
-    textAlign: "right",
-    marginBottom: 16,
   },
 
   /* כרטיס */
