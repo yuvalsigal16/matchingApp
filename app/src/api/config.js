@@ -3,4 +3,5 @@
 const LOCAL_IP = "192.168.7.6";
 
 // יצירת כתובת הבסיס המלאה וייצוא שלה לשימוש שאר חלקי האפליקציה
-export const BASE_URL = `http://${LOCAL_IP}:5221/api`;
+// export const BASE_URL = `http://${LOCAL_IP}:5221/api`;
+export const BASE_URL = "https://matchingapp-api.azurewebsites.net/api";
