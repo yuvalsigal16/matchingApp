@@ -1,7 +1,8 @@
 import React, { useEffect, useState } from "react";
-import { ActivityIndicator, Image, StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import { ActivityIndicator, Alert, Image, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
+import { useRouter } from "expo-router";
 import { Bell, ChevronLeft, MapPin, MessageCircle, Users } from "lucide-react-native";
 import { FONTS } from "../src/theme/fonts";
 import { getToken, getUser } from "../src/auth/authStore";
@@ -20,6 +21,7 @@ function buildImageUri(raw) {
 }
 
 export default function Home() {
+  const router = useRouter();
   // אתחול מיידי מ-authStore כדי שהשם יוצג בלי המתנה לרשת
   const cachedUser = getUser();
   const [userData, setUserData] = useState({
@@ -45,11 +47,12 @@ export default function Home() {
           Authorization: `Bearer ${token}`,
         };
 
-        // קריאה במקביל: פרטי פרופיל ותמונה — שתי קריאות נפרדות לשני endpoints
+        // קריאה במקביל: פרטי פרופיל, תמונה ושאלון היכרות — שלוש קריאות נפרדות
         // כדי שכל אחד יוכל להצליח/להיכשל לחוד מבלי לחסום את השני.
-        const [profileRes, imageRes] = await Promise.all([
+        const [profileRes, imageRes, questionnaireRes] = await Promise.all([
           fetch(`${BASE_URL}/UserProfile/${userId}`, { method: "GET", headers }),
           fetch(`${BASE_URL}/UserProfile/image/${userId}`, { method: "GET", headers }),
+          fetch(`${BASE_URL}/Questionnaire/${userId}`, { method: "GET", headers }),
         ]);
 
         let firstName = "";
@@ -76,6 +79,27 @@ export default function Home() {
         }
 
         setUserData({ firstName, profileImage });
+
+        // בדיקה האם המשתמש השלים את שאלון ההיכרות.
+        // אם לא — מציגים הודעה ידידותית ומפנים אותו לשאלון.
+        // 404 = אין שאלון, וזו הסיבה ש-PUT למסך עדכון נכשל.
+        const hasProfile = profileRes.ok;
+        const hasQuestionnaire = questionnaireRes.ok;
+
+        if (!hasProfile || !hasQuestionnaire) {
+          Alert.alert(
+            "השלמת פרטי היכרות",
+            "שמנו לב שעדיין לא השלמת את שאלון ההיכרות. מילוי השאלון יעזור לנו למצוא לך פרטנרים שמתאימים לך באמת.",
+            [
+              { text: "אחר כך", style: "cancel" },
+              {
+                text: "מילוי השאלון",
+                onPress: () => router.replace("/QuizStartScreen"),
+              },
+            ],
+            { cancelable: true },
+          );
+        }
       } catch (error) {
         console.error("[HomeScreen] שגיאה בטעינת פרופיל:", error);
       } finally {
@@ -123,6 +147,7 @@ export default function Home() {
       Icon: MessageCircle,
       bg: "#D4E8E6",
       iconBorder: "#7BBDBF",
+      route: "/matchesForYou",
     },
     {
       key: "trips",
@@ -130,13 +155,15 @@ export default function Home() {
       Icon: MapPin,
       bg: "#EADFCB",
       iconBorder: "#C9A876",
+      route: "/myTrips",
     },
     {
       key: "notifications",
-      title: "התראות ופעילויות",
+      title: "התראות ופעולות",
       Icon: Bell,
       bg: "#F4D9D9",
       iconBorder: "#D88B8B",
+      route: "/notifications",
     },
     {
       key: "community",
@@ -144,6 +171,7 @@ export default function Home() {
       Icon: Users,
       bg: "#E0D5E8",
       iconBorder: "#9A7BBE",
+      route: "/discovery",
     },
   ];
 
@@ -172,6 +200,7 @@ export default function Home() {
                 key={item.key}
                 style={[styles.tile, { backgroundColor: item.bg }]}
                 activeOpacity={0.85}
+                onPress={() => router.push(item.route)}
               >
                 <View style={styles.tileTextContainer}>
                   <Text style={styles.tileTitle}>{item.title}</Text>

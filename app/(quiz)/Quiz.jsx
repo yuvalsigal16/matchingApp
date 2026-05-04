@@ -25,10 +25,21 @@ import {
   View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { addUserInterest, getAllInterests } from "../src/api/interestService";
-import { createQuestionnaire } from "../src/api/questionnaireService";
+import {
+  addUserInterest,
+  getAllInterests,
+  getUserInterests,
+  removeUserInterest,
+} from "../src/api/interestService";
+import {
+  createQuestionnaire,
+  getQuestionnaire,
+  updateQuestionnaire,
+} from "../src/api/questionnaireService";
 import {
   createUserProfile,
+  getUserProfile,
+  updateUserProfile,
   uploadProfileImage,
 } from "../src/api/userProfileService";
 import { getUser } from "../src/auth/authStore";
@@ -339,6 +350,12 @@ export default function QuizScreen() {
   const [interestsSubmitted, setInterestsSubmitted] = useState(false);
   const [questionnaireSubmitted, setQuestionnaireSubmitted] = useState(false);
 
+  // ── דגלים: האם הנתונים כבר קיימים בשרת? אם כן נעשה UPDATE במקום CREATE ──
+  const [profileExists, setProfileExists] = useState(false);
+  const [questionnaireExists, setQuestionnaireExists] = useState(false);
+  // רשימת תחומי העניין שהיו למשתמש בכניסה למסך — נחוצה לחישוב diff בשמירה
+  const [originalInterestIds, setOriginalInterestIds] = useState([]);
+
   // ── תחומי עניין מהשרת ──
   // [{ interestID, interestName }] — נטען פעם אחת ב-mount
   const [interestOptions, setInterestOptions] = useState([]);
@@ -377,15 +394,104 @@ export default function QuizScreen() {
     }).start();
   }, [step]);
 
-  // טעינת תחומי העניין מהשרת — פעם אחת ב-mount
+  // טעינה ראשונית: רשימת תחומי העניין + נתונים קיימים של המשתמש (פרופיל/שאלון/תחומי עניין נבחרים)
+  // אם המשתמש כבר התחיל למלא ולא סיים — נטען את מה שכבר יש כדי שיוכל להמשיך.
   useEffect(() => {
     let cancelled = false;
     (async () => {
       try {
-        const data = await getAllInterests();
-        if (!cancelled) {
-          setInterestOptions(Array.isArray(data) ? data : []);
-          setInterestsLoadError("");
+        const u = getUser();
+        const userId = u?.userID;
+
+        // קוראים במקביל לכל מקורות המידע
+        const [allInts, existingProfile, existingQuestionnaire, userInts] =
+          await Promise.all([
+            getAllInterests(),
+            userId ? getUserProfile(userId) : Promise.resolve(null),
+            userId ? getQuestionnaire(userId) : Promise.resolve(null),
+            userId ? getUserInterests(userId) : Promise.resolve([]),
+          ]);
+
+        if (cancelled) return;
+
+        setInterestOptions(Array.isArray(allInts) ? allInts : []);
+        setInterestsLoadError("");
+
+        // אם יש פרופיל קיים — נמלא את שדות שלב ה-bio ונסמן שצריך UPDATE
+        if (existingProfile) {
+          setProfileExists(true);
+          setProfileCreated(true); // לא ננסה ליצור שוב אם המשתמש לוחץ Next בלי לשנות
+          setAnswers((prev) => ({
+            ...prev,
+            firstName: existingProfile.firstName || "",
+            lastName: existingProfile.lastName || "",
+            birthDate: existingProfile.birthDate
+              ? new Date(existingProfile.birthDate)
+              : null,
+            gender: existingProfile.gender || "",
+            // השרת מחזיר עיר כמחרוזת. ה-Quiz מצפה לאובייקט { city, label, country, lat, lon }
+            city: existingProfile.city
+              ? {
+                  city: existingProfile.city,
+                  label: existingProfile.city,
+                  country: "",
+                  lat: 0,
+                  lon: 0,
+                }
+              : null,
+          }));
+          if (existingProfile.city) setCityInputText(existingProfile.city);
+        }
+
+        // אם יש שאלון קיים — נמלא את כל שדות השאלון ונסמן שצריך UPDATE
+        if (existingQuestionnaire) {
+          setQuestionnaireExists(true);
+          // מיפוי הערכים מהשרת חזרה לפורמט שה-Quiz משתמש בו
+          const isSmoker =
+            existingQuestionnaire.isSmoker ?? existingQuestionnaire.IsSmoker;
+          const keepsShabbat =
+            existingQuestionnaire.keepsShabbat ?? existingQuestionnaire.KeepsShabbat;
+          const keepsKosher =
+            existingQuestionnaire.keepsKosher ?? existingQuestionnaire.KeepsKosher;
+          const spontaneity =
+            existingQuestionnaire.spontaneityLevel ??
+            existingQuestionnaire.SpontaneityLevel;
+          const lifestyle =
+            existingQuestionnaire.lifestyleLevel ??
+            existingQuestionnaire.LifestyleLevel;
+          const social =
+            existingQuestionnaire.socialNetworks ??
+            existingQuestionnaire.SocialNetworks;
+
+          // social שמור כ-JSON string — ננסה לפרסר; אם זה לא JSON, נתעלם
+          let instagram = "";
+          let facebook = "";
+          if (social) {
+            try {
+              const parsed = JSON.parse(social);
+              instagram = parsed.instagram || "";
+              facebook = parsed.facebook || "";
+            } catch {}
+          }
+
+          setAnswers((prev) => ({
+            ...prev,
+            smoking:
+              isSmoker == null ? [] : [isSmoker ? "מעשן/ת" : "לא מעשן/ת"],
+            shabbat: keepsShabbat == null ? null : keepsShabbat ? "כן" : "לא",
+            kosher: keepsKosher == null ? null : keepsKosher ? "כן" : "לא",
+            spontaneous: spontaneity != null ? Number(spontaneity) : null,
+            lifestyle: lifestyle != null ? Number(lifestyle) : null,
+            instagram,
+            facebook,
+          }));
+        }
+
+        // תחומי העניין שכבר נבחרו — מסמנים אותם וגם זוכרים אותם בנפרד ל-diff בשמירה
+        if (Array.isArray(userInts) && userInts.length > 0) {
+          const ids = userInts.map((i) => i.interestID);
+          setOriginalInterestIds(ids);
+          setAnswers((prev) => ({ ...prev, interests: ids }));
         }
       } catch (err) {
         if (!cancelled) {
@@ -472,6 +578,7 @@ export default function QuizScreen() {
   }, []);
 
   // ── שליחת פרופיל ל-UserProfile + העלאת תמונה אם נבחרה ──
+  // אם הפרופיל כבר קיים בשרת — נשתמש ב-UPDATE; אחרת ב-CREATE.
   const submitBioStep = useCallback(async () => {
     const u = getUser();
     // השרת מחזיר camelCase (userID ולא UserID)
@@ -493,7 +600,13 @@ export default function QuizScreen() {
       City: answers.city?.city || null,
     };
 
-    await createUserProfile(profile);
+    if (profileExists) {
+      await updateUserProfile(profile);
+    } else {
+      await createUserProfile(profile);
+      // אחרי יצירה ראשונית — לפעולות הבאות באותה ישיבה צריך לעדכן ולא ליצור שוב
+      setProfileExists(true);
+    }
 
     if (profileImageUri) {
       try {
@@ -503,23 +616,31 @@ export default function QuizScreen() {
         console.warn("[QuizScreen] image upload failed:", imgErr.message);
       }
     }
-  }, [answers, profileImageUri]);
+  }, [answers, profileImageUri, profileExists]);
 
   // ── שליחת תחומי עניין ל-UserInterests ──
+  // משווה בין תחומי העניין שהיו בעת הכניסה למסך לאלו שנבחרו עכשיו:
+  // מוסיף רק חדשים, מסיר רק כאלה שהוסרו.
   const submitInterestsStep = useCallback(async () => {
     const u = getUser();
     if (!u?.userID) {
       throw new Error("לא נמצא משתמש מחובר. נא להתחבר מחדש.");
     }
 
-    const ids = answers.interests || [];
-    if (ids.length === 0) return;
+    const current = answers.interests || [];
+    const toAdd = current.filter((id) => !originalInterestIds.includes(id));
+    const toRemove = originalInterestIds.filter((id) => !current.includes(id));
 
-    // שולחים את כל הבחירות במקביל — כל אחד הוא קריאה נפרדת לשרת
-    await Promise.all(
-      ids.map((interestId) => addUserInterest(u.userID, interestId)),
-    );
-  }, [answers]);
+    if (toAdd.length === 0 && toRemove.length === 0) return;
+
+    await Promise.all([
+      ...toAdd.map((id) => addUserInterest(u.userID, id)),
+      ...toRemove.map((id) => removeUserInterest(u.userID, id)),
+    ]);
+
+    // לאחר שמירה - הרשימה החדשה היא ה"בסיס" לכל פעולה הבאה
+    setOriginalInterestIds(current);
+  }, [answers, originalInterestIds]);
 
   // ── שליחת השאלון השלם ל-Questionnaire (בסיום) ──
   const submitQuestionnaireStep = useCallback(async () => {
@@ -554,8 +675,14 @@ export default function QuizScreen() {
       SocialNetworks: social,
     };
 
-    await createQuestionnaire(q);
-  }, [answers]);
+    // אם השאלון כבר קיים — UPDATE; אחרת CREATE
+    if (questionnaireExists) {
+      await updateQuestionnaire(q);
+    } else {
+      await createQuestionnaire(q);
+      setQuestionnaireExists(true);
+    }
+  }, [answers, questionnaireExists]);
 
   const handleNext = async () => {
     if (!answered || submitting) return;

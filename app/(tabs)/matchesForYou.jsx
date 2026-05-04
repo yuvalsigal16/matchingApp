@@ -3,14 +3,15 @@ import {
   View,
   Text,
   StyleSheet,
-  FlatList,
   Image,
   TouchableOpacity,
+  ScrollView,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import { FONTS } from "../src/theme/fonts";
+import BottomNav from "../../components/BottomNav";
 
 export default function MatchesScreen() {
   const router = useRouter();
@@ -33,70 +34,79 @@ export default function MatchesScreen() {
 
   // ✔ אישור בקשה
   const handleAccept = (id) => {
-  setRequests((prev) => prev.filter((item) => item.id !== id));
-  console.log("accepted:", id);
+    setRequests((prev) => prev.filter((item) => item.id !== id));
+    console.log("accepted:", id);
 
-  // כאן בעתיד תוסיפי גם קריאה לשרת:
-  // await acceptRequest(id);
-};
+    // כאן בעתיד תוסיפי גם קריאה לשרת:
+    // await acceptRequest(id);
+  };
 
   // ✖ דחייה
   const handleReject = (id) => {
-  setRequests((prev) => prev.filter((item) => item.id !== id));
-  console.log("rejected:", id);
+    setRequests((prev) => prev.filter((item) => item.id !== id));
+    console.log("rejected:", id);
 
-  // כאן בעתיד תוסיפי גם קריאה לשרת:
-  // await rejectRequest(id);
-};
+    // כאן בעתיד תוסיפי גם קריאה לשרת:
+    // await rejectRequest(id);
+  };
 
   // 👤 מעבר לפרופיל
   const openProfile = (user) => {
-  router.push({
-    pathname: "/profile/[userId]",
-    params: { userId: user.id },
-  });
-};
-
-  const renderRequest = ({ item }) => (
-    <View style={styles.requestCard}>
-      {/* תמונה */}
-      <Image source={{ uri: item.image }} style={styles.avatar} />
-
-      {/* שם לחיץ */}
-      <TouchableOpacity onPress={() => openProfile(item)}>
-        <Text style={styles.name}>{item.name}</Text>
-      </TouchableOpacity>
-
-      {/* כפתורי פעולה */}
-      <View style={styles.actions}>
-        <TouchableOpacity onPress={() => handleAccept(item.id)}>
-          <Ionicons name="checkmark-circle" size={28} color="green" />
-        </TouchableOpacity>
-
-        <TouchableOpacity onPress={() => handleReject(item.id)}>
-          <Ionicons name="close-circle" size={28} color="red" />
-        </TouchableOpacity>
-      </View>
-    </View>
-  );
+    router.push({
+      pathname: "/profile/[userId]",
+      params: { userId: user.id },
+    });
+  };
 
   return (
     <SafeAreaView style={styles.container}>
-      <Text style={styles.title}>התאמות עבורך</Text>
+      {/* Header עם חץ חזרה למסך הראשי */}
+      <View style={styles.headerRow}>
+        <TouchableOpacity onPress={() => router.back()}>
+          <Ionicons name="arrow-forward" size={26} color="#1A3C40" />
+        </TouchableOpacity>
+        <Text style={styles.headerTitle}>התאמות עבורך</Text>
+        <View style={{ width: 26 }} />
+      </View>
 
-      {/* בקשות לצ'אט */}
-      <Text style={styles.sectionTitle}>בקשות לשיחה</Text>
+      {/* ScrollView - מאפשר גלילה של כל התוכן */}
+      <ScrollView contentContainerStyle={styles.content}>
+        {/* בקשות לצ'אט */}
+        <Text style={styles.sectionTitle}>בקשות לשיחה</Text>
 
-      <FlatList
-        data={requests}
-        keyExtractor={(item) => item.id}
-        renderItem={renderRequest}
-        contentContainerStyle={{ paddingBottom: 20 }}
-      />
+        {requests.length === 0 ? (
+          <Text style={styles.placeholder}>אין בקשות חדשות</Text>
+        ) : (
+          requests.map((item) => (
+            <View key={item.id} style={styles.requestCard}>
+              {/* תמונה */}
+              <Image source={{ uri: item.image }} style={styles.avatar} />
 
-      {/* התאמות (placeholder) */}
-      <Text style={styles.sectionTitle}>פרופילים מתאימים עבורך</Text>
-      <Text style={styles.placeholder}>כאן יוצגו התאמות בהמשך...</Text>
+              {/* שם לחיץ */}
+              <TouchableOpacity onPress={() => openProfile(item)} style={{ flex: 1 }}>
+                <Text style={styles.name}>{item.name}</Text>
+              </TouchableOpacity>
+
+              {/* כפתורי פעולה */}
+              <View style={styles.actions}>
+                <TouchableOpacity onPress={() => handleAccept(item.id)}>
+                  <Ionicons name="checkmark-circle" size={28} color="green" />
+                </TouchableOpacity>
+
+                <TouchableOpacity onPress={() => handleReject(item.id)}>
+                  <Ionicons name="close-circle" size={28} color="red" />
+                </TouchableOpacity>
+              </View>
+            </View>
+          ))
+        )}
+
+        {/* התאמות (placeholder) */}
+        <Text style={styles.sectionTitle}>פרופילים מתאימים עבורך</Text>
+        <Text style={styles.placeholder}>כאן יוצגו התאמות בהמשך...</Text>
+      </ScrollView>
+
+      <BottomNav active="home" />
     </SafeAreaView>
   );
 }
@@ -105,15 +115,27 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: "#F5F0E8",
-    padding: 16,
   },
 
-  title: {
-    fontSize: 22,
+  headerRow: {
+    flexDirection: "row-reverse",
+    justifyContent: "space-between",
+    alignItems: "center",
+    paddingHorizontal: 20,
+    paddingTop: 20,
+    paddingBottom: 10,
+  },
+
+  headerTitle: {
+    fontSize: 20,
     fontFamily: FONTS.bold,
     color: "#1A3C40",
-    marginBottom: 12,
-    textAlign: "right",
+  },
+
+  content: {
+    paddingHorizontal: 16,
+    paddingTop: 10,
+    paddingBottom: 40,
   },
 
   sectionTitle: {
@@ -122,7 +144,7 @@ const styles = StyleSheet.create({
     marginTop: 16,
     marginBottom: 8,
     textAlign: "right",
-    color: "#333",
+    color: "#1A3C40",
   },
 
   requestCard: {
@@ -130,8 +152,12 @@ const styles = StyleSheet.create({
     alignItems: "center",
     backgroundColor: "#fff",
     padding: 12,
-    borderRadius: 14,
+    borderRadius: 16,
     marginBottom: 10,
+    shadowColor: "#000",
+    shadowOpacity: 0.05,
+    shadowRadius: 6,
+    elevation: 2,
   },
 
   avatar: {
@@ -145,8 +171,8 @@ const styles = StyleSheet.create({
   name: {
     fontSize: 16,
     fontFamily: FONTS.bold,
-    flex: 1,
     textAlign: "right",
+    color: "#1A3C40",
   },
 
   actions: {
@@ -158,5 +184,6 @@ const styles = StyleSheet.create({
     color: "#888",
     textAlign: "center",
     marginTop: 10,
+    fontFamily: FONTS.regular,
   },
 });
