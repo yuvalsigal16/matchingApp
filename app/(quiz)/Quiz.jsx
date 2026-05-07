@@ -46,7 +46,11 @@ import { getUser } from "../src/auth/authStore";
 import { FONTS } from "../src/theme/fonts";
 
 
-const GENDER_OPTIONS = ["זכר", "נקבה", "אחר"];
+const GENDER_OPTIONS = [
+  { label: "זכר", value: "Male" },
+  { label: "נקבה", value: "Female" },
+  { label: "אחר", value: "Other" }
+];
 
 // ─── Geoapify city search service ────────────────────────────────────────────
 // Uses Geoapify Autocomplete API. Swap GEOAPIFY_API_KEY or replace the fetch
@@ -833,31 +837,33 @@ export default function QuizScreen() {
   );
 
   const renderGenderSelector = () => (
-    <View key="gender" style={styles.genderCard}>
-      <Text style={styles.genderLabel}>מגדר</Text>
-      <View style={styles.segmentedControl}>
-        {GENDER_OPTIONS.map((opt) => {
-          const isSelected = answers.gender === opt;
-          return (
-            <Pressable
-              key={opt}
-              style={[styles.segment, isSelected && styles.segmentActive]}
-              onPress={() => updateAnswer("gender", opt)}
+  <View key="gender" style={styles.genderCard}>
+    <Text style={styles.genderLabel}>מגדר</Text>
+    <View style={styles.segmentedControl}>
+      {GENDER_OPTIONS.map((opt) => {
+        // כאן אנחנו בודקים לפי ה-value (הערך באנגלית)
+        const isSelected = answers.gender === opt.value;
+        return (
+          <Pressable
+            key={opt.value}
+            style={[styles.segment, isSelected && styles.segmentActive]}
+            // כאן אנחנו שומרים את ה-value (הערך באנגלית) שיישלח ל-SQL
+            onPress={() => updateAnswer("gender", opt.value)}
+          >
+            <Text
+              style={[
+                styles.segmentText,
+                isSelected && styles.segmentTextActive,
+              ]}
             >
-              <Text
-                style={[
-                  styles.segmentText,
-                  isSelected && styles.segmentTextActive,
-                ]}
-              >
-                {opt}
-              </Text>
-            </Pressable>
-          );
-        })}
-      </View>
+              {opt.label} {/* מה שהמשתמש רואה בעברית */}
+            </Text>
+          </Pressable>
+        );
+      })}
     </View>
-  );
+  </View>
+);
 
   const renderCityInput = () => {
     const showDropdown =

@@ -12,29 +12,55 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
-import { BASE_URL } from "../../src/api/config";
 import { getToken } from "../../src/auth/authStore";
 import { FONTS } from "../../src/theme/fonts";
 
+import {
+  getMatchesByTrip,
+} from "../../src/api/chatService";
+
 export default function TripDetails() {
   const router = useRouter();
-  const params = useLocalSearchParams();
-  const id = params?.id || params?.tripId;
+  const { id } = useLocalSearchParams();
 
   const [trip, setTrip] = useState(null);
   const [participants, setParticipants] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [deleting, setDeleting] = useState(false);
   const [matches, setMatches] = useState([]);
   const [chats, setChats] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [deleting, setDeleting] = useState(false);
 
   const formatDate = (dateStr) => {
     if (!dateStr) return "";
     const d = new Date(dateStr);
-    return `${d.getDate().toString().padStart(2, "0")}/${
-      (d.getMonth() + 1).toString().padStart(2, "0")
-    }/${d.getFullYear()}`;
+    return `${d.getDate().toString().padStart(2, "0")}/${(
+      d.getMonth() + 1
+    ).toString().padStart(2, "0")}/${d.getFullYear()}`;
   };
+
+  const isPast = trip?.endDate && new Date(trip.endDate) < new Date();
+
+  /* =========================
+     NAVIGATION
+  ========================= */
+
+  const openProfile = (userId) => {
+    router.push({
+      pathname: "/profile/UserProfile",
+      params: { userId },
+    });
+  };
+
+  const openChat = (matchId) => {
+    router.push({
+      pathname: "/chat/[matchId]",
+      params: { matchId },
+    });
+  };
+
+  /* =========================
+     LOAD DATA
+  ========================= */
 
   useEffect(() => {
     const loadData = async () => {
@@ -42,33 +68,34 @@ export default function TripDetails() {
         const token = getToken();
         const headers = token ? { Authorization: `Bearer ${token}` } : {};
 
+        // Trip + Participants
         const [tripRes, participantsRes] = await Promise.all([
           fetch(`${BASE_URL}/Trips/${id}`, { headers }),
           fetch(`${BASE_URL}/Trips/${id}/participants`, { headers }),
         ]);
 
-        const tripText = await tripRes.text();
-        const participantsText = await participantsRes.text();
+        const tripData = await tripRes.json();
+        const participantsData = await participantsRes.json();
 
-        if (!tripRes.ok) throw new Error("שגיאה בטעינת הטיול");
+        setTrip(tripData);
+        setParticipants(participantsData || []);
 
-        setTrip(tripText ? JSON.parse(tripText) : null);
-        setParticipants(participantsText ? JSON.parse(participantsText) : []);
-        // 🔹 דמו התאמות
-setMatches([
-  { id: "1", name: "דניאל", age: 27 },
-  { id: "2", name: "נועה", age: 24 },
-]);
+        // 🔥 MATCHES מהשירות (לא fetch ישיר)
+        const matchesData = await getMatchesByTrip(id);
 
-// 🔹 דמו צ'אטים
-setChats([
-  { id: "1", name: "דניאל" },
-  { id: "2", name: "נועה" },
-]);
-// await getMatchesByTrip(id)
-// await getChatsByTrip(id)
+        setMatches(matchesData || []);
+
+        // 🔥 Chats זמני (עד שיהיה endpoint אמיתי)
+        setChats(
+          (matchesData || []).map((m) => ({
+            matchID: m.matchID,
+            name: m.name || `משתמש ${m.userId}`,
+          }))
+        );
+
       } catch (err) {
-        Alert.alert("שגיאה", err.message);
+        console.log(err);
+        Alert.alert("שגיאה", "טעינת הטיול נכשלה");
       } finally {
         setLoading(false);
       }
@@ -77,40 +104,44 @@ setChats([
     if (id) loadData();
   }, [id]);
 
+  /* =========================
+     DELETE TRIP
+  ========================= */
+
   const handleDeleteTrip = () => {
-    Alert.alert(
-      "מחיקת טיול",
-      "האם אתה בטוח שברצונך למחוק את הטיול?",
-      [
-        { text: "ביטול", style: "cancel" },
-        {
-          text: "מחק",
-          style: "destructive",
-          onPress: async () => {
-            try {
-              setDeleting(true);
-              const token = getToken();
+    Alert.alert("מחיקת טיול", "האם אתה בטוח שברצונך למחוק את הטיול?", [
+      { text: "ביטול", style: "cancel" },
+      {
+        text: "מחק",
+        style: "destructive",
+        onPress: async () => {
+          try {
+            setDeleting(true);
+            const token = getToken();
 
-              const res = await fetch(`${BASE_URL}/Trips/${id}`, {
-                method: "DELETE",
-                headers: token ? { Authorization: `Bearer ${token}` } : {},
-              });
+            const res = await fetch(`${BASE_URL}/Trips/${id}`, {
+              method: "DELETE",
+              headers: token
+                ? { Authorization: `Bearer ${token}` }
+                : {},
+            });
 
-              if (!res.ok) throw new Error("מחיקת טיול נכשלה");
+            if (!res.ok) throw new Error("מחיקה נכשלה");
 
-              Alert.alert("נמחק", "הטיול נמחק בהצלחה", [
-                { text: "אישור", onPress: () => router.replace("/MyTrips") },
-              ]);
-            } catch (err) {
-              Alert.alert("שגיאה", err.message);
-            } finally {
-              setDeleting(false);
-            }
-          },
+            router.replace("/MyTrips");
+          } catch (err) {
+            Alert.alert("שגיאה", err.message);
+          } finally {
+            setDeleting(false);
+          }
         },
-      ]
-    );
+      },
+    ]);
   };
+
+  /* =========================
+     LOADING
+  ========================= */
 
   if (loading) {
     return (
@@ -128,23 +159,26 @@ setChats([
     );
   }
 
-  const isPast = new Date(trip.endDate) < new Date();
+  /* =========================
+     UI
+  ========================= */
 
   return (
     <SafeAreaView style={styles.container}>
-      {/* Header */}
+
+      {/* HEADER */}
       <View style={styles.header}>
         <TouchableOpacity onPress={() => router.back()}>
           <Ionicons name="arrow-forward" size={26} color="#1A3C40" />
         </TouchableOpacity>
 
         <Text style={styles.headerTitle}>פרטי טיול</Text>
-
         <View style={{ width: 26 }} />
       </View>
 
       <ScrollView contentContainerStyle={styles.content}>
-        {/* Trip Card */}
+
+        {/* TRIP CARD */}
         <View style={[styles.card, isPast && styles.cardPast]}>
           <Text style={styles.title}>{trip.destination}</Text>
 
@@ -160,16 +194,16 @@ setChats([
           <Text style={styles.value}>{trip.status}</Text>
         </View>
 
-        {/* Participants */}
-        <Text style={styles.sectionTitle}>משתתפים בטיול</Text>
+        {/* PARTICIPANTS */}
+        <Text style={styles.sectionTitle}>משתתפים</Text>
 
         <View style={styles.card}>
           {participants.length === 0 ? (
-            <Text style={styles.value}>אין משתתפים עדיין</Text>
+            <Text style={styles.value}>אין משתתפים</Text>
           ) : (
-            participants.map((p, index) => (
-              <View key={index} style={styles.participant}>
-                <Ionicons name="person-circle-outline" size={22} color="#1A3C40" />
+            participants.map((p, i) => (
+              <View key={i} style={styles.participant}>
+                <Ionicons name="person-circle-outline" size={22} />
                 <Text style={styles.value}>
                   {p.firstName} {p.lastName}
                 </Text>
@@ -178,205 +212,62 @@ setChats([
           )}
         </View>
 
-        {/* Actions */}
-        <View style={styles.actions}>
-          <TouchableOpacity
-            style={styles.editBtn}
-            onPress={() => router.push(`/EditTrip/${id}`)}
-          >
-            <Ionicons name="create-outline" size={20} color="#fff" />
-            <Text style={styles.btnText}>ערוך טיול</Text>
-          </TouchableOpacity>
+        {/* MATCHES */}
+        <Text style={styles.sectionTitle}>התאמות עבורך</Text>
 
+        {matches.length === 0 ? (
+          <Text style={styles.value}>אין התאמות</Text>
+        ) : (
+          <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+            {matches.map((m) => (
+              <TouchableOpacity
+                key={m.matchID}
+                style={styles.matchCard}
+                onPress={() => openProfile(m.userId)}
+              >
+                <View style={styles.avatar} />
+                <Text style={styles.name}>
+                  {m.name || "משתמש"}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </ScrollView>
+        )}
+
+        {/* CHATS */}
+        <Text style={styles.sectionTitle}>צ'אטים</Text>
+
+        <View style={styles.card}>
+          {chats.length === 0 ? (
+            <Text style={styles.value}>אין צ'אטים עדיין</Text>
+          ) : (
+            chats.map((c) => (
+              <TouchableOpacity
+                key={c.matchID}
+                style={styles.chatRow}
+                onPress={() => openChat(c.matchID)}
+              >
+                <Ionicons name="chatbubble-outline" size={20} />
+                <Text style={styles.value}>{c.name}</Text>
+              </TouchableOpacity>
+            ))
+          )}
+        </View>
+
+        {/* DELETE */}
+        <View style={styles.actions}>
           <TouchableOpacity
             style={styles.deleteBtn}
             onPress={handleDeleteTrip}
             disabled={deleting}
           >
-            {deleting ? (
-              <ActivityIndicator color="#fff" />
-            ) : (
-              <>
-                <Ionicons name="trash-outline" size={20} color="#fff" />
-                <Text style={styles.btnText}>מחק טיול</Text>
-              </>
-            )}
+            <Text style={styles.btnText}>
+              {deleting ? "מוחק..." : "מחק טיול"}
+            </Text>
           </TouchableOpacity>
         </View>
-        <Text style={styles.sectionTitle}>התאמות עבורך</Text>
 
-{matches.length === 0 ? (
-  <Text style={styles.value}>אין התאמות כרגע</Text>
-) : (
-  <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-    {matches.map((m) => (
-      <TouchableOpacity
-        key={m.id}
-        style={styles.matchCard}
-        onPress={() => openProfile(m.id)}
-      >
-        <View style={styles.avatar} />
-        <Text style={styles.name}>{m.name}</Text>
-      </TouchableOpacity>
-    ))}
-  </ScrollView>
-)}
-<Text style={styles.sectionTitle}>צ'אטים פעילים</Text>
-
-<View style={styles.card}>
-  {chats.length === 0 ? (
-    <Text style={styles.value}>אין צ'אטים עדיין</Text>
-  ) : (
-    chats.map((chat) => (
-      <TouchableOpacity
-        key={chat.id}
-        style={styles.chatRow}
-        onPress={() => openChat(chat.id)}
-      >
-        <Ionicons name="chatbubble-outline" size={20} color="#1A3C40" />
-        <Text style={styles.value}>{chat.name}</Text>
-      </TouchableOpacity>
-    ))
-  )}
-</View>
       </ScrollView>
     </SafeAreaView>
   );
 }
-
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: "#F5F0E8",
-  },
-
-  center: {
-    flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-  },
-
-  header: {
-    flexDirection: "row-reverse",
-    justifyContent: "space-between",
-    padding: 20,
-  },
-
-  headerTitle: {
-    fontSize: 18,
-    fontFamily: FONTS.bold,
-    color: "#1A3C40",
-  },
-
-  content: {
-    padding: 20,
-    paddingBottom: 40,
-  },
-
-  card: {
-    backgroundColor: "#fff",
-    borderRadius: 16,
-    padding: 16,
-    marginBottom: 20,
-  },
-
-  cardPast: {
-    backgroundColor: "#E0E0E0",
-  },
-
-  title: {
-    fontSize: 20,
-    fontFamily: FONTS.bold,
-    textAlign: "center",
-    marginBottom: 10,
-    color: "#1A3C40",
-  },
-
-  label: {
-    fontSize: 12,
-    color: "#777",
-    marginTop: 10,
-    textAlign: "right",
-  },
-
-  value: {
-    fontSize: 15,
-    fontFamily: FONTS.regular,
-    textAlign: "right",
-    color: "#222",
-  },
-
-  sectionTitle: {
-    fontSize: 16,
-    fontFamily: FONTS.bold,
-    marginBottom: 10,
-    color: "#1A3C40",
-    textAlign: "right",
-  },
-
-  participant: {
-    flexDirection: "row-reverse",
-    alignItems: "center",
-    gap: 10,
-    marginBottom: 8,
-  },
-
-  actions: {
-    marginTop: 10,
-    gap: 10,
-  },
-
-  editBtn: {
-    flexDirection: "row-reverse",
-    backgroundColor: "#1A3C40",
-    padding: 14,
-    borderRadius: 12,
-    justifyContent: "center",
-    gap: 10,
-  },
-
-  deleteBtn: {
-    flexDirection: "row-reverse",
-    backgroundColor: "#C0392B",
-    padding: 14,
-    borderRadius: 12,
-    justifyContent: "center",
-    gap: 10,
-  },
-
-  btnText: {
-    color: "#fff",
-    fontFamily: FONTS.bold,
-  },
-  matchCard: {
-  backgroundColor: "#fff",
-  borderRadius: 12,
-  padding: 10,
-  marginLeft: 10,
-  alignItems: "center",
-  width: 90,
-},
-
-avatar: {
-  width: 45,
-  height: 45,
-  borderRadius: 22,
-  backgroundColor: "#ccc",
-  marginBottom: 6,
-},
-
-name: {
-  fontSize: 13,
-  fontFamily: FONTS.bold,
-},
-
-chatRow: {
-  flexDirection: "row-reverse",
-  alignItems: "center",
-  gap: 10,
-  paddingVertical: 10,
-  borderBottomWidth: 0.5,
-  borderColor: "#ddd",
-},
-});
