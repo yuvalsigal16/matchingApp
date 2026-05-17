@@ -21,10 +21,10 @@ import {
   getMatchById,
   sendChatMessage,
   triggerMatching,
-} from "../../src/api/chatService";
+} from "../src/api/chatService";
 
-import { getUser } from "../../src/auth/authStore";
-import { FONTS } from "../../src/theme/fonts";
+import { getUser } from "../src/auth/authStore";
+import { FONTS } from "../src/theme/fonts";
 
 export default function ChatScreen() {
   const router = useRouter();

@@ -16,7 +16,7 @@ import {
   useRouter,
 } from "expo-router";
 
-import { FONTS } from "../../src/theme/fonts";
+import { FONTS } from "../src/theme/fonts";
 
 export default function MatchingSuccess() {
 
