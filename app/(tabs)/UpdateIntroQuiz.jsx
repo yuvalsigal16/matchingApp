@@ -23,7 +23,11 @@ import { getUserProfile, updateUserProfile } from "../src/api/userProfileService
 import { getUser } from "../src/auth/authStore";
 import { FONTS } from "../src/theme/fonts";
 
-const GENDER_OPTIONS = ["זכר", "נקבה", "אחר"];
+const GENDER_OPTIONS = [
+  { label: "זכר", value: "Male" },
+  { label: "נקבה", value: "Female" },
+  { label: "אחר", value: "Other" },
+];
 
 // פורמט "DD/MM/YYYY" להצגה — תאריך הלידה במסך
 function formatDate(d) {
@@ -283,15 +287,15 @@ export default function UpdateIntroQuizScreen() {
         <Text style={styles.label}>מגדר</Text>
         <View style={styles.segmented}>
           {GENDER_OPTIONS.map((opt) => {
-            const selected = gender === opt;
+            const selected = gender === opt.value;
             return (
               <Pressable
-                key={opt}
+                key={opt.value}
                 style={[styles.segment, selected && styles.segmentActive]}
-                onPress={() => setGender(opt)}
+                onPress={() => setGender(opt.value)}
               >
                 <Text style={[styles.segmentText, selected && styles.segmentTextActive]}>
-                  {opt}
+                  {opt.label}
                 </Text>
               </Pressable>
             );

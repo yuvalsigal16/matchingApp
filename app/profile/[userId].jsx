@@ -21,6 +21,10 @@ export default function UserProfileScreen() {
     return age;
   };
 
+  // הערך נשמר ב-DB באנגלית; מציגים למשתמש בעברית
+  const GENDER_DB_TO_HE = { Male: "זכר", Female: "נקבה", Other: "אחר" };
+  const displayGender = (g) => GENDER_DB_TO_HE[g] || g || "";
+
   useEffect(() => {
     const loadUser = async () => {
       try {
@@ -71,7 +75,7 @@ export default function UserProfileScreen() {
 
         {/* גיל + מגדר */}
         <Text style={styles.info}>
-          גיל: {calcAge(user.birthDate)} | מגדר: {user.gender}
+          גיל: {calcAge(user.birthDate)} | מגדר: {displayGender(user.gender)}
         </Text>
 
         {/* עיר */}

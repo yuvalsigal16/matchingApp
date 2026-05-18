@@ -46,7 +46,8 @@
           "cameraPermission": "האפליקציה צריכה גישה למצלמה כדי לצלם תמונת פרופיל"
         }
       ],
-      "@react-native-community/datetimepicker"
+      "@react-native-community/datetimepicker",
+      "expo-web-browser"
     ],
     "experiments": {
       "typedRoutes": true,
