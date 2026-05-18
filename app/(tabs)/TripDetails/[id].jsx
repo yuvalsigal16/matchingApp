@@ -25,6 +25,8 @@ export default function TripDetails() {
   const [participants, setParticipants] = useState([]);
   const [loading, setLoading] = useState(true);
   const [deleting, setDeleting] = useState(false);
+  const [matches, setMatches] = useState([]);
+  const [chats, setChats] = useState([]);
 
   const formatDate = (dateStr) => {
     if (!dateStr) return "";
@@ -52,6 +54,19 @@ export default function TripDetails() {
 
         setTrip(tripText ? JSON.parse(tripText) : null);
         setParticipants(participantsText ? JSON.parse(participantsText) : []);
+        // 🔹 דמו התאמות
+setMatches([
+  { id: "1", name: "דניאל", age: 27 },
+  { id: "2", name: "נועה", age: 24 },
+]);
+
+// 🔹 דמו צ'אטים
+setChats([
+  { id: "1", name: "דניאל" },
+  { id: "2", name: "נועה" },
+]);
+// await getMatchesByTrip(id)
+// await getChatsByTrip(id)
       } catch (err) {
         Alert.alert("שגיאה", err.message);
       } finally {
@@ -188,6 +203,42 @@ export default function TripDetails() {
             )}
           </TouchableOpacity>
         </View>
+        <Text style={styles.sectionTitle}>התאמות עבורך</Text>
+
+{matches.length === 0 ? (
+  <Text style={styles.value}>אין התאמות כרגע</Text>
+) : (
+  <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+    {matches.map((m) => (
+      <TouchableOpacity
+        key={m.id}
+        style={styles.matchCard}
+        onPress={() => openProfile(m.id)}
+      >
+        <View style={styles.avatar} />
+        <Text style={styles.name}>{m.name}</Text>
+      </TouchableOpacity>
+    ))}
+  </ScrollView>
+)}
+<Text style={styles.sectionTitle}>צ'אטים פעילים</Text>
+
+<View style={styles.card}>
+  {chats.length === 0 ? (
+    <Text style={styles.value}>אין צ'אטים עדיין</Text>
+  ) : (
+    chats.map((chat) => (
+      <TouchableOpacity
+        key={chat.id}
+        style={styles.chatRow}
+        onPress={() => openChat(chat.id)}
+      >
+        <Ionicons name="chatbubble-outline" size={20} color="#1A3C40" />
+        <Text style={styles.value}>{chat.name}</Text>
+      </TouchableOpacity>
+    ))
+  )}
+</View>
       </ScrollView>
     </SafeAreaView>
   );
@@ -298,4 +349,34 @@ const styles = StyleSheet.create({
     color: "#fff",
     fontFamily: FONTS.bold,
   },
+  matchCard: {
+  backgroundColor: "#fff",
+  borderRadius: 12,
+  padding: 10,
+  marginLeft: 10,
+  alignItems: "center",
+  width: 90,
+},
+
+avatar: {
+  width: 45,
+  height: 45,
+  borderRadius: 22,
+  backgroundColor: "#ccc",
+  marginBottom: 6,
+},
+
+name: {
+  fontSize: 13,
+  fontFamily: FONTS.bold,
+},
+
+chatRow: {
+  flexDirection: "row-reverse",
+  alignItems: "center",
+  gap: 10,
+  paddingVertical: 10,
+  borderBottomWidth: 0.5,
+  borderColor: "#ddd",
+},
 });
