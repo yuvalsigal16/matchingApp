@@ -541,23 +541,27 @@ AS
 BEGIN
     SET NOCOUNT ON;
 
+    DECLARE @rows INT;
+
     UPDATE dbo.UserProfile
     SET FirstName = @FirstName,
         LastName = @LastName,
         BirthDate = @BirthDate,
         Gender = @Gender,
         City = @City,
-		ProfileImage = @ProfileImage,
+        ProfileImage = @ProfileImage,
         LastUpdated = SYSDATETIME()
     WHERE UserID = @UserID;
 
-    IF @@ROWCOUNT = 0
+    SET @rows = @@ROWCOUNT;
+
+    IF @rows = 0
     BEGIN
         RAISERROR('Profile not found.', 16, 1);
         RETURN;
     END
 
-    SELECT @@ROWCOUNT AS RowsAffected;
+    SELECT @rows AS RowsAffected;
 END
 GO
 
@@ -2484,3 +2488,12 @@ INSERT INTO dbo.Interests (InterestName) VALUES
 ('מוזיקה'),
 ('מסיבות');
 
+-- -
+ALTER TABLE dbo.UserProfile
+DROP CONSTRAINT CK_UserProfile_Gender;
+GO
+
+ALTER TABLE dbo.UserProfile
+ADD CONSTRAINT CK_UserProfile_Gender
+CHECK (Gender IN ('Male', 'Female', 'Other') OR Gender IS NULL);
+GO
