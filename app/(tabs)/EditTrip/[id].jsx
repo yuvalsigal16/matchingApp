@@ -1,6 +1,6 @@
 import { Ionicons } from "@expo/vector-icons";
 import { useLocalSearchParams, useRouter } from "expo-router";
-import React, { useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
@@ -13,9 +13,9 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
+import { FONTS } from "../../../theme/fonts";
 import { BASE_URL } from "../../src/api/config";
 import { getToken } from "../../src/auth/authStore";
-import { FONTS } from "../../src/theme/fonts";
 
 export default function EditTrip() {
   const router = useRouter();
@@ -164,7 +164,6 @@ export default function EditTrip() {
     </SafeAreaView>
   );
 }
-
 
 const styles = StyleSheet.create({
   container: {

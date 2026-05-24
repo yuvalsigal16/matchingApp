@@ -1,27 +1,35 @@
 import { Ionicons } from "@expo/vector-icons";
 import * as ImagePicker from "expo-image-picker";
 import { useRouter } from "expo-router";
-import { ChevronLeft, FileText, Heart, LogOut, Settings } from "lucide-react-native";
-import React, { useEffect, useState } from "react";
 import {
-  ActivityIndicator,
-  Alert,
-  Image,
-  Modal,
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TouchableOpacity,
-  View,
+    ChevronLeft,
+    FileText,
+    Heart,
+    LogOut,
+    Settings,
+} from "lucide-react-native";
+import { useEffect, useState } from "react";
+import {
+    ActivityIndicator,
+    Alert,
+    Image,
+    Modal,
+    Pressable,
+    ScrollView,
+    StyleSheet,
+    Text,
+    TouchableOpacity,
+    View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { BASE_URL } from "../src/api/config";
-import { deleteProfileImage, uploadProfileImage } from "../src/api/userProfileService";
-import { clearAuth, getToken, getUser } from "../src/auth/authStore";
-import { FONTS } from "../src/theme/fonts";
 import BottomNav from "../../components/BottomNav";
-
+import { FONTS } from "../../theme/fonts";
+import { BASE_URL } from "../src/api/config";
+import {
+    deleteProfileImage,
+    uploadProfileImage,
+} from "../src/api/userProfileService";
+import { clearAuth, getToken, getUser } from "../src/auth/authStore";
 
 // 👇 אותו helper כמו במסך הבית
 function buildImageUri(raw) {
@@ -67,13 +75,12 @@ export default function ProfileScreen() {
           Authorization: `Bearer ${token}`,
         };
 
-        const [profileRes, imageRes, matchesRes, tripsRes] =
-          await Promise.all([
-            fetch(`${BASE_URL}/UserProfile/${userId}`, { headers }),
-            fetch(`${BASE_URL}/UserProfile/image/${userId}`, { headers }),
-            fetch(`${BASE_URL}/Matches/user/${userId}`, { headers }),
-            fetch(`${BASE_URL}/Trips/user/${userId}`, { headers }),
-          ]);
+        const [profileRes, imageRes, matchesRes, tripsRes] = await Promise.all([
+          fetch(`${BASE_URL}/UserProfile/${userId}`, { headers }),
+          fetch(`${BASE_URL}/UserProfile/image/${userId}`, { headers }),
+          fetch(`${BASE_URL}/Matches/user/${userId}`, { headers }),
+          fetch(`${BASE_URL}/Trips/user/${userId}`, { headers }),
+        ]);
 
         let firstName = "";
         let lastName = "";
@@ -268,7 +275,6 @@ export default function ProfileScreen() {
         contentContainerStyle={styles.content}
         showsVerticalScrollIndicator={false}
       >
-
         {/* Header — רק חץ חזרה ל-Home (אייקון ההגדרות הוסר כי הוא קיים בתפריט למטה) */}
         <View style={styles.header}>
           <TouchableOpacity onPress={() => router.replace("/Home")}>
@@ -352,7 +358,7 @@ export default function ProfileScreen() {
         </TouchableOpacity>
       </ScrollView>
 
-     <BottomNav active="profile" />
+      <BottomNav active="profile" />
 
       {/* Modal לבחירת מקור התמונה — מצלמה / גלריה */}
       <Modal

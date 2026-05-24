@@ -1,13 +1,27 @@
-import React, { useEffect, useState } from "react";
-import { ActivityIndicator, Alert, Image, StyleSheet, Text, TouchableOpacity, View } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
-import { Bell, ChevronLeft, MapPin, MessageCircle, Users } from "lucide-react-native";
-import { FONTS } from "../src/theme/fonts";
-import { getToken, getUser } from "../src/auth/authStore";
-import { BASE_URL } from "../src/api/config";
+import {
+    Bell,
+    ChevronLeft,
+    MapPin,
+    MessageCircle,
+    Users,
+} from "lucide-react-native";
+import { useEffect, useState } from "react";
+import {
+    ActivityIndicator,
+    Alert,
+    Image,
+    StyleSheet,
+    Text,
+    TouchableOpacity,
+    View,
+} from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 import BottomNav from "../../components/BottomNav";
+import { FONTS } from "../../theme/fonts";
+import { BASE_URL } from "../src/api/config";
+import { getToken, getUser } from "../src/auth/authStore";
 
 // בונה URI שלם לתמונת פרופיל. השרת עשוי להחזיר URL מלא, נתיב יחסי, או שם קובץ —
 // במקרים האחרונים חייבים להוסיף את שורש השרת (ללא ה-"/api") כדי ש-<Image> יוכל לטעון.
@@ -50,9 +64,18 @@ export default function Home() {
         // קריאה במקביל: פרטי פרופיל, תמונה ושאלון היכרות — שלוש קריאות נפרדות
         // כדי שכל אחד יוכל להצליח/להיכשל לחוד מבלי לחסום את השני.
         const [profileRes, imageRes, questionnaireRes] = await Promise.all([
-          fetch(`${BASE_URL}/UserProfile/${userId}`, { method: "GET", headers }),
-          fetch(`${BASE_URL}/UserProfile/image/${userId}`, { method: "GET", headers }),
-          fetch(`${BASE_URL}/Questionnaire/${userId}`, { method: "GET", headers }),
+          fetch(`${BASE_URL}/UserProfile/${userId}`, {
+            method: "GET",
+            headers,
+          }),
+          fetch(`${BASE_URL}/UserProfile/image/${userId}`, {
+            method: "GET",
+            headers,
+          }),
+          fetch(`${BASE_URL}/Questionnaire/${userId}`, {
+            method: "GET",
+            headers,
+          }),
         ]);
 
         let firstName = "";
@@ -127,7 +150,11 @@ export default function Home() {
           source={{ uri: profileImageUri }}
           style={styles.avatar}
           onError={(e) =>
-            console.warn("[HomeScreen] טעינת תמונה נכשלה:", profileImageUri, e.nativeEvent?.error)
+            console.warn(
+              "[HomeScreen] טעינת תמונה נכשלה:",
+              profileImageUri,
+              e.nativeEvent?.error,
+            )
           }
         />
       );
@@ -180,16 +207,19 @@ export default function Home() {
       <View style={styles.content}>
         <View style={styles.header}>
           <View style={styles.headerTextContainer}>
-            <Text style={styles.greetingText}>{`שלום, ${userData.firstName || "אורח"}`}</Text>
+            <Text
+              style={styles.greetingText}
+            >{`שלום, ${userData.firstName || "אורח"}`}</Text>
             <Text style={styles.mainTitle}>ברוך הבא לצמד חמד</Text>
           </View>
           {renderAvatar()}
         </View>
 
         <View style={styles.introSection}>
-          <Text style={styles.introText}>מוכנ/ה למצוא את פרטנר הטיול הבא שלך?</Text>
-          <View style={styles.introIcon}>
-          </View>
+          <Text style={styles.introText}>
+            מוכנ/ה למצוא את פרטנר הטיול הבא שלך?
+          </Text>
+          <View style={styles.introIcon}></View>
         </View>
 
         <View style={styles.menuList}>
@@ -206,7 +236,12 @@ export default function Home() {
                   <Text style={styles.tileTitle}>{item.title}</Text>
                   <Text style={styles.tileSub}>{item.sub}</Text>
                 </View>
-                <View style={[styles.iconContainer, { borderColor: item.iconBorder }]}>
+                <View
+                  style={[
+                    styles.iconContainer,
+                    { borderColor: item.iconBorder },
+                  ]}
+                >
                   <IconComponent size={22} color="#1A3C40" strokeWidth={2.2} />
                 </View>
                 <ChevronLeft size={22} color="#9A9A9A" strokeWidth={2.2} />

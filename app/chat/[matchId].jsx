@@ -1,30 +1,30 @@
-import React, { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
-  View,
-  Text,
-  StyleSheet,
-  TouchableOpacity,
-  TextInput,
+  ActivityIndicator,
+  Alert,
   FlatList,
   KeyboardAvoidingView,
   Platform,
-  ActivityIndicator,
-  Alert,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
 } from "react-native";
 
-import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { useLocalSearchParams, useRouter } from "expo-router";
+import { SafeAreaView } from "react-native-safe-area-context";
 
 import {
   getChatByMatchId,
   getMatchById,
   sendChatMessage,
   triggerMatching,
-} from "../../src/api/chatService";
+} from "../src/api/chatService";
 
-import { getUser } from "../../src/auth/authStore";
-import { FONTS } from "../../src/theme/fonts";
+import { FONTS } from "../../theme/fonts";
+import { getUser } from "../src/auth/authStore";
 
 export default function ChatScreen() {
   const router = useRouter();
@@ -66,7 +66,7 @@ export default function ChatScreen() {
       const saved = await sendChatMessage(
         matchId,
         messageText.trim(),
-        currentUser.userID
+        currentUser.userID,
       );
 
       setMessages((prev) => [...prev, saved]);
@@ -89,20 +89,16 @@ export default function ChatScreen() {
       setMatchingStatus(data.status);
 
       if (data.status === "matched") {
-        Alert.alert(
-          "🎉 It's a Match!",
-          "הטיול המשותף נוצר בהצלחה",
-          [
-            {
-              text: "המשך",
-              onPress: () =>
-                router.push({
-                  pathname: "/matching/MatchingSuccess",
-                  params: { matchId },
-                }),
-            },
-          ]
-        );
+        Alert.alert("🎉 It's a Match!", "הטיול המשותף נוצר בהצלחה", [
+          {
+            text: "המשך",
+            onPress: () =>
+              router.push({
+                pathname: "/matching/MatchingSuccess",
+                params: { matchId },
+              }),
+          },
+        ]);
       }
     } catch (err) {
       Alert.alert("שגיאה", "הפעולה נכשלה");
@@ -119,12 +115,7 @@ export default function ChatScreen() {
           isMine ? styles.myMessage : styles.otherMessage,
         ]}
       >
-        <Text
-          style={[
-            styles.messageText,
-            isMine && { color: "#fff" },
-          ]}
-        >
+        <Text style={[styles.messageText, isMine && { color: "#fff" }]}>
           {item.text}
         </Text>
       </View>
@@ -141,7 +132,6 @@ export default function ChatScreen() {
 
   return (
     <SafeAreaView style={styles.container}>
-
       {/* HEADER */}
       <View style={styles.header}>
         <TouchableOpacity onPress={() => router.back()}>
@@ -152,21 +142,16 @@ export default function ChatScreen() {
           <Text style={styles.chatName}>
             {matchData?.otherUserName || "צ'אט"}
           </Text>
-          <Text style={styles.tripName}>
-            {matchData?.tripName || "טיול"}
-          </Text>
+          <Text style={styles.tripName}>{matchData?.tripName || "טיול"}</Text>
         </View>
 
-        <TouchableOpacity
-          style={styles.matchBtn}
-          onPress={handleMatching}
-        >
+        <TouchableOpacity style={styles.matchBtn} onPress={handleMatching}>
           <Text style={styles.matchText}>
             {matchingStatus === "none"
               ? "Matching"
               : matchingStatus === "pending"
-              ? "ממתין"
-              : "Matched"}
+                ? "ממתין"
+                : "Matched"}
           </Text>
         </TouchableOpacity>
       </View>
@@ -175,9 +160,7 @@ export default function ChatScreen() {
       <FlatList
         ref={flatListRef}
         data={messages}
-        keyExtractor={(item) =>
-          item.messageID.toString()
-        }
+        keyExtractor={(item) => item.messageID.toString()}
         renderItem={renderMessage}
         contentContainerStyle={{ padding: 16 }}
       />
@@ -194,10 +177,7 @@ export default function ChatScreen() {
             style={styles.input}
           />
 
-          <TouchableOpacity
-            onPress={sendMessage}
-            style={styles.sendBtn}
-          >
+          <TouchableOpacity onPress={sendMessage} style={styles.sendBtn}>
             <Ionicons name="send" size={18} color="#fff" />
           </TouchableOpacity>
         </View>

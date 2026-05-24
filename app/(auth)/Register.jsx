@@ -1,21 +1,21 @@
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
-import React, { useState } from "react";
+import { useState } from "react";
 import {
-  ActivityIndicator,
-  KeyboardAvoidingView,
-  Platform,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  View,
+    ActivityIndicator,
+    KeyboardAvoidingView,
+    Platform,
+    ScrollView,
+    StyleSheet,
+    Text,
+    TextInput,
+    TouchableOpacity,
+    View,
 } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
+import { FONTS } from "../../theme/fonts";
 import { apiLogin, apiRegister } from "../src/api/authService";
 import { setAuth } from "../src/auth/authStore";
-import { SafeAreaView } from "react-native-safe-area-context";
-import { FONTS } from "../src/theme/fonts";
 
 // ── פונקציות בדיקת תקינות ──
 
@@ -111,7 +111,6 @@ export default function RegisterScreen() {
     );
 
   const handleRegister = async () => {
-
     //בדיקות UI בלבד
     //להציג שגיאות למשתמש על המסך
     validateEmail();
@@ -153,7 +152,7 @@ export default function RegisterScreen() {
         {/* ScrollView — מאפשר גלילה, שימושי כשהטופס ארוך */}
         <ScrollView
           contentContainerStyle={styles.scroll}
-          keyboardShouldPersistTaps="handled" 
+          keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
         >
           {/* ── כותרת ראשית ── */}
@@ -172,8 +171,8 @@ export default function RegisterScreen() {
                 setEmailError("");
               }}
               onBlur={validateEmail}
-              keyboardType="email-address" 
-              autoCapitalize="none" 
+              keyboardType="email-address"
+              autoCapitalize="none"
               autoCorrect={false}
               textAlign="right"
             />
@@ -244,7 +243,6 @@ export default function RegisterScreen() {
             </TouchableOpacity>
             <Text style={styles.mutedText}>כבר יש לך חשבון? </Text>
           </View>
-
         </ScrollView>
       </KeyboardAvoidingView>
     </SafeAreaView>
@@ -403,5 +401,4 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontFamily: FONTS.bold,
   },
-
 });

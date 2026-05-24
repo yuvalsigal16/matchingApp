@@ -1,27 +1,43 @@
 import { Ionicons } from "@expo/vector-icons";
 import DateTimePicker from "@react-native-community/datetimepicker";
 import { useRouter } from "expo-router";
-import { Cigarette, CigaretteOff, MoonStar, UtensilsCrossed } from "lucide-react-native";
-import React, { useEffect, useState } from "react";
 import {
-  ActivityIndicator,
-  Alert,
-  Platform,
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  View,
+    Cigarette,
+    CigaretteOff,
+    MoonStar,
+    UtensilsCrossed,
+} from "lucide-react-native";
+import { useEffect, useState } from "react";
+import {
+    ActivityIndicator,
+    Alert,
+    Platform,
+    Pressable,
+    ScrollView,
+    StyleSheet,
+    Text,
+    TextInput,
+    TouchableOpacity,
+    View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
-import { addUserInterest, getAllInterests, getUserInterests, removeUserInterest } from "../src/api/interestService";
-import { getQuestionnaire, updateQuestionnaire } from "../src/api/questionnaireService";
-import { getUserProfile, updateUserProfile } from "../src/api/userProfileService";
+import { FONTS } from "../../theme/fonts";
+import {
+    addUserInterest,
+    getAllInterests,
+    getUserInterests,
+    removeUserInterest,
+} from "../src/api/interestService";
+import {
+    getQuestionnaire,
+    updateQuestionnaire,
+} from "../src/api/questionnaireService";
+import {
+    getUserProfile,
+    updateUserProfile,
+} from "../src/api/userProfileService";
 import { getUser } from "../src/auth/authStore";
-import { FONTS } from "../src/theme/fonts";
 
 const GENDER_OPTIONS = ["זכר", "נקבה", "אחר"];
 
@@ -47,16 +63,16 @@ export default function UpdateIntroQuizScreen() {
   const [city, setCity] = useState("");
   const [gender, setGender] = useState("");
   // שאלון
-  const [isSmoker, setIsSmoker] = useState(null);     // true/false/null
+  const [isSmoker, setIsSmoker] = useState(null); // true/false/null
   const [keepsKosher, setKeepsKosher] = useState(null);
   const [keepsShabbat, setKeepsShabbat] = useState(null);
-  const [spontaneity, setSpontaneity] = useState(0);    // 1..5
+  const [spontaneity, setSpontaneity] = useState(0); // 1..5
   const [lifestyle, setLifestyle] = useState(0);
   // שדות פנימיים שצריך לזכור כדי לשלוח חזרה ב-PUT
-  const [profileMeta, setProfileMeta] = useState({});       // ProfileID + ProfileImage + LastUpdated
+  const [profileMeta, setProfileMeta] = useState({}); // ProfileID + ProfileImage + LastUpdated
   const [questionnaireMeta, setQuestionnaireMeta] = useState({}); // QuestionnaireID + SocialNetworks
   // תחומי עניין
-  const [allInterests, setAllInterests] = useState([]);   // [{ interestID, interestName }]
+  const [allInterests, setAllInterests] = useState([]); // [{ interestID, interestName }]
   const [selectedInterestIds, setSelectedInterestIds] = useState([]); // [interestID]
   const [originalInterestIds, setOriginalInterestIds] = useState([]); // לזיהוי הוספות/הסרות בעת השמירה
 
@@ -65,12 +81,13 @@ export default function UpdateIntroQuizScreen() {
     if (!userId) return;
     (async () => {
       try {
-        const [profile, questionnaire, userInterests, allInts] = await Promise.all([
-          getUserProfile(userId),
-          getQuestionnaire(userId),
-          getUserInterests(userId),
-          getAllInterests(),
-        ]);
+        const [profile, questionnaire, userInterests, allInts] =
+          await Promise.all([
+            getUserProfile(userId),
+            getQuestionnaire(userId),
+            getUserInterests(userId),
+            getAllInterests(),
+          ]);
 
         if (profile) {
           setFirstName(profile.firstName || "");
@@ -86,20 +103,33 @@ export default function UpdateIntroQuizScreen() {
 
         if (questionnaire) {
           // log עוזר לאתר אי-התאמה בשמות שדות (camelCase מול PascalCase) אם יקרה
-          console.log("[UpdateIntroQuiz] questionnaire from server:", questionnaire);
+          console.log(
+            "[UpdateIntroQuiz] questionnaire from server:",
+            questionnaire,
+          );
           // ננסה את שתי האפשרויות לשם השדה (camelCase של ASP.NET עם web defaults,
           // או PascalCase במקרה ש-config שונה הופעל)
-          const spont = questionnaire.spontaneityLevel ?? questionnaire.SpontaneityLevel;
-          const life = questionnaire.lifestyleLevel ?? questionnaire.LifestyleLevel;
+          const spont =
+            questionnaire.spontaneityLevel ?? questionnaire.SpontaneityLevel;
+          const life =
+            questionnaire.lifestyleLevel ?? questionnaire.LifestyleLevel;
           setIsSmoker(questionnaire.isSmoker ?? questionnaire.IsSmoker ?? null);
-          setKeepsKosher(questionnaire.keepsKosher ?? questionnaire.KeepsKosher ?? null);
-          setKeepsShabbat(questionnaire.keepsShabbat ?? questionnaire.KeepsShabbat ?? null);
+          setKeepsKosher(
+            questionnaire.keepsKosher ?? questionnaire.KeepsKosher ?? null,
+          );
+          setKeepsShabbat(
+            questionnaire.keepsShabbat ?? questionnaire.KeepsShabbat ?? null,
+          );
           // Number() מבטיח השוואה תקינה ל-1..5 גם אם הערך מגיע כ-string
           setSpontaneity(spont != null ? Number(spont) : 0);
           setLifestyle(life != null ? Number(life) : 0);
           setQuestionnaireMeta({
-            QuestionnaireID: questionnaire.questionnaireID ?? questionnaire.QuestionnaireID,
-            SocialNetworks: questionnaire.socialNetworks ?? questionnaire.SocialNetworks ?? null,
+            QuestionnaireID:
+              questionnaire.questionnaireID ?? questionnaire.QuestionnaireID,
+            SocialNetworks:
+              questionnaire.socialNetworks ??
+              questionnaire.SocialNetworks ??
+              null,
           });
         }
 
@@ -148,8 +178,12 @@ export default function UpdateIntroQuizScreen() {
       });
 
       // 3) תחומי עניין: diff בין מה שהיה למה שיש עכשיו
-      const toAdd = selectedInterestIds.filter((id) => !originalInterestIds.includes(id));
-      const toRemove = originalInterestIds.filter((id) => !selectedInterestIds.includes(id));
+      const toAdd = selectedInterestIds.filter(
+        (id) => !originalInterestIds.includes(id),
+      );
+      const toRemove = originalInterestIds.filter(
+        (id) => !selectedInterestIds.includes(id),
+      );
       await Promise.all([
         ...toAdd.map((id) => addUserInterest(userId, id)),
         ...toRemove.map((id) => removeUserInterest(userId, id)),
@@ -177,13 +211,27 @@ export default function UpdateIntroQuizScreen() {
           style={[styles.smallBtn, value === true && styles.smallBtnActive]}
           onPress={() => onChange(true)}
         >
-          <Text style={[styles.smallBtnText, value === true && styles.smallBtnTextActive]}>כן</Text>
+          <Text
+            style={[
+              styles.smallBtnText,
+              value === true && styles.smallBtnTextActive,
+            ]}
+          >
+            כן
+          </Text>
         </Pressable>
         <Pressable
           style={[styles.smallBtn, value === false && styles.smallBtnActive]}
           onPress={() => onChange(false)}
         >
-          <Text style={[styles.smallBtnText, value === false && styles.smallBtnTextActive]}>לא</Text>
+          <Text
+            style={[
+              styles.smallBtnText,
+              value === false && styles.smallBtnTextActive,
+            ]}
+          >
+            לא
+          </Text>
         </Pressable>
       </View>
     </View>
@@ -198,7 +246,14 @@ export default function UpdateIntroQuizScreen() {
           style={[styles.ratingDot, value === n && styles.ratingDotActive]}
           onPress={() => onChange(n)}
         >
-          <Text style={[styles.ratingNumber, value === n && styles.ratingNumberActive]}>{n}</Text>
+          <Text
+            style={[
+              styles.ratingNumber,
+              value === n && styles.ratingNumberActive,
+            ]}
+          >
+            {n}
+          </Text>
         </Pressable>
       ))}
     </View>
@@ -251,7 +306,10 @@ export default function UpdateIntroQuizScreen() {
         />
 
         <Text style={styles.label}>תאריך לידה</Text>
-        <Pressable style={styles.dateBtn} onPress={() => setDatePickerOpen(true)}>
+        <Pressable
+          style={styles.dateBtn}
+          onPress={() => setDatePickerOpen(true)}
+        >
           <Ionicons name="calendar-outline" size={20} color="#9AABAD" />
           <Text style={[styles.dateText, !birthDate && styles.placeholder]}>
             {birthDate ? formatDate(birthDate) : "בחר/י תאריך"}
@@ -290,7 +348,12 @@ export default function UpdateIntroQuizScreen() {
                 style={[styles.segment, selected && styles.segmentActive]}
                 onPress={() => setGender(opt)}
               >
-                <Text style={[styles.segmentText, selected && styles.segmentTextActive]}>
+                <Text
+                  style={[
+                    styles.segmentText,
+                    selected && styles.segmentTextActive,
+                  ]}
+                >
                   {opt}
                 </Text>
               </Pressable>
@@ -303,37 +366,64 @@ export default function UpdateIntroQuizScreen() {
 
         <View style={styles.smokingRow}>
           <Pressable
-            style={[styles.smokingBtn, isSmoker === true && styles.smokingBtnActive]}
+            style={[
+              styles.smokingBtn,
+              isSmoker === true && styles.smokingBtnActive,
+            ]}
             onPress={() => setIsSmoker(true)}
           >
-            <Cigarette size={22} color={isSmoker === true ? "#fff" : "#1A3C40"} />
-            <Text style={[styles.smokingText, isSmoker === true && styles.smokingTextActive]}>
+            <Cigarette
+              size={22}
+              color={isSmoker === true ? "#fff" : "#1A3C40"}
+            />
+            <Text
+              style={[
+                styles.smokingText,
+                isSmoker === true && styles.smokingTextActive,
+              ]}
+            >
               מעשן/ת
             </Text>
           </Pressable>
           <Pressable
-            style={[styles.smokingBtn, isSmoker === false && styles.smokingBtnActive]}
+            style={[
+              styles.smokingBtn,
+              isSmoker === false && styles.smokingBtnActive,
+            ]}
             onPress={() => setIsSmoker(false)}
           >
-            <CigaretteOff size={22} color={isSmoker === false ? "#fff" : "#1A3C40"} />
-            <Text style={[styles.smokingText, isSmoker === false && styles.smokingTextActive]}>
+            <CigaretteOff
+              size={22}
+              color={isSmoker === false ? "#fff" : "#1A3C40"}
+            />
+            <Text
+              style={[
+                styles.smokingText,
+                isSmoker === false && styles.smokingTextActive,
+              ]}
+            >
               לא מעשן/ת
             </Text>
           </Pressable>
         </View>
 
         {renderYesNo("שומר/ת שבת?", MoonStar, keepsShabbat, setKeepsShabbat)}
-        {renderYesNo("שומר/ת כשרות?", UtensilsCrossed, keepsKosher, setKeepsKosher)}
+        {renderYesNo(
+          "שומר/ת כשרות?",
+          UtensilsCrossed,
+          keepsKosher,
+          setKeepsKosher,
+        )}
 
         {/* ── רמות (1..5) ── */}
         <Text style={styles.section}>רמות</Text>
 
         <Text style={styles.label}>כמה ספונטני/ת?</Text>
-        <Text style={styles.helpText}>1 = אולי בפעם אחרת   ·   5 = מי טס מחר?</Text>
+        <Text style={styles.helpText}>1 = אולי בפעם אחרת · 5 = מי טס מחר?</Text>
         {renderRating(spontaneity, setSpontaneity)}
 
         <Text style={[styles.label, { marginTop: 16 }]}>אורח החיים בטיול</Text>
-        <Text style={styles.helpText}>1 = פשוט   ·   5 = יוקרתי</Text>
+        <Text style={styles.helpText}>1 = פשוט · 5 = יוקרתי</Text>
         {renderRating(lifestyle, setLifestyle)}
 
         {/* ── תחומי עניין ── */}
@@ -353,7 +443,9 @@ export default function UpdateIntroQuizScreen() {
                   );
                 }}
               >
-                <Text style={[styles.tagText, selected && styles.tagTextActive]}>
+                <Text
+                  style={[styles.tagText, selected && styles.tagTextActive]}
+                >
                   {it.interestName}
                 </Text>
               </Pressable>
@@ -496,7 +588,11 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     marginBottom: 12,
   },
-  yesNoLabelRow: { flexDirection: "row-reverse", alignItems: "center", gap: 10 },
+  yesNoLabelRow: {
+    flexDirection: "row-reverse",
+    alignItems: "center",
+    gap: 10,
+  },
   yesNoLabel: { fontSize: 15, fontFamily: FONTS.regular, color: "#1A3C40" },
   yesNoBtns: { flexDirection: "row", gap: 8 },
   smallBtn: {
@@ -509,7 +605,11 @@ const styles = StyleSheet.create({
   smallBtnText: { fontSize: 14, fontFamily: FONTS.regular, color: "#1A3C40" },
   smallBtnTextActive: { color: "#fff", fontFamily: FONTS.bold },
 
-  ratingRow: { flexDirection: "row-reverse", justifyContent: "space-between", gap: 8 },
+  ratingRow: {
+    flexDirection: "row-reverse",
+    justifyContent: "space-between",
+    gap: 8,
+  },
   ratingDot: {
     flex: 1,
     aspectRatio: 1,

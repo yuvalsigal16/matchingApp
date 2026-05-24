@@ -1,7 +1,7 @@
 import { useRouter } from "expo-router";
 import { useEffect, useRef } from "react";
 import { Animated, Image, StyleSheet, Text, View } from "react-native";
-import { FONTS } from "./src/theme/fonts";
+import { FONTS } from "../theme/fonts";
 
 export default function SplashScreen() {
   const router = useRouter();

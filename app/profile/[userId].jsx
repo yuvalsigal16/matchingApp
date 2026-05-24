@@ -1,10 +1,16 @@
-import React, { useEffect, useState } from "react";
-import { View, Text, StyleSheet, ActivityIndicator, ScrollView } from "react-native";
 import { useLocalSearchParams } from "expo-router";
+import { useEffect, useState } from "react";
+import {
+    ActivityIndicator,
+    ScrollView,
+    StyleSheet,
+    Text,
+    View,
+} from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { FONTS } from "../../theme/fonts";
 import { BASE_URL } from "../src/api/config";
 import { getToken } from "../src/auth/authStore";
-import { FONTS } from "../src/theme/fonts";
 
 export default function UserProfileScreen() {
   const { userId } = useLocalSearchParams();
@@ -63,7 +69,6 @@ export default function UserProfileScreen() {
   return (
     <SafeAreaView style={styles.container}>
       <ScrollView contentContainerStyle={styles.content}>
-
         {/* שם */}
         <Text style={styles.name}>
           {user.firstName} {user.lastName}
@@ -75,9 +80,7 @@ export default function UserProfileScreen() {
         </Text>
 
         {/* עיר */}
-        <Text style={styles.info}>
-          עיר: {user.city}
-        </Text>
+        <Text style={styles.info}>עיר: {user.city}</Text>
 
         {/* אורח חיים */}
         <View style={styles.section}>
@@ -110,7 +113,6 @@ export default function UserProfileScreen() {
             <Text style={styles.item}>אין תחומי עניין</Text>
           )}
         </View>
-
       </ScrollView>
     </SafeAreaView>
   );

@@ -1,17 +1,17 @@
-import React, { useState } from "react";
-import {
-  View,
-  Text,
-  StyleSheet,
-  Image,
-  TouchableOpacity,
-  ScrollView,
-} from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
-import { FONTS } from "../src/theme/fonts";
+import { useState } from "react";
+import {
+    Image,
+    ScrollView,
+    StyleSheet,
+    Text,
+    TouchableOpacity,
+    View,
+} from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 import BottomNav from "../../components/BottomNav";
+import { FONTS } from "../../theme/fonts";
 
 export default function MatchesScreen() {
   const router = useRouter();
@@ -83,7 +83,10 @@ export default function MatchesScreen() {
               <Image source={{ uri: item.image }} style={styles.avatar} />
 
               {/* שם לחיץ */}
-              <TouchableOpacity onPress={() => openProfile(item)} style={{ flex: 1 }}>
+              <TouchableOpacity
+                onPress={() => openProfile(item)}
+                style={{ flex: 1 }}
+              >
                 <Text style={styles.name}>{item.name}</Text>
               </TouchableOpacity>
 

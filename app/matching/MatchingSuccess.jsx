@@ -1,55 +1,33 @@
-import React from "react";
-
-import {
-  View,
-  Text,
-  StyleSheet,
-  TouchableOpacity,
-} from "react-native";
+import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
 
 import { SafeAreaView } from "react-native-safe-area-context";
 
 import { Ionicons } from "@expo/vector-icons";
 
-import {
-  useLocalSearchParams,
-  useRouter,
-} from "expo-router";
+import { useLocalSearchParams, useRouter } from "expo-router";
 
-import { FONTS } from "../../src/theme/fonts";
+import { FONTS } from "../../theme/fonts";
 
 export default function MatchingSuccess() {
-
   const router = useRouter();
 
-  const { matchId } =
-    useLocalSearchParams();
+  const { matchId } = useLocalSearchParams();
 
   return (
     <SafeAreaView style={styles.container}>
-
       {/* אייקון */}
       <View style={styles.iconContainer}>
-        <Ionicons
-          name="heart"
-          size={90}
-          color="#fff"
-        />
+        <Ionicons name="heart" size={90} color="#fff" />
       </View>
 
       {/* כותרת */}
-      <Text style={styles.title}>
-        🎉 It's a Match!
-      </Text>
+      <Text style={styles.title}>🎉 It's a Match!</Text>
 
       {/* תיאור */}
-      <Text style={styles.subtitle}>
-        החיבור ביניכם אושר בהצלחה
-      </Text>
+      <Text style={styles.subtitle}>החיבור ביניכם אושר בהצלחה</Text>
 
       <Text style={styles.description}>
-        עכשיו אפשר להתחיל לתכנן
-        את הטיול המשותף ✈️
+        עכשיו אפשר להתחיל לתכנן את הטיול המשותף ✈️
       </Text>
 
       {/* כפתור מעבר */}
@@ -57,37 +35,26 @@ export default function MatchingSuccess() {
         style={styles.primaryBtn}
         onPress={() =>
           router.push({
-            pathname:
-              "/sharedTrip/[matchId]",
+            pathname: "/sharedTrip/[matchId]",
             params: { matchId },
           })
         }
       >
-        <Text style={styles.primaryText}>
-          מעבר לטיול המשותף
-        </Text>
+        <Text style={styles.primaryText}>מעבר לטיול המשותף</Text>
       </TouchableOpacity>
 
       {/* חזרה לצ'אט */}
       <TouchableOpacity
         style={styles.secondaryBtn}
-        onPress={() =>
-          router.replace(
-            `/chat/${matchId}`
-          )
-        }
+        onPress={() => router.replace(`/chat/${matchId}`)}
       >
-        <Text style={styles.secondaryText}>
-          חזרה לצ׳אט
-        </Text>
+        <Text style={styles.secondaryText}>חזרה לצ׳אט</Text>
       </TouchableOpacity>
-
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-
   container: {
     flex: 1,
     backgroundColor: "#F5F0E8",
@@ -160,5 +127,4 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontFamily: FONTS.bold,
   },
-
 });

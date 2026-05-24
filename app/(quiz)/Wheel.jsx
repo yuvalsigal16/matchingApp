@@ -1,10 +1,10 @@
 // ייבוא אייקונים מ-lucide-react-native
 import {
-  ChevronRight, // חץ ימינה — לכפתור חזרה
-  RotateCw,     // חץ סיבוב — לכפתור "סובב את הגלגל"
-  Sparkles,     // אייקון נצנוצים — לכותרת "גלגל המזל"
-  MapPin,       // סיכת מפה — לכרטיס התוצאה
-  User,         // אייקון משתמש — לפרטי הפרטנר
+    ChevronRight, // אייקון נצנוצים — לכותרת "גלגל המזל"
+    MapPin, // חץ ימינה — לכפתור חזרה
+    RotateCw, // חץ סיבוב — לכפתור "סובב את הגלגל"
+    Sparkles, // סיכת מפה — לכרטיס התוצאה
+    User, // אייקון משתמש — לפרטי הפרטנר
 } from "lucide-react-native";
 
 // ייבוא Hooks של React
@@ -12,19 +12,19 @@ import { useRef, useState } from "react";
 
 // ייבוא רכיבי UI מ-React Native
 import {
-  Animated,    // מאפשר אנימציות (סיבוב הגלגל)
-  Easing,      // פונקציות שולטות במהירות האנימציה (האם מאיץ? מאט?)
-  Pressable,   // כפתור עם פידבק שינוי צבע בלחיצה
-  StyleSheet,  // הגדרת עיצובים
-  Text,        // הצגת טקסט
-  View,        // מיכל/קופסה
+    Animated, // מאפשר אנימציות (סיבוב הגלגל)
+    Easing, // פונקציות שולטות במהירות האנימציה (האם מאיץ? מאט?)
+    Pressable, // כפתור עם פידבק שינוי צבע בלחיצה
+    StyleSheet, // הגדרת עיצובים
+    Text, // הצגת טקסט
+    View, // מיכל/קופסה
 } from "react-native";
 
 // SafeAreaView — מבטיח שהתוכן לא ייחסם על ידי ה-notch או סרגל הניווט
-import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
+import { SafeAreaView } from "react-native-safe-area-context";
 // פונטים מותאמים של האפליקציה
-import { FONTS } from "../src/theme/fonts";
+import { FONTS } from "../../theme/fonts";
 
 // גודל הגלגל בפיקסלים — בסיס לחישוב כל המידות הפנימיות
 const WHEEL_SIZE = 290;
@@ -81,13 +81,12 @@ export default function WheelScreen() {
 
   // ── חישוב מספרי המקטעים והזווית של כל מקטע ──
   const numberOfSectors = DESTINATIONS_POOL.length; // 8 מקטעים
-  const sectorAngle = 360 / numberOfSectors;        // 45 מעלות לכל מקטע
+  const sectorAngle = 360 / numberOfSectors; // 45 מעלות לכל מקטע
 
   // ── פונקציה ראשית: מסובבת את הגלגל ──
   const spinWheel = () => {
     // אם הגלגל כבר מסתובב — לא לעשות כלום (מניעת לחיצה כפולה)
-    if (isSpinning) 
-      return;
+    if (isSpinning) return;
     setIsSpinning(true);
     setResult(null); // מנקה תוצאה קודמת
 
@@ -106,14 +105,14 @@ export default function WheelScreen() {
 
     // ── מפעיל את אנימציית הסיבוב ──
     Animated.timing(spinValue, {
-      toValue: totalRotation,                    // הזווית הסופית
-      duration: 5000,                            // 5 שניות של סיבוב
-      easing: Easing.out(Easing.back(0.5)),      // האטה הדרגתית עם "back" — נראה טבעי
-      useNativeDriver: true,                     // הרצה על thread גרפי — חלק יותר
+      toValue: totalRotation, // הזווית הסופית
+      duration: 5000, // 5 שניות של סיבוב
+      easing: Easing.out(Easing.back(0.5)), // האטה הדרגתית עם "back" — נראה טבעי
+      useNativeDriver: true, // הרצה על thread גרפי — חלק יותר
     }).start(() => {
       // callback: רץ אחרי שהאנימציה הסתיימה
       setIsSpinning(false);
-      setCurrentDeg(totalRotation);              // שומר את המיקום הסופי
+      setCurrentDeg(totalRotation); // שומר את המיקום הסופי
       setResult(DESTINATIONS_POOL[randomIndex]); // מציג את התוצאה
     });
   };
@@ -287,11 +286,7 @@ export default function WheelScreen() {
             />
             {/* טקסט דינמי לפי המצב הנוכחי */}
             <Text style={styles.spinBtnText}>
-              {isSpinning
-                ? "מסתובב..."
-                : result
-                  ? "סובב שוב"
-                  : "סובב את הגלגל"}
+              {isSpinning ? "מסתובב..." : result ? "סובב שוב" : "סובב את הגלגל"}
             </Text>
           </Pressable>
         </Animated.View>
@@ -311,10 +306,7 @@ export default function WheelScreen() {
 
         {/* כפתור דילוג — תמיד מוצג, מוביל למסך הבית בלי לבחור */}
         <Pressable
-          style={({ pressed }) => [
-            styles.skipBtn,
-            pressed && { opacity: 0.5 },
-          ]}
+          style={({ pressed }) => [styles.skipBtn, pressed && { opacity: 0.5 }]}
           onPress={() => router.replace("/Home")}
           disabled={isSpinning}
         >

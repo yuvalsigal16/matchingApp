@@ -1,20 +1,20 @@
-import React, { useEffect, useState } from "react";
+import { Ionicons } from "@expo/vector-icons";
+import { useRouter } from "expo-router";
+import { useEffect, useState } from "react";
 import {
-  ActivityIndicator,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TouchableOpacity,
-  View,
+    ActivityIndicator,
+    ScrollView,
+    StyleSheet,
+    Text,
+    TouchableOpacity,
+    View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { useRouter } from "expo-router";
-import { Ionicons } from "@expo/vector-icons";
 
+import BottomNav from "../../components/BottomNav";
+import { FONTS } from "../../theme/fonts";
 import { BASE_URL } from "../src/api/config";
 import { getToken } from "../src/auth/authStore";
-import { FONTS } from "../src/theme/fonts";
-import BottomNav from "../../components/BottomNav";
 
 // מסך הקהילות - מציג את כל הקהילות הקיימות במערכת
 export default function CommunityScreen() {
@@ -95,9 +95,7 @@ export default function CommunityScreen() {
                 <Text style={styles.subtitle} numberOfLines={2}>
                   {c.description || "אין תיאור"}
                 </Text>
-                <Text style={styles.members}>
-                  {c.membersCount || 0} חברים
-                </Text>
+                <Text style={styles.members}>{c.membersCount || 0} חברים</Text>
               </View>
             </TouchableOpacity>
           ))

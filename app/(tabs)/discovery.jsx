@@ -1,11 +1,16 @@
-import React from "react";
-import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
-import { useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
+import { useRouter } from "expo-router";
+import {
+    ScrollView,
+    StyleSheet,
+    Text,
+    TouchableOpacity,
+    View,
+} from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 
-import { FONTS } from "../src/theme/fonts";
 import BottomNav from "../../components/BottomNav";
+import { FONTS } from "../../theme/fonts";
 
 // מסך גילוי וקהילה - מציג שני כפתורים: קהילות והמלצות
 export default function DiscoveryScreen() {

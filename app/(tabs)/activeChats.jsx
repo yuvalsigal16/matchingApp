@@ -1,20 +1,20 @@
-import React, { useEffect, useState } from "react";
+import { Ionicons } from "@expo/vector-icons";
+import { useRouter } from "expo-router";
+import { useEffect, useState } from "react";
 import {
-  ActivityIndicator,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TouchableOpacity,
-  View,
+    ActivityIndicator,
+    ScrollView,
+    StyleSheet,
+    Text,
+    TouchableOpacity,
+    View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { useRouter } from "expo-router";
-import { Ionicons } from "@expo/vector-icons";
 
-import { FONTS } from "../src/theme/fonts";
-import { getUser } from "../src/auth/authStore";
-import { getMyMatches } from "../src/api/notificationService";
 import BottomNav from "../../components/BottomNav";
+import { FONTS } from "../../theme/fonts";
+import { getMyMatches } from "../src/api/notificationService";
+import { getUser } from "../src/auth/authStore";
 
 export default function ActiveChatsScreen() {
   const router = useRouter();
@@ -103,19 +103,12 @@ export default function ActiveChatsScreen() {
         ) : (
           matches.map((trip) => {
             const isPast =
-              trip.tripEndDate &&
-              new Date(trip.tripEndDate) < new Date();
+              trip.tripEndDate && new Date(trip.tripEndDate) < new Date();
 
             return (
               <View key={trip.tripId} style={{ marginBottom: 20 }}>
-                
                 {/* 🔹 כותרת טיול */}
-                <Text
-                  style={[
-                    styles.tripTitle,
-                    isPast && { color: "#aaa" },
-                  ]}
-                >
+                <Text style={[styles.tripTitle, isPast && { color: "#aaa" }]}>
                   {trip.tripName}
                 </Text>
 
@@ -126,10 +119,7 @@ export default function ActiveChatsScreen() {
                   return (
                     <TouchableOpacity
                       key={match.matchID}
-                      style={[
-                        styles.card,
-                        isPast && styles.cardPast,
-                      ]}
+                      style={[styles.card, isPast && styles.cardPast]}
                       activeOpacity={0.85}
                       onPress={() =>
                         router.push({
@@ -145,19 +135,11 @@ export default function ActiveChatsScreen() {
 
                       {/* טקסט */}
                       <View style={styles.cardText}>
-                        <Text style={styles.name}>
-                          משתמש #{otherId}
-                        </Text>
-                        <Text style={styles.lastMsg}>
-                          לחץ כדי להמשיך צ'אט
-                        </Text>
+                        <Text style={styles.name}>משתמש #{otherId}</Text>
+                        <Text style={styles.lastMsg}>לחץ כדי להמשיך צ'אט</Text>
                       </View>
 
-                      <Ionicons
-                        name="chevron-back"
-                        size={20}
-                        color="#1A3C40"
-                      />
+                      <Ionicons name="chevron-back" size={20} color="#1A3C40" />
                     </TouchableOpacity>
                   );
                 })}

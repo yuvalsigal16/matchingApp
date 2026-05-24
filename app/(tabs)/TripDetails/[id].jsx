@@ -1,11 +1,10 @@
 import { Ionicons } from "@expo/vector-icons";
 import { useLocalSearchParams, useRouter } from "expo-router";
-import React, { useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
   ScrollView,
-  StyleSheet,
   Text,
   TouchableOpacity,
   View,
@@ -13,11 +12,8 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 
 import { getToken } from "../../src/auth/authStore";
-import { FONTS } from "../../src/theme/fonts";
 
-import {
-  getMatchesByTrip,
-} from "../../src/api/chatService";
+import { getMatchesByTrip } from "../../src/api/chatService";
 
 export default function TripDetails() {
   const router = useRouter();
@@ -33,9 +29,9 @@ export default function TripDetails() {
   const formatDate = (dateStr) => {
     if (!dateStr) return "";
     const d = new Date(dateStr);
-    return `${d.getDate().toString().padStart(2, "0")}/${(
-      d.getMonth() + 1
-    ).toString().padStart(2, "0")}/${d.getFullYear()}`;
+    return `${d.getDate().toString().padStart(2, "0")}/${(d.getMonth() + 1)
+      .toString()
+      .padStart(2, "0")}/${d.getFullYear()}`;
   };
 
   const isPast = trip?.endDate && new Date(trip.endDate) < new Date();
@@ -90,9 +86,8 @@ export default function TripDetails() {
           (matchesData || []).map((m) => ({
             matchID: m.matchID,
             name: m.name || `משתמש ${m.userId}`,
-          }))
+          })),
         );
-
       } catch (err) {
         console.log(err);
         Alert.alert("שגיאה", "טעינת הטיול נכשלה");
@@ -121,9 +116,7 @@ export default function TripDetails() {
 
             const res = await fetch(`${BASE_URL}/Trips/${id}`, {
               method: "DELETE",
-              headers: token
-                ? { Authorization: `Bearer ${token}` }
-                : {},
+              headers: token ? { Authorization: `Bearer ${token}` } : {},
             });
 
             if (!res.ok) throw new Error("מחיקה נכשלה");
@@ -165,7 +158,6 @@ export default function TripDetails() {
 
   return (
     <SafeAreaView style={styles.container}>
-
       {/* HEADER */}
       <View style={styles.header}>
         <TouchableOpacity onPress={() => router.back()}>
@@ -177,7 +169,6 @@ export default function TripDetails() {
       </View>
 
       <ScrollView contentContainerStyle={styles.content}>
-
         {/* TRIP CARD */}
         <View style={[styles.card, isPast && styles.cardPast]}>
           <Text style={styles.title}>{trip.destination}</Text>
@@ -226,9 +217,7 @@ export default function TripDetails() {
                 onPress={() => openProfile(m.userId)}
               >
                 <View style={styles.avatar} />
-                <Text style={styles.name}>
-                  {m.name || "משתמש"}
-                </Text>
+                <Text style={styles.name}>{m.name || "משתמש"}</Text>
               </TouchableOpacity>
             ))}
           </ScrollView>
@@ -266,7 +255,6 @@ export default function TripDetails() {
             </Text>
           </TouchableOpacity>
         </View>
-
       </ScrollView>
     </SafeAreaView>
   );

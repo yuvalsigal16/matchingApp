@@ -1,20 +1,20 @@
-import React, { useEffect, useState } from "react";
+import { Ionicons } from "@expo/vector-icons";
+import { useRouter } from "expo-router";
+import { useEffect, useState } from "react";
 import {
-  ActivityIndicator,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TouchableOpacity,
-  View,
+    ActivityIndicator,
+    ScrollView,
+    StyleSheet,
+    Text,
+    TouchableOpacity,
+    View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { useRouter } from "expo-router";
-import { Ionicons } from "@expo/vector-icons";
 
+import BottomNav from "../../components/BottomNav";
+import { FONTS } from "../../theme/fonts";
 import { BASE_URL } from "../src/api/config";
 import { getToken, getUser } from "../src/auth/authStore";
-import { FONTS } from "../src/theme/fonts";
-import BottomNav from "../../components/BottomNav";
 
 // מסך המלצות - מציג המלצות שהתקבלו על מקומות בטיולים של המשתמש
 export default function RecommendationsScreen() {
@@ -55,13 +55,13 @@ export default function RecommendationsScreen() {
         trips.map(async (trip) => {
           const res = await fetch(
             `${BASE_URL}/Recommendation/trip/${trip.tripID}`,
-            { headers }
+            { headers },
           );
           if (!res.ok) return [];
           const recs = await res.json();
           // מצרפים את שם הטיול לכל המלצה כדי שנציג אותו
           return recs.map((r) => ({ ...r, tripName: trip.destination }));
-        })
+        }),
       );
 
       // 3. שטיחה של כל המערכים לרשימה אחת

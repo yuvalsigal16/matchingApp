@@ -1,21 +1,24 @@
-import React, { useEffect, useState } from "react";
+import { Ionicons } from "@expo/vector-icons";
+import { useRouter } from "expo-router";
+import { useEffect, useState } from "react";
 import {
-  ActivityIndicator,
-  Alert,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TouchableOpacity,
-  View,
+    ActivityIndicator,
+    Alert,
+    ScrollView,
+    StyleSheet,
+    Text,
+    TouchableOpacity,
+    View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { useRouter } from "expo-router";
-import { Ionicons } from "@expo/vector-icons";
 
-import { FONTS } from "../src/theme/fonts";
-import { getUser } from "../src/auth/authStore";
-import { cancelRequest, getPendingRequests } from "../src/api/notificationService";
 import BottomNav from "../../components/BottomNav";
+import { FONTS } from "../../theme/fonts";
+import {
+    cancelRequest,
+    getPendingRequests,
+} from "../src/api/notificationService";
+import { getUser } from "../src/auth/authStore";
 
 // מסך הצגת סטטוס הבקשות שהמשתמש שלח
 export default function RequestStatusScreen() {
@@ -58,7 +61,9 @@ export default function RequestStatusScreen() {
           const ok = await cancelRequest(requestId);
           if (ok) {
             // אחרי ביטול מוצלח - מעדכנים את הרשימה
-            setRequests((prev) => prev.filter((r) => r.requestID !== requestId));
+            setRequests((prev) =>
+              prev.filter((r) => r.requestID !== requestId),
+            );
           } else {
             Alert.alert("שגיאה", "לא ניתן היה לבטל את הבקשה");
           }
@@ -73,7 +78,11 @@ export default function RequestStatusScreen() {
       return { icon: "time-outline", color: "#E08E45", label: "ממתין" };
     }
     if (status === "Approved") {
-      return { icon: "checkmark-circle-outline", color: "#4CAF50", label: "אושר" };
+      return {
+        icon: "checkmark-circle-outline",
+        color: "#4CAF50",
+        label: "אושר",
+      };
     }
     if (status === "Rejected") {
       return { icon: "close-circle-outline", color: "#C0392B", label: "נדחה" };
