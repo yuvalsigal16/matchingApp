@@ -4,18 +4,18 @@ import { Slider } from "@miblanchard/react-native-slider";
 import DateTimePicker from "@react-native-community/datetimepicker";
 import { useLocalSearchParams, useRouter } from "expo-router";
 // אייקונים מותאמים אישית — Globe2 לכותרת ה-intro, Plane/Home לתאריכים, Calendar למועדים
-import { Globe2, Plane, Home, Calendar } from "lucide-react-native";
+import { Calendar, Globe2, Home, Plane } from "lucide-react-native";
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import {
-  ActivityIndicator,    // אינדיקטור טעינה (ספינר עגול)
-  Animated,             // לאנימציות מעבר בין שאלות
+  ActivityIndicator, // אינדיקטור טעינה (ספינר עגול)
+  Animated, // לאנימציות מעבר בין שאלות
   KeyboardAvoidingView, // מזיז את התוכן כשהמקלדת עולה
-  Platform,             // מאפשר לבדוק אם זה iOS או Android
-  Pressable,            // כפתור עם פידבק לחיצה
-  ScrollView,           // מאפשר גלילה
-  StyleSheet,           // הגדרת עיצובים
+  Platform, // מאפשר לבדוק אם זה iOS או Android
+  Pressable, // כפתור עם פידבק לחיצה
+  ScrollView, // מאפשר גלילה
+  StyleSheet, // הגדרת עיצובים
   Text,
-  TextInput,            // שדה קלט
+  TextInput, // שדה קלט
   View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -24,8 +24,8 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { getAllInterests } from "../src/api/interestService"; // טעינת תחומי עניין
 import {
   addTripPreferenceInterest, // קישור תחום עניין להעדפה
-  createTrip,                 // יצירת טיול חדש
-  createTripPreferences,      // יצירת אובייקט העדפות
+  createTrip, // יצירת טיול חדש
+  createTripPreferences, // יצירת אובייקט העדפות
 } from "../src/api/tripService";
 import { getUser } from "../src/auth/authStore"; // משיכת המשתמש המחובר
 import { FONTS } from "../src/theme/fonts";
@@ -76,51 +76,44 @@ const GENDER_HE_TO_DB = {
 // סדר המערך = סדר הצגת השאלות
 const QUESTIONS = [
   {
-    id: "intro",                                       // מסך פתיחה (לא שאלה אמיתית)
+    id: "intro", // מסך פתיחה (לא שאלה אמיתית)
     type: "intro",
     title: "שאלון העדפות טיול",
     subtitle: "בואי נתכנן יחד את הטיול המושלם שלך",
-    progress: 0,
   },
   {
-    id: "tripName",                                    // שם הטיול — שדה טקסט חופשי
+    id: "tripName", // שם הטיול — שדה טקסט חופשי
     type: "field",
     title: "איך נקרא לטיול שלך?",
     placeholder: "למשל: טיול שחרור לתאילנד",
-    progress: 15,
   },
   {
-    id: "destination",                                 // יעד הטיול — לא חובה
+    id: "destination", // יעד הטיול — לא חובה
     type: "field",
     title: "מה היעד?",
     placeholder: "יעד הטיול (לא חובה)",
-    optional: true,                                    // אם ריק — מציע גלגל מזל
-    progress: 30,
+    optional: true, // אם ריק — מציע גלגל מזל
   },
   {
-    id: "dates",                                       // תאריכי יציאה וחזרה
+    id: "dates", // תאריכי יציאה וחזרה
     type: "dates",
     title: "מתי יוצאים?",
-    progress: 50,
   },
   {
-    id: "gender",                                      // העדפת מגדר לפרטנר
+    id: "gender", // העדפת מגדר לפרטנר
     type: "single-select",
     title: "איזה סוג של פרטנר/ית תרצי?",
     options: ["גבר", "אישה", "הכל"],
-    progress: 65,
   },
   {
-    id: "age",                                         // העדפת גיל לפרטנר
+    id: "age", // העדפת גיל לפרטנר
     type: "age",
     title: "איזה גיל מתאים לי?",
-    progress: 80,
   },
   {
-    id: "interests",                                   // תחומי עניין — נטענים מהשרת
+    id: "interests", // תחומי עניין — נטענים מהשרת
     type: "multi-select",
     title: "תחומי עניין לטיול",
-    progress: 100,
   },
 ];
 
@@ -172,19 +165,19 @@ export default function PreferencesQuizScreen() {
 
   // כל הנתונים שנאספו מהמשתמש — אובייקט אחד עם כל השדות
   const [data, setData] = useState({
-    tripName: "",        // שם הטיול
-    destination: "",     // יעד
-    startDate: null,     // תאריך יציאה (Date מבורר התאריכים)
-    endDate: null,       // תאריך חזרה (Date מבורר התאריכים)
+    tripName: "", // שם הטיול
+    destination: "", // יעד
+    startDate: null, // תאריך יציאה (Date מבורר התאריכים)
+    endDate: null, // תאריך חזרה (Date מבורר התאריכים)
     recommendPeriod: false, // האם להמליץ על תקופה?
-    gender: "",          // העדפת מגדר
+    gender: "", // העדפת מגדר
     ageRange: { min: 24, max: 38 }, // העדפת גיל — טווח עם min/max
-    interests: [],       // מערך IDs של תחומי עניין
+    interests: [], // מערך IDs של תחומי עניין
   });
   const isNewTripFlow = mode === "newTrip" || mode === "editTrip";
 
   // ── תחומי עניין מהשרת ──
-  const [interestOptions, setInterestOptions] = useState([]);     // הרשימה שנטענה
+  const [interestOptions, setInterestOptions] = useState([]); // הרשימה שנטענה
   const [interestsLoading, setInterestsLoading] = useState(true); // האם בטעינה?
   const [interestsLoadError, setInterestsLoadError] = useState(""); // שגיאת טעינה
 
@@ -193,19 +186,19 @@ export default function PreferencesQuizScreen() {
 
   // ── מצב שליחה לשרת ──
   const [submitting, setSubmitting] = useState(false); // האם בתהליך שליחה?
-  const [submitError, setSubmitError] = useState("");  // שגיאת שליחה
+  const [submitError, setSubmitError] = useState(""); // שגיאת שליחה
 
   // ── ערכי אנימציה (useRef שומר ערך בין renders ללא הפעלה מחדש) ──
-  // ערך פס ההתקדמות — מתחיל באחוז של השאלה הראשונה
-  const progressAnim = useRef(
-    new Animated.Value(QUESTIONS[0].progress),
-  ).current;
-  const fadeAnim = useRef(new Animated.Value(1)).current;       // שקיפות בין מעברים
-  const slideAnim = useRef(new Animated.Value(0)).current;      // החלקה בין מעברים
-  const nextBtnScale = useRef(new Animated.Value(1)).current;   // גודל כפתור "המשך"
 
-  const currentQ = QUESTIONS[step];                  // השאלה הנוכחית
-  const answered = getIsAnswered(currentQ, data);    // האם נענתה?
+  const fadeAnim = useRef(new Animated.Value(1)).current; // שקיפות בין מעברים
+  const slideAnim = useRef(new Animated.Value(0)).current; // החלקה בין מעברים
+  const nextBtnScale = useRef(new Animated.Value(1)).current; // גודל כפתור "המשך"
+
+  const currentQ = QUESTIONS[step]; // השאלה הנוכחית
+  const realQuestions = QUESTIONS.filter((q) => q.type !== "intro");
+
+  const currentStepIndex = realQuestions.findIndex((q) => q.id === currentQ.id);
+  const answered = getIsAnswered(currentQ, data); // האם נענתה?
 
   // ── טעינת תחומי עניין מהשרת — פעם אחת בעת טעינת הקומפוננטה ──
   useEffect(() => {
@@ -229,15 +222,6 @@ export default function PreferencesQuizScreen() {
       cancelled = true;
     };
   }, []); // [] = מערך תלויות ריק → רץ רק פעם אחת
-
-  // ── אנימציית פס ההתקדמות — בכל שינוי שלב ──
-  useEffect(() => {
-    Animated.timing(progressAnim, {
-      toValue: currentQ.progress,  // מטרה: אחוז השאלה הנוכחית
-      duration: 450,                // 450ms
-      useNativeDriver: false,       // false כי מאנים width שהוא layout property
-    }).start();
-  }, [step]);
 
   // ── אנימציית מעבר בין שאלות (fade-out → fade-in) ──
   // useCallback — הפונקציה נוצרת מחדש רק כשstep משתנה
@@ -372,8 +356,7 @@ export default function PreferencesQuizScreen() {
         await submitFullTrip();
         if (isNewTripFlow) {
           router.replace("/MyTrips");
-        }  
-        else {
+        } else {
           router.replace("/Home");
         }
       } catch (err) {
@@ -462,108 +445,111 @@ export default function PreferencesQuizScreen() {
     today.setHours(0, 0, 0, 0);
 
     return (
-    <View style={styles.fieldsWrapper}>
-      {/* תווית "תאריך יציאה" עם אייקון מטוס */}
-      <View style={styles.dateLabelRow}>
-        <Plane size={18} color="#1A3C40" strokeWidth={1.8} />
-        <Text style={styles.dateLabel}>תאריך יציאה</Text>
-      </View>
-      {/* כפתור שפותח לוח שנה — תאריך יציאה */}
-      <Pressable
-        style={styles.dateInputCard}
-        onPress={() => setDatePickerOpen("start")}
-      >
-        <Calendar size={18} color="#9AABAD" strokeWidth={1.8} />
-        <Text
-          style={[
-            styles.dateTextInput,
-            !data.startDate && styles.dateTextPlaceholder,
-          ]}
+      <View style={styles.fieldsWrapper}>
+        {/* תווית "תאריך יציאה" עם אייקון מטוס */}
+        <View style={styles.dateLabelRow}>
+          <Plane size={18} color="#1A3C40" strokeWidth={1.8} />
+          <Text style={styles.dateLabel}>תאריך יציאה</Text>
+        </View>
+        {/* כפתור שפותח לוח שנה — תאריך יציאה */}
+        <Pressable
+          style={styles.dateInputCard}
+          onPress={() => setDatePickerOpen("start")}
         >
-          {formatDate(data.startDate)}
-        </Text>
-      </Pressable>
+          <Calendar size={18} color="#9AABAD" strokeWidth={1.8} />
+          <Text
+            style={[
+              styles.dateTextInput,
+              !data.startDate && styles.dateTextPlaceholder,
+            ]}
+          >
+            {formatDate(data.startDate)}
+          </Text>
+        </Pressable>
 
-      {/* תווית "תאריך חזרה" עם אייקון בית */}
-      <View style={styles.dateLabelRow}>
-        <Home size={18} color="#1A3C40" strokeWidth={1.8} />
-        <Text style={styles.dateLabel}>תאריך חזרה</Text>
-      </View>
-      {/* כפתור שפותח לוח שנה — תאריך חזרה */}
-      <Pressable
-        style={styles.dateInputCard}
-        onPress={() => setDatePickerOpen("end")}
-      >
-        <Calendar size={18} color="#9AABAD" strokeWidth={1.8} />
-        <Text
-          style={[
-            styles.dateTextInput,
-            !data.endDate && styles.dateTextPlaceholder,
-          ]}
+        {/* תווית "תאריך חזרה" עם אייקון בית */}
+        <View style={styles.dateLabelRow}>
+          <Home size={18} color="#1A3C40" strokeWidth={1.8} />
+          <Text style={styles.dateLabel}>תאריך חזרה</Text>
+        </View>
+        {/* כפתור שפותח לוח שנה — תאריך חזרה */}
+        <Pressable
+          style={styles.dateInputCard}
+          onPress={() => setDatePickerOpen("end")}
         >
-          {formatDate(data.endDate)}
-        </Text>
-      </Pressable>
+          <Calendar size={18} color="#9AABAD" strokeWidth={1.8} />
+          <Text
+            style={[
+              styles.dateTextInput,
+              !data.endDate && styles.dateTextPlaceholder,
+            ]}
+          >
+            {formatDate(data.endDate)}
+          </Text>
+        </Pressable>
 
-      {/* בורר תאריכים native — מוצג רק כש-datePickerOpen אינו null.
+        {/* בורר תאריכים native — מוצג רק כש-datePickerOpen אינו null.
           minimumDate משתנה לפי איזה בורר פתוח: יציאה לא יכול להיות בעבר,
           חזרה לא יכול להיות לפני יציאה. */}
-      {datePickerOpen && (
-        <DateTimePicker
-          value={
-            datePickerOpen === "start"
-              ? data.startDate || today
-              : data.endDate || data.startDate || today
-          }
-          mode="date"
-          display={Platform.OS === "ios" ? "spinner" : "default"}
-          minimumDate={datePickerOpen === "start" ? today : data.startDate || today}
-          onChange={(event, date) => {
-            // ב-Android הבורר נסגר לבד; ב-iOS משאירים פתוח עד שהמשתמש יגלול
-            const isIos = Platform.OS === "ios";
-            // datePickerOpen הוא "start"/"end" — ממפים לשם השדה האמיתי ב-data
-            const fieldName = datePickerOpen === "start" ? "startDate" : "endDate";
-            if (event.type === "set" && date) {
-              updateField(fieldName, date);
-              if (!isIos) setDatePickerOpen(null);
-            } else if (!isIos) {
-              setDatePickerOpen(null);
+        {datePickerOpen && (
+          <DateTimePicker
+            value={
+              datePickerOpen === "start"
+                ? data.startDate || today
+                : data.endDate || data.startDate || today
             }
-          }}
-        />
-      )}
-      {/* ב-iOS הבורר נשאר פתוח — מוסיפים כפתור "סיום" לסגירה ידנית */}
-      {datePickerOpen && Platform.OS === "ios" && (
-        <Pressable
-          style={styles.dateDoneBtn}
-          onPress={() => setDatePickerOpen(null)}
-        >
-          <Text style={styles.dateDoneText}>סיום</Text>
-        </Pressable>
-      )}
+            mode="date"
+            display={Platform.OS === "ios" ? "spinner" : "default"}
+            minimumDate={
+              datePickerOpen === "start" ? today : data.startDate || today
+            }
+            onChange={(event, date) => {
+              // ב-Android הבורר נסגר לבד; ב-iOS משאירים פתוח עד שהמשתמש יגלול
+              const isIos = Platform.OS === "ios";
+              // datePickerOpen הוא "start"/"end" — ממפים לשם השדה האמיתי ב-data
+              const fieldName =
+                datePickerOpen === "start" ? "startDate" : "endDate";
+              if (event.type === "set" && date) {
+                updateField(fieldName, date);
+                if (!isIos) setDatePickerOpen(null);
+              } else if (!isIos) {
+                setDatePickerOpen(null);
+              }
+            }}
+          />
+        )}
+        {/* ב-iOS הבורר נשאר פתוח — מוסיפים כפתור "סיום" לסגירה ידנית */}
+        {datePickerOpen && Platform.OS === "ios" && (
+          <Pressable
+            style={styles.dateDoneBtn}
+            onPress={() => setDatePickerOpen(null)}
+          >
+            <Text style={styles.dateDoneText}>סיום</Text>
+          </Pressable>
+        )}
 
-      {/* checkbox עם טקסט — לחיצה הופכת את המצב הבוליאני */}
-      <Pressable
-        style={styles.checkboxRow}
-        onPress={() =>
-          updateField("recommendPeriod", !data.recommendPeriod)
-        }
-      >
-        {/* ריבוע ה-checkbox — מקבל סגנון נוסף כשמסומן */}
-        <View
-          style={[
-            styles.checkbox,
-            data.recommendPeriod && styles.checkboxChecked,
-          ]}
+        {/* checkbox עם טקסט — לחיצה הופכת את המצב הבוליאני */}
+        <Pressable
+          style={styles.checkboxRow}
+          onPress={() => updateField("recommendPeriod", !data.recommendPeriod)}
         >
-          {/* סימן וי — מוצג רק כשמסומן */}
-          {data.recommendPeriod && (
-            <Ionicons name="checkmark" size={16} color="#fff" />
-          )}
-        </View>
-        <Text style={styles.checkboxLabel}>תמליצי לי על תקופה טובה לטיסה</Text>
-      </Pressable>
-    </View>
+          {/* ריבוע ה-checkbox — מקבל סגנון נוסף כשמסומן */}
+          <View
+            style={[
+              styles.checkbox,
+              data.recommendPeriod && styles.checkboxChecked,
+            ]}
+          >
+            {/* סימן וי — מוצג רק כשמסומן */}
+            {data.recommendPeriod && (
+              <Ionicons name="checkmark" size={16} color="#fff" />
+            )}
+          </View>
+          <Text style={styles.checkboxLabel}>
+            תמליצי לי על תקופה טובה לטיסה
+          </Text>
+        </Pressable>
+      </View>
     );
   };
 
@@ -689,10 +675,7 @@ export default function PreferencesQuizScreen() {
               onPress={() => toggleInterest(opt.interestID)} // toggle
             >
               <Text
-                style={[
-                  styles.tagText,
-                  isSelected && styles.tagTextSelected,
-                ]}
+                style={[styles.tagText, isSelected && styles.tagTextSelected]}
               >
                 {opt.interestName}
               </Text>
@@ -722,11 +705,6 @@ export default function PreferencesQuizScreen() {
     }
   };
 
-  const progressWidth = progressAnim.interpolate({
-    inputRange: [0, 100],
-    outputRange: ["0%", "100%"],
-  });
-
   // ─── Render ───────────────────────────────────────────────────────────────
 
   const showProgress = currentQ.type !== "intro";
@@ -739,20 +717,51 @@ export default function PreferencesQuizScreen() {
         behavior={Platform.OS === "ios" ? "padding" : "height"}
         keyboardVerticalOffset={Platform.OS === "ios" ? 0 : 20}
       >
-        {/* Progress bar */}
+        {/* Stepper */}
         {showProgress ? (
-          <View style={styles.progressBarWrapper}>
-            <View style={styles.progressTrack}>
-              <Animated.View
-                style={[styles.progressFill, { width: progressWidth }]}
-              />
-            </View>
-            <Text style={styles.progressLabel}>{`${currentQ.progress}%`}</Text>
+          <View style={styles.stepperWrapper}>
+            {realQuestions.map((q, index) => {
+              const isActive = index === currentStepIndex;
+              const isCompleted = index < currentStepIndex;
+
+              return (
+                <React.Fragment key={q.id}>
+                  <View
+                    style={[
+                      styles.stepCircle,
+                      isCompleted && styles.stepCircleCompleted,
+                      isActive && styles.stepCircleActive,
+                    ]}
+                  >
+                    {isCompleted ? (
+                      <Ionicons name="checkmark" size={14} color="#fff" />
+                    ) : (
+                      <Text
+                        style={[
+                          styles.stepNumber,
+                          (isActive || isCompleted) && styles.stepNumberActive,
+                        ]}
+                      >
+                        {index + 1}
+                      </Text>
+                    )}
+                  </View>
+
+                  {index < realQuestions.length - 1 && (
+                    <View
+                      style={[
+                        styles.stepLine,
+                        index < currentStepIndex && styles.stepLineCompleted,
+                      ]}
+                    />
+                  )}
+                </React.Fragment>
+              );
+            })}
           </View>
         ) : (
           <View style={styles.progressSpacer} />
         )}
-
         {/* Animated content */}
         <Animated.View
           style={[
@@ -844,38 +853,61 @@ const styles = StyleSheet.create({
   flex: { flex: 1, alignItems: "center" },
 
   // ── Progress ──
-  progressBarWrapper: {
-    width: "100%",
-    paddingHorizontal: 24,
-    paddingTop: 18,
-    paddingBottom: 6,
-    flexDirection: "row-reverse",
-    alignItems: "center",
-    gap: 12,
-  },
   progressSpacer: {
     width: "100%",
     paddingTop: 18,
     paddingBottom: 6,
   },
-  progressTrack: {
-    flex: 1,
-    height: 8,
+
+  // ── Stepper ──
+  stepperWrapper: {
+    width: "100%",
+    flexDirection: "row-reverse",
+    alignItems: "center",
+    justifyContent: "center",
+    paddingHorizontal: 24,
+    paddingTop: 18,
+    paddingBottom: 10,
+  },
+
+  stepCircle: {
+    width: 34,
+    height: 34,
+    borderRadius: 17,
     backgroundColor: "#D0D8DA",
-    borderRadius: 4,
-    overflow: "hidden",
+    justifyContent: "center",
+    alignItems: "center",
   },
-  progressFill: {
-    height: "100%",
+
+  stepCircleActive: {
     backgroundColor: "#1A3C40",
-    borderRadius: 4,
+    transform: [{ scale: 1.08 }],
   },
-  progressLabel: {
+
+  stepCircleCompleted: {
+    backgroundColor: "#1A3C40",
+  },
+
+  stepNumber: {
+    color: "#5E6B6E",
     fontFamily: FONTS.bold,
-    fontSize: 13,
-    color: "#1A3C40",
-    minWidth: 36,
-    textAlign: "right",
+    fontSize: 14,
+  },
+
+  stepNumberActive: {
+    color: "#fff",
+  },
+
+  stepLine: {
+    flex: 1,
+    height: 3,
+    backgroundColor: "#D0D8DA",
+    marginHorizontal: 6,
+    borderRadius: 2,
+  },
+
+  stepLineCompleted: {
+    backgroundColor: "#1A3C40",
   },
 
   // ── Content ──

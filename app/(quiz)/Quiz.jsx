@@ -3,12 +3,12 @@ import DateTimePicker from "@react-native-community/datetimepicker";
 import * as ImagePicker from "expo-image-picker";
 import { useRouter } from "expo-router";
 import {
-  Cigarette,        // מעשן
-  CigaretteOff,     // לא מעשן
-  MoonStar,         // שומר שבת — סמל של מנוחה ושבת קודש
-  UtensilsCrossed,  // שומר כשרות — סמל של כללי אכילה
+  Cigarette, // מעשן
+  CigaretteOff, // לא מעשן
+  MoonStar, // שומר שבת — סמל של מנוחה ושבת קודש
+  UtensilsCrossed, // שומר כשרות — סמל של כללי אכילה
 } from "lucide-react-native";
-import React, { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
@@ -45,11 +45,10 @@ import {
 import { getUser } from "../src/auth/authStore";
 import { FONTS } from "../src/theme/fonts";
 
-
 const GENDER_OPTIONS = [
   { label: "זכר", value: "Male" },
   { label: "נקבה", value: "Female" },
-  { label: "אחר", value: "Other" }
+  { label: "אחר", value: "Other" },
 ];
 
 // ─── Geoapify city search service ────────────────────────────────────────────
@@ -60,18 +59,16 @@ const GENDER_OPTIONS = [
 const GEOAPIFY_API_KEY = "b7fddb151bdd4eae8f4afe871bff1da1";
 const GEOAPIFY_URL = "https://api.geoapify.com/v1/geocode/autocomplete";
 
-//NEW MAP() = זה מבנה נתונים -כמו אובייקט 
+//NEW MAP() = זה מבנה נתונים -כמו אובייקט
 //זיכרון מקומי = cityCache
 //שומר תוצאות שכבר חיפשת כדי לא לשלוח שוב בקשות
 const cityCache = new Map();
 
 //פונקציה שמביאה ערים לפי מה שהמשתמש מקליד
 async function fetchCitySuggestions(query, signal) {
-
-   //אם כבר חיפשו את המילה הזאת → תחזיר מהזיכרון 
+  //אם כבר חיפשו את המילה הזאת → תחזיר מהזיכרון
   const cacheKey = query.toLowerCase().trim();
-  if (cityCache.has(cacheKey)) 
-    return cityCache.get(cacheKey);
+  if (cityCache.has(cacheKey)) return cityCache.get(cacheKey);
 
   //בניית פרמטרים לURL
   try {
@@ -86,15 +83,14 @@ async function fetchCitySuggestions(query, signal) {
 
     //קריאת API עם הפרמטרים והטיפול בתשובה
     const res = await fetch(`${GEOAPIFY_URL}?${params}`, { signal });
-    if (!res.ok) 
-        throw new Error(`HTTP ${res.status}`);
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
 
     const data = await res.json();
 
     //אם אין features → משתמש ברשימה ריקה
     const results = (data.features ?? [])
-    //filter = סינון
-    //הוא עובר על כל איבר במערך ומשאיר רק מה שעומד בתנאי
+      //filter = סינון
+      //הוא עובר על כל איבר במערך ומשאיר רק מה שעומד בתנאי
       .filter((f) => f.properties?.city)
       .map((f) => ({
         label: f.properties.formatted ?? f.properties.city,
@@ -109,8 +105,7 @@ async function fetchCitySuggestions(query, signal) {
       .slice(0, 5);
 
     // Keep cache bounded
-    if (cityCache.size >= 60) 
-        cityCache.clear();
+    if (cityCache.size >= 60) cityCache.clear();
     cityCache.set(cacheKey, results);
 
     return results;
@@ -139,7 +134,7 @@ async function fetchCitySuggestions(query, signal) {
 // מביא הצעות לערים
 // ומעדכן את המסך
 function useCitySearch(query) {
-    //רשימת הערים שמצאנו
+  //רשימת הערים שמצאנו
   const [suggestions, setSuggestions] = useState([]);
   const [status, setStatus] = useState("idle"); // "idle"|"loading"|"done"
   //שומר את הבקשה הנוכחית כדי שאפשר יהיה לבטל אותה
@@ -159,7 +154,7 @@ function useCitySearch(query) {
 
     //מחכה לפני שליחה כדי לא לשלוח בקשה על כל אות
     const timer = setTimeout(async () => {
-        //אם יש בקשה קודמת מבטל אותה
+      //אם יש בקשה קודמת מבטל אותה
       controllerRef.current?.abort();
       //יצירת בקשה חדשה ושמירתה
       const controller = new AbortController();
@@ -204,7 +199,6 @@ const QUESTIONS = [
     ],
     hasGender: true,
     hasImagePicker: true,
-    progress: 5,
   },
   {
     id: "interests",
@@ -220,7 +214,6 @@ const QUESTIONS = [
       "מוזיקה",
       "מסיבות",
     ],
-    progress: 15,
   },
   {
     id: "smoking",
@@ -230,7 +223,6 @@ const QUESTIONS = [
       { value: "מעשן/ת", label: "מעשן/ת", Icon: Cigarette },
       { value: "לא מעשן/ת", label: "לא מעשן/ת", Icon: CigaretteOff },
     ],
-    progress: 25,
   },
   {
     id: "religion",
@@ -240,27 +232,23 @@ const QUESTIONS = [
       { key: "shabbat", label: "שומר/ת שבת?", Icon: MoonStar },
       { key: "kosher", label: "שומר/ת כשרות?", Icon: UtensilsCrossed },
     ],
-    progress: 40,
   },
   {
     id: "spontaneous",
     title: "כמה אני ספונטני?",
     type: "rating",
     labels: ["אולי בפעם אחרת", "מי טס מחר?"],
-    progress: 60,
   },
   {
     id: "lifestyle",
     title: "אורח החיים שלי בטיול",
     type: "rating",
     labels: ["פשוט", "יוקרתי"],
-    progress: 80,
   },
   {
     id: "social",
     title: "אפשר למצוא אותי ב:",
     type: "social-links",
-    progress: 100,
   },
 ];
 
@@ -270,12 +258,12 @@ const QUESTIONS = [
 //question → השאלה הנוכחית
 //answers → כל התשובות של המשתמש
 function getIsAnswered(question, answers) {
-    //כל סוג שאלה נבדק אחרת
+  //כל סוג שאלה נבדק אחרת
   switch (question.type) {
     //השלב של הפרטים האישיים
     case "fields": {
-        //מחזיר true רק אם כל השדות תקינים
-        //אם אחד לא תקין → הכל נכשל
+      //מחזיר true רק אם כל השדות תקינים
+      //אם אחד לא תקין → הכל נכשל
       const fieldsOk = question.fields.every((f) => {
         if (f.key === "city") {
           // Must be a selected suggestion object, not just free-typed text
@@ -291,9 +279,8 @@ function getIsAnswered(question, answers) {
         if (f.key === "birthDate") {
           // birthDate נשמר כאובייקט Date — חייב להיות בתאריך תקף וגיל 18+
           const d = answers.birthDate;
-          //אם זה לא אובייקט Date או אם התאריך לא חוקי 
-          if (!(d instanceof Date) || isNaN(d.getTime())) 
-            return false;
+          //אם זה לא אובייקט Date או אם התאריך לא חוקי
+          if (!(d instanceof Date) || isNaN(d.getTime())) return false;
           const today = new Date();
           let age = today.getFullYear() - d.getFullYear();
           const m = today.getMonth() - d.getMonth();
@@ -302,8 +289,7 @@ function getIsAnswered(question, answers) {
         }
         //כל שאר השדות — פשוט חייבים להיות לא ריקים
         const val = (answers[f.key] || "").trim();
-        if (!val) 
-            return false;
+        if (!val) return false;
         return true;
       });
       const genderOk = !question.hasGender || !!answers.gender;
@@ -312,16 +298,16 @@ function getIsAnswered(question, answers) {
     }
     case "multi-select":
     case "single-select":
-        //חייב לפחות פריט אחד מסומן בשאלה מסוג בחירה
+      //חייב לפחות פריט אחד מסומן בשאלה מסוג בחירה
       return (answers[question.id] || []).length > 0;
     case "yes-no-list":
-        //כל שאלה חייבת תשובה — לא יכול להשאיר שאלה בלי לענות
+      //כל שאלה חייבת תשובה — לא יכול להשאיר שאלה בלי לענות
       return question.options.every((item) => answers[item.key] != null);
     case "rating":
-        //חייב לבחור מספר בשאלה מסוג דירוג
+      //חייב לבחור מספר בשאלה מסוג דירוג
       return answers[question.id] != null;
     case "social-links":
-        //לא חובה
+      //לא חובה
       return true;
     default:
       return false;
@@ -367,9 +353,7 @@ export default function QuizScreen() {
   const [interestsLoadError, setInterestsLoadError] = useState("");
 
   const scrollViewRef = useRef(null);
-  const progressAnim = useRef(
-    new Animated.Value(QUESTIONS[0].progress),
-  ).current;
+
   const fadeAnim = useRef(new Animated.Value(1)).current;
   const slideAnim = useRef(new Animated.Value(0)).current;
   const nextBtnScale = useRef(new Animated.Value(1)).current;
@@ -387,15 +371,6 @@ export default function QuizScreen() {
     if (answers.city && typeof answers.city === "object") {
       setCityInputText(answers.city.city);
     }
-  }, [step]);
-
-  // Animate progress bar
-  useEffect(() => {
-    Animated.timing(progressAnim, {
-      toValue: currentQ.progress,
-      duration: 450,
-      useNativeDriver: false,
-    }).start();
   }, [step]);
 
   // טעינה ראשונית: רשימת תחומי העניין + נתונים קיימים של המשתמש (פרופיל/שאלון/תחומי עניין נבחרים)
@@ -454,9 +429,11 @@ export default function QuizScreen() {
           const isSmoker =
             existingQuestionnaire.isSmoker ?? existingQuestionnaire.IsSmoker;
           const keepsShabbat =
-            existingQuestionnaire.keepsShabbat ?? existingQuestionnaire.KeepsShabbat;
+            existingQuestionnaire.keepsShabbat ??
+            existingQuestionnaire.KeepsShabbat;
           const keepsKosher =
-            existingQuestionnaire.keepsKosher ?? existingQuestionnaire.KeepsKosher;
+            existingQuestionnaire.keepsKosher ??
+            existingQuestionnaire.KeepsKosher;
           const spontaneity =
             existingQuestionnaire.spontaneityLevel ??
             existingQuestionnaire.SpontaneityLevel;
@@ -837,33 +814,33 @@ export default function QuizScreen() {
   );
 
   const renderGenderSelector = () => (
-  <View key="gender" style={styles.genderCard}>
-    <Text style={styles.genderLabel}>מגדר</Text>
-    <View style={styles.segmentedControl}>
-      {GENDER_OPTIONS.map((opt) => {
-        // כאן אנחנו בודקים לפי ה-value (הערך באנגלית)
-        const isSelected = answers.gender === opt.value;
-        return (
-          <Pressable
-            key={opt.value}
-            style={[styles.segment, isSelected && styles.segmentActive]}
-            // כאן אנחנו שומרים את ה-value (הערך באנגלית) שיישלח ל-SQL
-            onPress={() => updateAnswer("gender", opt.value)}
-          >
-            <Text
-              style={[
-                styles.segmentText,
-                isSelected && styles.segmentTextActive,
-              ]}
+    <View key="gender" style={styles.genderCard}>
+      <Text style={styles.genderLabel}>מגדר</Text>
+      <View style={styles.segmentedControl}>
+        {GENDER_OPTIONS.map((opt) => {
+          // כאן אנחנו בודקים לפי ה-value (הערך באנגלית)
+          const isSelected = answers.gender === opt.value;
+          return (
+            <Pressable
+              key={opt.value}
+              style={[styles.segment, isSelected && styles.segmentActive]}
+              // כאן אנחנו שומרים את ה-value (הערך באנגלית) שיישלח ל-SQL
+              onPress={() => updateAnswer("gender", opt.value)}
             >
-              {opt.label} {/* מה שהמשתמש רואה בעברית */}
-            </Text>
-          </Pressable>
-        );
-      })}
+              <Text
+                style={[
+                  styles.segmentText,
+                  isSelected && styles.segmentTextActive,
+                ]}
+              >
+                {opt.label} {/* מה שהמשתמש רואה בעברית */}
+              </Text>
+            </Pressable>
+          );
+        })}
+      </View>
     </View>
-  </View>
-);
+  );
 
   const renderCityInput = () => {
     const showDropdown =
@@ -977,7 +954,8 @@ export default function QuizScreen() {
 
   // ── שדה תאריך לידה: כפתור שמציג את התאריך הנבחר ופותח לוח שנה ────────────────
   const renderBirthDateInput = () => {
-    const selected = answers.birthDate instanceof Date ? answers.birthDate : null;
+    const selected =
+      answers.birthDate instanceof Date ? answers.birthDate : null;
     // formatHebrewDate ממיר את ה-Date להצגה בפורמט "DD/MM/YYYY" — מה שהמשתמש רואה
     const display = selected
       ? `${String(selected.getDate()).padStart(2, "0")}/${String(selected.getMonth() + 1).padStart(2, "0")}/${selected.getFullYear()}`
@@ -986,7 +964,11 @@ export default function QuizScreen() {
     // התאריך המקסימלי המותר: היום (לא ניתן להיוולד בעתיד)
     // התאריך ההתחלתי בלוח: לפני 25 שנה (קצת ברירת מחדל סבירה למשתמש חדש)
     const today = new Date();
-    const defaultDate = new Date(today.getFullYear() - 25, today.getMonth(), today.getDate());
+    const defaultDate = new Date(
+      today.getFullYear() - 25,
+      today.getMonth(),
+      today.getDate(),
+    );
 
     return (
       <View key="birthDate">
@@ -1115,9 +1097,7 @@ export default function QuizScreen() {
       return (
         <View key={item.key} style={styles.yesNoContainer}>
           <View style={styles.yesNoLabelRow}>
-            {Icon ? (
-              <Icon size={20} color="#1A3C40" strokeWidth={2} />
-            ) : null}
+            {Icon ? <Icon size={20} color="#1A3C40" strokeWidth={2} /> : null}
             <Text style={styles.yesNoLabel}>{item.label}</Text>
           </View>
           <View style={styles.yesNoButtonsRow}>
@@ -1180,37 +1160,37 @@ export default function QuizScreen() {
     </View>
   );
 
-const renderSocialLinks = () => (
-  <View style={styles.socialContainer}>
-    {/* Instagram */}
-    <View style={styles.socialInputRow}>
-      <Ionicons name="logo-instagram" size={22} color="#E1306C" />
-      <TextInput
-        style={styles.socialInput}
-        placeholder="שם משתמש באינסטגרם"
-        placeholderTextColor="#aaa"
-        onChangeText={(val) => updateAnswer("instagram", val)}
-        value={answers.instagram || ""}
-      />
-    </View>
+  const renderSocialLinks = () => (
+    <View style={styles.socialContainer}>
+      {/* Instagram */}
+      <View style={styles.socialInputRow}>
+        <Ionicons name="logo-instagram" size={22} color="#E1306C" />
+        <TextInput
+          style={styles.socialInput}
+          placeholder="שם משתמש באינסטגרם"
+          placeholderTextColor="#aaa"
+          onChangeText={(val) => updateAnswer("instagram", val)}
+          value={answers.instagram || ""}
+        />
+      </View>
 
-    {/* Facebook */}
-    <View style={styles.socialInputRow}>
-      <Ionicons name="logo-facebook" size={22} color="#1877F2" />
-      <TextInput
-        style={styles.socialInput}
-        placeholder="שם משתמש בפייסבוק"
-        placeholderTextColor="#aaa"
-        onChangeText={(val) => updateAnswer("facebook", val)}
-        value={answers.facebook || ""}
-      />
-    </View>
+      {/* Facebook */}
+      <View style={styles.socialInputRow}>
+        <Ionicons name="logo-facebook" size={22} color="#1877F2" />
+        <TextInput
+          style={styles.socialInput}
+          placeholder="שם משתמש בפייסבוק"
+          placeholderTextColor="#aaa"
+          onChangeText={(val) => updateAnswer("facebook", val)}
+          value={answers.facebook || ""}
+        />
+      </View>
 
-    <Text style={styles.disclaimerText}>
-      הפרטים יוצגו למשתמשים מתאימים בלבד ובהתאם למדיניות הפרטיות
-    </Text>
-  </View>
-);
+      <Text style={styles.disclaimerText}>
+        הפרטים יוצגו למשתמשים מתאימים בלבד ובהתאם למדיניות הפרטיות
+      </Text>
+    </View>
+  );
 
   const renderQuestionContent = () => {
     switch (currentQ.type) {
@@ -1230,11 +1210,6 @@ const renderSocialLinks = () => (
     }
   };
 
-  const progressWidth = progressAnim.interpolate({
-    inputRange: [0, 100],
-    outputRange: ["0%", "100%"],
-  });
-
   // ─── Render ───────────────────────────────────────────────────────────────
 
   return (
@@ -1245,14 +1220,17 @@ const renderSocialLinks = () => (
         behavior={Platform.OS === "ios" ? "padding" : "height"}
         keyboardVerticalOffset={Platform.OS === "ios" ? 0 : 20}
       >
-        {/* Progress bar — lives outside animated area so it's always visible */}
-        <View style={styles.progressBarWrapper}>
-          <View style={styles.progressTrack}>
-            <Animated.View
-              style={[styles.progressFill, { width: progressWidth }]}
-            />
-          </View>
-          <Text style={styles.progressLabel}>{`${currentQ.progress}%`}</Text>
+        <View style={styles.stepsWrapper}>
+          {QUESTIONS.map((_, index) => {
+            const isActive = index <= step;
+
+            return (
+              <View
+                key={index}
+                style={[styles.stepDot, isActive && styles.stepDotActive]}
+              />
+            );
+          })}
         </View>
 
         {/* Animated content */}
@@ -1337,34 +1315,25 @@ const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: "#E8EDEF" },
   flex: { flex: 1, alignItems: "center" },
 
-  // ── Progress ──
-  progressBarWrapper: {
-    width: "100%",
-    paddingHorizontal: 24,
-    paddingTop: 18,
-    paddingBottom: 6,
+  stepsWrapper: {
     flexDirection: "row-reverse",
+    justifyContent: "center",
     alignItems: "center",
-    gap: 12,
+    marginTop: 22,
+    marginBottom: 8,
+    gap: 10,
   },
-  progressTrack: {
-    flex: 1,
-    height: 8,
-    backgroundColor: "#D0D8DA",
-    borderRadius: 4,
-    overflow: "hidden",
+
+  stepDot: {
+    width: 12,
+    height: 12,
+    borderRadius: 6,
+    backgroundColor: "#C8D0D2",
   },
-  progressFill: {
-    height: "100%",
+
+  stepDotActive: {
     backgroundColor: "#1A3C40",
-    borderRadius: 4,
-  },
-  progressLabel: {
-    fontFamily: FONTS.bold,
-    fontSize: 13,
-    color: "#1A3C40",
-    minWidth: 36,
-    textAlign: "right",
+    width: 26,
   },
 
   // ── Content ──
@@ -1732,31 +1701,25 @@ const styles = StyleSheet.create({
   subText: { fontSize: 13, color: "#777", fontFamily: FONTS.bold },
 
   // ── Social links ──
-  socialContainer: 
-  { width: "100%", 
-    alignItems: "center" 
-  },
+  socialContainer: { width: "100%", alignItems: "center" },
   socialInputRow: {
-  flexDirection: "row-reverse",
-  width: "100%",
-  backgroundColor: "#fff",
-  borderRadius: 16,
-  marginBottom: 14,
-  alignItems: "center",
-  paddingHorizontal: 16,
-  height: 60,
-  borderWidth: 1,
-  borderColor: "#E4E9EB",
-  shadowColor: "#000",
-  shadowOffset: { width: 0, height: 2 },
-  shadowOpacity: 0.05,
-  shadowRadius: 4,
-  elevation: 2,
+    flexDirection: "row-reverse",
+    width: "100%",
+    backgroundColor: "#fff",
+    borderRadius: 16,
+    marginBottom: 14,
+    alignItems: "center",
+    paddingHorizontal: 16,
+    height: 60,
+    borderWidth: 1,
+    borderColor: "#E4E9EB",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 4,
+    elevation: 2,
   },
-  socialIcon: 
-  { fontSize: 24, 
-    padding: 10 
-  },
+  socialIcon: { fontSize: 24, padding: 10 },
   socialInput: {
     flex: 1,
     paddingVertical: 17,
