@@ -128,21 +128,21 @@ export default function MatchesScreen() {
 
     // תחומי עניין משותפים
     const sharedInterests = userA.interests.filter((interest) =>
-      userB.interests.includes(interest)
+      userB.interests.includes(interest),
     );
 
     score += sharedInterests.length * 15;
 
     // אישיות
     const sharedPersonality = userA.personality.filter((trait) =>
-      userB.personality.includes(trait)
+      userB.personality.includes(trait),
     );
 
     score += sharedPersonality.length * 20;
 
     // תגיות חיים
     const sharedTags = userA.lifeTags.filter((tag) =>
-      userB.lifeTags.includes(tag)
+      userB.lifeTags.includes(tag),
     );
 
     score += sharedTags.length * 25;
@@ -174,9 +174,7 @@ export default function MatchesScreen() {
     // שלב 3 - ליצור רשימת התאמות
     const recommendations = users
       .filter(
-        (user) =>
-          recommendedIds.has(user.id) &&
-          user.id !== currentUser.id
+        (user) => recommendedIds.has(user.id) && user.id !== currentUser.id,
       )
       .map((user) => ({
         ...user,
@@ -196,99 +194,74 @@ export default function MatchesScreen() {
 
   // ✔ אישור בקשה
   const handleAccept = (id) => {
-    setRequests((prev) =>
-      prev.filter((item) => item.id !== id)
-    );
+    setRequests((prev) => prev.filter((item) => item.id !== id));
 
     console.log("accepted:", id);
   };
 
   // ✖ דחייה
   const handleReject = (id) => {
-    setRequests((prev) =>
-      prev.filter((item) => item.id !== id)
-    );
+    setRequests((prev) => prev.filter((item) => item.id !== id));
 
     console.log("rejected:", id);
   };
 
+  const removeMatch = (userId) => {
+  setSmartMatches((prev) =>
+    prev.filter((u) => u.id !== userId)
+  );
+};
+
   // 👤 מעבר לפרופיל
   const openProfile = (user) => {
-    router.push({
-      pathname: "/profile/[userId]",
-      params: { userId: user.id },
-    });
-  };
+  router.push({
+    pathname: "/MatchProfileDetails",
+    params: {
+      user: JSON.stringify(user),
+    },
+  });
+};
 
   return (
     <SafeAreaView style={styles.container}>
       {/* Header */}
       <View style={styles.headerRow}>
         <TouchableOpacity onPress={() => router.back()}>
-          <Ionicons
-            name="arrow-forward"
-            size={26}
-            color="#1A3C40"
-          />
+          <Ionicons name="arrow-forward" size={26} color="#1A3C40" />
         </TouchableOpacity>
 
-        <Text style={styles.headerTitle}>
-          התאמות עבורך
-        </Text>
+        <Text style={styles.headerTitle}>התאמות עבורך</Text>
 
         <View style={{ width: 26 }} />
       </View>
 
       <ScrollView contentContainerStyle={styles.content}>
         {/* בקשות */}
-        <Text style={styles.sectionTitle}>
-          בקשות לשיחה
-        </Text>
+        <Text style={styles.sectionTitle}>בקשות לשיחה</Text>
 
         {requests.length === 0 ? (
-          <Text style={styles.placeholder}>
-            אין בקשות חדשות
-          </Text>
+          <Text style={styles.placeholder}>אין בקשות חדשות</Text>
         ) : (
           requests.map((item) => (
             <View key={item.id} style={styles.requestCard}>
-              <Image
-                source={{ uri: item.image }}
-                style={styles.avatar}
-              />
+              <Image source={{ uri: item.image }} style={styles.avatar} />
 
               <TouchableOpacity
                 onPress={() => openProfile(item)}
                 style={{ flex: 1 }}
               >
-                <Text style={styles.name}>
-                  {item.name}
-                </Text>
+                <Text style={styles.name}>{item.name}</Text>
 
-                <Text style={styles.age}>
-                  גיל {item.age}
-                </Text>
+                <Text style={styles.age}>גיל {item.age}</Text>
               </TouchableOpacity>
 
               <View style={styles.actions}>
-                <TouchableOpacity
-                  onPress={() => handleAccept(item.id)}
-                >
-                  <Ionicons
-                    name="checkmark-circle"
-                    size={28}
-                    color="green"
-                  />
+                <TouchableOpacity onPress={() => handleAccept(item.id)}>
+                  <Ionicons name="checkmark-circle" size={28} color="green" />
                 </TouchableOpacity>
 
-                <TouchableOpacity
-                  onPress={() => handleReject(item.id)}
-                >
-                  <Ionicons
-                    name="close-circle"
-                    size={28}
-                    color="red"
-                  />
+                <TouchableOpacity onPress={() => handleReject(item.id)}>
+                  <Ionicons name="close-circle" size={28} color="red" />
                 </TouchableOpacity>
               </View>
             </View>
@@ -296,49 +269,47 @@ export default function MatchesScreen() {
         )}
 
         {/* התאמות חכמות */}
-        <Text style={styles.sectionTitle}>
-          התאמות חכמות עבורך
-        </Text>
+        <Text style={styles.sectionTitle}>התאמות חכמות עבורך</Text>
 
-        {smartMatches.map((user) => (
-          <TouchableOpacity
-            key={user.id}
-            style={styles.matchCard}
-            onPress={() => openProfile(user)}
-          >
-            <Image
-              source={{ uri: user.image }}
-              style={styles.matchAvatar}
-            />
+{smartMatches.map((user) => (
+  <TouchableOpacity
+    key={user.id}
+    style={styles.matchCard}
+    onPress={() => openProfile(user)}
+  >
+    <Image
+      source={{ uri: user.image }}
+      style={styles.matchAvatar}
+    />
 
-            <View style={styles.matchInfo}>
-              <Text style={styles.matchName}>
-                {user.name}
-              </Text>
+    <View style={styles.matchInfo}>
+      <Text style={styles.matchName}>
+        {user.name}
+      </Text>
 
-              <Text style={styles.matchDetails}>
-                גיל {user.age}
-              </Text>
+      <Text style={styles.matchDetails}>
+        גיל {user.age}
+      </Text>
 
-              <Text style={styles.matchDetails}>
-                {user.interests.slice(0, 3).join(" • ")}
-              </Text>
-            </View>
+      <Text style={styles.matchDetails}>
+        {user.interests.slice(0, 3).join(" • ")}
+      </Text>
+    </View>
 
-            {/* ציון התאמה */}
-            <View style={styles.scoreContainer}>
-              <Ionicons
-                name="sparkles"
-                size={18}
-                color="#D4AF37"
-              />
+    {/* ציון התאמה */}
+    <View style={styles.scoreContainer}>
+      <Ionicons
+        name="sparkles"
+        size={18}
+        color="#D4AF37"
+      />
 
-              <Text style={styles.scoreText}>
-                {user.matchScore || user.similarityScore}%
-              </Text>
-            </View>
-          </TouchableOpacity>
-        ))}
+      <Text style={styles.scoreText}>
+        {user.matchScore || user.similarityScore}%
+      </Text>
+    </View>
+  </TouchableOpacity>
+))}
       </ScrollView>
 
       <BottomNav active="home" />
