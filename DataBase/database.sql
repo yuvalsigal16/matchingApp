@@ -309,6 +309,38 @@ CREATE TABLE dbo.Recommendations (
 );
 GO
 
+CREATE TABLE dbo.UserProfileInteractions (
+    InteractionID INT IDENTITY(1,1) PRIMARY KEY,
+
+    FromUserID INT NOT NULL,
+
+    ToUserID INT NOT NULL,
+
+    InteractionType NVARCHAR(20) NOT NULL,
+
+    CreatedAt DATETIME2 NOT NULL DEFAULT SYSDATETIME(),
+
+    CONSTRAINT FK_Interactions_FromUser
+        FOREIGN KEY (FromUserID)
+        REFERENCES dbo.Users(UserID),
+
+    CONSTRAINT FK_Interactions_ToUser
+        FOREIGN KEY (ToUserID)
+        REFERENCES dbo.Users(UserID),
+
+    CONSTRAINT CK_Interaction_Type
+        CHECK (
+            InteractionType IN (
+                'View',
+                'Like',
+                'ChatRequest'
+            )
+        ),
+
+    CONSTRAINT CK_Interaction_NotSelf
+        CHECK (FromUserID <> ToUserID)
+);
+GO
 
 
 USE MatchingApp;
