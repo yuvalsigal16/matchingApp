@@ -324,11 +324,40 @@ AS
 BEGIN
     SET NOCOUNT ON;
 
-    SELECT 
-        U.UserID,
-        U.Email,
-        U.CreatedAt
-    FROM dbo.Users U
+   SELECT 
+    U.UserID,
+    U.Email,
+    U.ProfileImage,
+    U.CreatedAt,
+
+    P.FirstName,
+    P.LastName,
+    P.BirthDate,
+    P.Gender,
+    P.City,
+
+    Q.IsSmoker,
+    Q.KeepsKosher,
+    Q.KeepsShabbat,
+    Q.SpontaneityLevel,
+    Q.LifestyleLevel,
+
+    (
+        SELECT I.InterestName
+        FROM dbo.UserInterests UI
+        JOIN dbo.Interests I
+            ON I.InterestID = UI.InterestID
+        WHERE UI.UserID = U.UserID
+        FOR JSON PATH
+    ) AS Interests
+
+FROM dbo.Users U
+
+LEFT JOIN dbo.UserProfile P
+    ON P.UserID = U.UserID
+
+LEFT JOIN dbo.Questionnaire Q
+    ON Q.UserID = U.UserID
     WHERE U.UserID != @CurrentUserID
 
     -- לא להחזיר משתמשים שחסמתי
