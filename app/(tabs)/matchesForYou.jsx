@@ -2,9 +2,8 @@ import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import { useEffect, useMemo, useState } from "react";
 
-import { getUser } from "../../auth/authStore";
-
-import { getAllUsers } from "../../api/userService";
+import { getAllUsers } from "../src/api/userService";
+import { getUser } from "../src/auth/authStore";
 
 import {
   Image,
@@ -62,88 +61,83 @@ export default function MatchesScreen() {
     }
   };
   // =========================================
-// 🧠 SMART MATCHING ALGORITHM
-// =========================================
+  // 🧠 SMART MATCHING ALGORITHM
+  // =========================================
 
-const smartMatches = useMemo(() => {
-  if (!currentUser || users.length === 0) {
-    return [];
-  }
+  const smartMatches = useMemo(() => {
+    if (!currentUser || users.length === 0) {
+      return [];
+    }
 
-  return users
-    .map((user) => {
-      let score = 0;
+    return users
+      .map((user) => {
+        let score = 0;
 
-      // =========================
-      // גיל
-      // =========================
+        // =========================
+        // גיל
+        // =========================
 
-      if (user.age && currentUser.age) {
-        const ageDiff = Math.abs(user.age - currentUser.age);
+        if (user.age && currentUser.age) {
+          const ageDiff = Math.abs(user.age - currentUser.age);
 
-        if (ageDiff <= 2) score += 20;
-        else if (ageDiff <= 5) score += 10;
-      }
-
-      // =========================
-      // תחומי עניין
-      // =========================
-
-      const sharedInterests =
-        user.interests?.filter((interest) =>
-          currentUser.interests?.includes(interest)
-        ) || [];
-
-      score += sharedInterests.length * 15;
-
-      // =========================
-      // התאמה לפי שאלון העדפות
-      // =========================
-
-      if (
-        user.preferredMinAge &&
-        user.preferredMaxAge &&
-        currentUser.age
-      ) {
-        if (
-          currentUser.age >= user.preferredMinAge &&
-          currentUser.age <= user.preferredMaxAge
-        ) {
-          score += 20;
+          if (ageDiff <= 2) score += 20;
+          else if (ageDiff <= 5) score += 10;
         }
-      }
 
-      // =========================
-      // תחומי עניין רצויים
-      // =========================
+        // =========================
+        // תחומי עניין
+        // =========================
 
-      const preferredShared =
-        user.preferredInterests?.filter((interest) =>
-          currentUser.interests?.includes(interest)
-        ) || [];
+        const sharedInterests =
+          user.interests?.filter((interest) =>
+            currentUser.interests?.includes(interest),
+          ) || [];
 
-      score += preferredShared.length * 20;
+        score += sharedInterests.length * 15;
 
-      // =========================
-      // אלגוריתם התנהגותי
-      // =========================
+        // =========================
+        // התאמה לפי שאלון העדפות
+        // =========================
 
-      if (user.viewedProfiles?.includes(currentUser.userID)) {
-        score += 15;
-      }
+        if (user.preferredMinAge && user.preferredMaxAge && currentUser.age) {
+          if (
+            currentUser.age >= user.preferredMinAge &&
+            currentUser.age <= user.preferredMaxAge
+          ) {
+            score += 20;
+          }
+        }
 
-      if (user.likedProfiles?.includes(currentUser.userID)) {
-        score += 30;
-      }
+        // =========================
+        // תחומי עניין רצויים
+        // =========================
 
-      return {
-        ...user,
-        matchScore: score,
-      };
-    })
-    .sort((a, b) => b.matchScore - a.matchScore);
-}, [users, currentUser]);
+        const preferredShared =
+          user.preferredInterests?.filter((interest) =>
+            currentUser.interests?.includes(interest),
+          ) || [];
 
+        score += preferredShared.length * 20;
+
+        // =========================
+        // אלגוריתם התנהגותי
+        // =========================
+
+        if (user.viewedProfiles?.includes(currentUser.userID)) {
+          score += 15;
+        }
+
+        if (user.likedProfiles?.includes(currentUser.userID)) {
+          score += 30;
+        }
+
+        return {
+          ...user,
+          matchScore: score,
+        };
+      })
+      .sort((a, b) => b.matchScore - a.matchScore);
+  }, [users, currentUser]);
 
   // ✔ אישור בקשה
   const handleAccept = (id) => {
@@ -158,7 +152,6 @@ const smartMatches = useMemo(() => {
 
     console.log("rejected:", id);
   };
-
 
   // 👤 מעבר לפרופיל
   const openProfile = (user) => {
@@ -242,13 +235,13 @@ const smartMatches = useMemo(() => {
             onPress={() => openProfile(user)}
           >
             <Image
-  source={
-    user.ProfileImage
-      ? { uri: user.ProfileImage }
-      : require("../../assets/default-avatar.png")
-  }
-  style={styles.matchAvatar}
-/>
+              source={
+                user.ProfileImage
+                  ? { uri: user.ProfileImage }
+                  : require("../../assets/images/icon.png")
+              }
+              style={styles.matchAvatar}
+            />
 
             <View style={styles.matchInfo}>
               <Text style={styles.matchName}>{user.name}</Text>
