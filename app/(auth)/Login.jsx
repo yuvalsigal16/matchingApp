@@ -16,7 +16,6 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { apiLogin } from "../src/api/authService";
 import { getUserProfile } from "../src/api/userProfileService";
 import { setAuth } from "../src/auth/authStore";
-import { useGoogleAuth } from "../src/auth/googleAuth";
 import { FONTS } from "../src/theme/fonts";
 
 const isValidEmail = (val) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(val.trim());
@@ -32,8 +31,6 @@ export default function LoginScreen() {
   const [passwordError, setPasswordError] = useState("");
   const [apiError, setApiError] = useState("");
   const [isLoading, setIsLoading] = useState(false);
-
-  const { promptAsync, request } = useGoogleAuth();
 
   const validateEmail = () =>
     setEmailError(
@@ -194,24 +191,6 @@ export default function LoginScreen() {
             ) : (
               <Text style={styles.loginButtonText}>התחבר</Text>
             )}
-          </TouchableOpacity>
-
-          {/* ── מפריד "או" ── */}
-          <View style={styles.dividerWrap}>
-            <View style={styles.dividerLine} />
-            <Text style={styles.dividerText}>או</Text>
-            <View style={styles.dividerLine} />
-          </View>
-
-          {/* ── כפתור Google ── */}
-          <TouchableOpacity
-            style={styles.googleButton}
-            onPress={() => promptAsync()}
-            activeOpacity={0.85}
-            disabled={!request}
-          >
-            <Ionicons name="logo-google" size={20} color="#EA4335" />
-            <Text style={styles.googleButtonText}>המשך עם Google</Text>
           </TouchableOpacity>
 
           {/* ── שורת הרשמה ── */}
@@ -399,40 +378,4 @@ const styles = StyleSheet.create({
     fontFamily: FONTS.bold,
   },
 
-  dividerWrap: {
-    flexDirection: "row",
-    alignItems: "center",
-    width: "100%",
-    marginTop: 18,
-    marginBottom: 14,
-  },
-  dividerLine: {
-    flex: 1,
-    height: 1,
-    backgroundColor: "#ddd",
-  },
-  dividerText: {
-    marginHorizontal: 12,
-    color: "#888",
-    fontSize: 13,
-    fontFamily: FONTS.regular,
-  },
-
-  googleButton: {
-    width: "100%",
-    height: 54,
-    backgroundColor: "#fff",
-    borderRadius: 30,
-    borderWidth: 1.5,
-    borderColor: "#ddd",
-    flexDirection: "row",
-    justifyContent: "center",
-    alignItems: "center",
-    gap: 10,
-  },
-  googleButtonText: {
-    color: "#222",
-    fontSize: 16,
-    fontFamily: FONTS.bold,
-  },
 });
