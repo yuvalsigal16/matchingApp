@@ -1,6 +1,11 @@
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+
+import { getUser } from "../../auth/authStore";
+
+import { getAllUsers } from "../../api/userService";
+
 import {
   Image,
   ScrollView,
@@ -16,279 +21,211 @@ import { FONTS } from "../../theme/fonts";
 export default function MatchesScreen() {
   const router = useRouter();
 
-  // 👤 המשתמש הנוכחי
-  const currentUser = {
-    id: "100",
-    name: "Bar",
-    age: 24,
-    interests: ["music", "travel", "books", "coffee"],
-    personality: ["calm", "social"],
-    lifeTags: ["student", "family"],
-  };
+  const [currentUser, setCurrentUser] = useState(null);
 
-  // 🔹 משתמשים באפליקציה
-  const users = [
-    {
-      id: "1",
-      name: "דניאל כהן",
-      age: 27,
-      image: null,
-      interests: ["music", "travel", "sports"],
-      personality: ["social", "funny"],
-      lifeTags: ["student"],
-      likedUsers: ["5", "6"],
-    },
+  const [users, setUsers] = useState([]);
 
-    {
-      id: "2",
-      name: "נועה לוי",
-      age: 24,
-      image: null,
-      interests: ["books", "coffee", "music"],
-      personality: ["calm", "social"],
-      lifeTags: ["family"],
-      likedUsers: ["3", "5"],
-    },
+  const [requests, setRequests] = useState([]);
 
-    {
-      id: "3",
-      name: "רוני אברהם",
-      age: 25,
-      image: null,
-      interests: ["travel", "music", "art"],
-      personality: ["calm"],
-      lifeTags: ["student"],
-      likedUsers: [],
-    },
+  const [loading, setLoading] = useState(true);
 
-    {
-      id: "4",
-      name: "שירה דוד",
-      age: 23,
-      image: null,
-      interests: ["sports", "nature"],
-      personality: ["active"],
-      lifeTags: ["army"],
-      likedUsers: [],
-    },
+  // =========================
+  // LOAD USERS FROM DB
+  // =========================
 
-    {
-      id: "5",
-      name: "עמית לוי",
-      age: 26,
-      image: null,
-      interests: ["coffee", "books", "music"],
-      personality: ["social"],
-      lifeTags: ["family"],
-      likedUsers: [],
-    },
-
-    {
-      id: "6",
-      name: "יובל ישראלי",
-      age: 24,
-      image: null,
-      interests: ["music", "travel", "movies"],
-      personality: ["funny", "social"],
-      lifeTags: ["student"],
-      likedUsers: [],
-    },
-  ];
-
-  // 🔹 בקשות צ'אט
-  const [requests, setRequests] = useState([
-    {
-      id: "1",
-      name: "דניאל כהן",
-      age: 27,
-      image: null,
-    },
-
-    {
-      id: "2",
-      name: "נועה לוי",
-      age: 24,
-      image: null,
-    },
-  ]);
-
-  // =========================================
-  // 🧠 SMART MATCHING ALGORITHM
-  // =========================================
-
-  // חישוב דמיון בין שני משתמשים
-  const calculateSimilarity = (userA, userB) => {
-    let score = 0;
-
-    // גיל
-    const ageDifference = Math.abs(userA.age - userB.age);
-
-    if (ageDifference <= 2) score += 20;
-    else if (ageDifference <= 5) score += 10;
-
-    // תחומי עניין משותפים
-    const sharedInterests = userA.interests.filter((interest) =>
-      userB.interests.includes(interest)
-    );
-
-    score += sharedInterests.length * 15;
-
-    // אישיות
-    const sharedPersonality = userA.personality.filter((trait) =>
-      userB.personality.includes(trait)
-    );
-
-    score += sharedPersonality.length * 20;
-
-    // תגיות חיים
-    const sharedTags = userA.lifeTags.filter((tag) =>
-      userB.lifeTags.includes(tag)
-    );
-
-    score += sharedTags.length * 25;
-
-    return score;
-  };
-
-  // יצירת התאמות חכמות
-  const smartMatches = useMemo(() => {
-    // שלב 1 - למצוא משתמשים דומים למשתמש הנוכחי
-    const similarUsers = users
-      .map((user) => ({
-        ...user,
-        similarityScore: calculateSimilarity(currentUser, user),
-      }))
-      .sort((a, b) => b.similarityScore - a.similarityScore);
-
-    // שלב 2 - למצוא פרופילים שמשתמשים דומים אהבו
-    const recommendedIds = new Set();
-
-    similarUsers.forEach((user) => {
-      if (user.similarityScore >= 40) {
-        user.likedUsers.forEach((likedId) => {
-          recommendedIds.add(likedId);
-        });
-      }
-    });
-
-    // שלב 3 - ליצור רשימת התאמות
-    const recommendations = users
-      .filter(
-        (user) =>
-          recommendedIds.has(user.id) &&
-          user.id !== currentUser.id
-      )
-      .map((user) => ({
-        ...user,
-        matchScore: calculateSimilarity(currentUser, user),
-      }))
-      .sort((a, b) => b.matchScore - a.matchScore);
-
-    // fallback - אם אין מספיק המלצות
-    if (recommendations.length === 0) {
-      return similarUsers
-        .filter((user) => user.id !== currentUser.id)
-        .slice(0, 5);
-    }
-
-    return recommendations;
+  useEffect(() => {
+    loadUsers();
   }, []);
+
+  const loadUsers = async () => {
+    try {
+      setLoading(true);
+
+      // המשתמש המחובר
+      const loggedInUser = getUser();
+
+      setCurrentUser(loggedInUser);
+
+      // כל המשתמשים מהשרת
+      const allUsers = await getAllUsers();
+
+      // לא להציג את המשתמש עצמו
+      const filteredUsers = allUsers.filter(
+        (u) => u.userID !== loggedInUser.userID,
+      );
+
+      setUsers(filteredUsers);
+    } catch (err) {
+      console.log("Failed loading users:", err);
+    } finally {
+      setLoading(false);
+    }
+  };
+  // =========================================
+// 🧠 SMART MATCHING ALGORITHM
+// =========================================
+
+const smartMatches = useMemo(() => {
+  if (!currentUser || users.length === 0) {
+    return [];
+  }
+
+  return users
+    .map((user) => {
+      let score = 0;
+
+      // =========================
+      // גיל
+      // =========================
+
+      if (user.age && currentUser.age) {
+        const ageDiff = Math.abs(user.age - currentUser.age);
+
+        if (ageDiff <= 2) score += 20;
+        else if (ageDiff <= 5) score += 10;
+      }
+
+      // =========================
+      // תחומי עניין
+      // =========================
+
+      const sharedInterests =
+        user.interests?.filter((interest) =>
+          currentUser.interests?.includes(interest)
+        ) || [];
+
+      score += sharedInterests.length * 15;
+
+      // =========================
+      // התאמה לפי שאלון העדפות
+      // =========================
+
+      if (
+        user.preferredMinAge &&
+        user.preferredMaxAge &&
+        currentUser.age
+      ) {
+        if (
+          currentUser.age >= user.preferredMinAge &&
+          currentUser.age <= user.preferredMaxAge
+        ) {
+          score += 20;
+        }
+      }
+
+      // =========================
+      // תחומי עניין רצויים
+      // =========================
+
+      const preferredShared =
+        user.preferredInterests?.filter((interest) =>
+          currentUser.interests?.includes(interest)
+        ) || [];
+
+      score += preferredShared.length * 20;
+
+      // =========================
+      // אלגוריתם התנהגותי
+      // =========================
+
+      if (user.viewedProfiles?.includes(currentUser.userID)) {
+        score += 15;
+      }
+
+      if (user.likedProfiles?.includes(currentUser.userID)) {
+        score += 30;
+      }
+
+      return {
+        ...user,
+        matchScore: score,
+      };
+    })
+    .sort((a, b) => b.matchScore - a.matchScore);
+}, [users, currentUser]);
+
 
   // ✔ אישור בקשה
   const handleAccept = (id) => {
-    setRequests((prev) =>
-      prev.filter((item) => item.id !== id)
-    );
+    setRequests((prev) => prev.filter((item) => item.id !== id));
 
     console.log("accepted:", id);
   };
 
   // ✖ דחייה
   const handleReject = (id) => {
-    setRequests((prev) =>
-      prev.filter((item) => item.id !== id)
-    );
+    setRequests((prev) => prev.filter((item) => item.id !== id));
 
     console.log("rejected:", id);
   };
 
+
   // 👤 מעבר לפרופיל
   const openProfile = (user) => {
     router.push({
-      pathname: "/profile/[userId]",
-      params: { userId: user.id },
+      pathname: "/MatchProfileDetails",
+      params: {
+        user: JSON.stringify(user),
+      },
     });
   };
+
+  if (loading || !currentUser) {
+    return (
+      <SafeAreaView style={styles.container}>
+        <View
+          style={{
+            flex: 1,
+            justifyContent: "center",
+            alignItems: "center",
+          }}
+        >
+          <Text>טוען התאמות...</Text>
+        </View>
+      </SafeAreaView>
+    );
+  }
 
   return (
     <SafeAreaView style={styles.container}>
       {/* Header */}
       <View style={styles.headerRow}>
         <TouchableOpacity onPress={() => router.back()}>
-          <Ionicons
-            name="arrow-forward"
-            size={26}
-            color="#1A3C40"
-          />
+          <Ionicons name="arrow-forward" size={26} color="#1A3C40" />
         </TouchableOpacity>
 
-        <Text style={styles.headerTitle}>
-          התאמות עבורך
-        </Text>
+        <Text style={styles.headerTitle}>התאמות עבורך</Text>
 
         <View style={{ width: 26 }} />
       </View>
 
       <ScrollView contentContainerStyle={styles.content}>
         {/* בקשות */}
-        <Text style={styles.sectionTitle}>
-          בקשות לשיחה
-        </Text>
+        <Text style={styles.sectionTitle}>בקשות לשיחה</Text>
 
         {requests.length === 0 ? (
-          <Text style={styles.placeholder}>
-            אין בקשות חדשות
-          </Text>
+          <Text style={styles.placeholder}>אין בקשות חדשות</Text>
         ) : (
           requests.map((item) => (
             <View key={item.id} style={styles.requestCard}>
-              <Image
-                source={{ uri: item.image }}
-                style={styles.avatar}
-              />
+              <Image source={{ uri: item.image }} style={styles.avatar} />
 
               <TouchableOpacity
                 onPress={() => openProfile(item)}
                 style={{ flex: 1 }}
               >
-                <Text style={styles.name}>
-                  {item.name}
-                </Text>
+                <Text style={styles.name}>{item.name}</Text>
 
-                <Text style={styles.age}>
-                  גיל {item.age}
-                </Text>
+                <Text style={styles.age}>גיל {item.age}</Text>
               </TouchableOpacity>
 
               <View style={styles.actions}>
-                <TouchableOpacity
-                  onPress={() => handleAccept(item.id)}
-                >
-                  <Ionicons
-                    name="checkmark-circle"
-                    size={28}
-                    color="green"
-                  />
+                <TouchableOpacity onPress={() => handleAccept(item.id)}>
+                  <Ionicons name="checkmark-circle" size={28} color="green" />
                 </TouchableOpacity>
 
-                <TouchableOpacity
-                  onPress={() => handleReject(item.id)}
-                >
-                  <Ionicons
-                    name="close-circle"
-                    size={28}
-                    color="red"
-                  />
+                <TouchableOpacity onPress={() => handleReject(item.id)}>
+                  <Ionicons name="close-circle" size={28} color="red" />
                 </TouchableOpacity>
               </View>
             </View>
@@ -296,42 +233,36 @@ export default function MatchesScreen() {
         )}
 
         {/* התאמות חכמות */}
-        <Text style={styles.sectionTitle}>
-          התאמות חכמות עבורך
-        </Text>
+        <Text style={styles.sectionTitle}>התאמות חכמות עבורך</Text>
 
         {smartMatches.map((user) => (
           <TouchableOpacity
-            key={user.id}
+            key={user.UserID}
             style={styles.matchCard}
             onPress={() => openProfile(user)}
           >
             <Image
-              source={{ uri: user.image }}
-              style={styles.matchAvatar}
-            />
+  source={
+    user.ProfileImage
+      ? { uri: user.ProfileImage }
+      : require("../../assets/default-avatar.png")
+  }
+  style={styles.matchAvatar}
+/>
 
             <View style={styles.matchInfo}>
-              <Text style={styles.matchName}>
-                {user.name}
-              </Text>
+              <Text style={styles.matchName}>{user.name}</Text>
+
+              <Text style={styles.matchDetails}>גיל {user.age}</Text>
 
               <Text style={styles.matchDetails}>
-                גיל {user.age}
-              </Text>
-
-              <Text style={styles.matchDetails}>
-                {user.interests.slice(0, 3).join(" • ")}
+                {user.interests?.slice(0, 3).join(" • ") || "אין תחומי עניין"}
               </Text>
             </View>
 
             {/* ציון התאמה */}
             <View style={styles.scoreContainer}>
-              <Ionicons
-                name="sparkles"
-                size={18}
-                color="#D4AF37"
-              />
+              <Ionicons name="sparkles" size={18} color="#D4AF37" />
 
               <Text style={styles.scoreText}>
                 {user.matchScore || user.similarityScore}%
