@@ -116,7 +116,12 @@ export default function RequestStatusScreen() {
 
                 {/* פרטי בקשה */}
                 <View style={styles.cardText}>
-                  <Text style={styles.title}>בקשה למשתמש #{req.toUserID}</Text>
+                  <Text style={styles.title}>
+                    {[req.toFirstName, req.toLastName]
+                      .filter(Boolean)
+                      .join(" ")
+                      .trim() || `משתמש #${req.toUserID}`}
+                  </Text>
                   <Text style={styles.subtitle}>סטטוס: {s.label}</Text>
                 </View>
 

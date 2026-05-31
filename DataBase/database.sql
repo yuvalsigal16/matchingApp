@@ -359,7 +359,6 @@ BEGIN
    SELECT 
     U.UserID,
     U.Email,
-    U.ProfileImage,
     U.CreatedAt,
 
     P.FirstName,
@@ -367,6 +366,7 @@ BEGIN
     P.BirthDate,
     P.Gender,
     P.City,
+    P.ProfileImage,
 
     Q.IsSmoker,
     Q.KeepsKosher,
@@ -2557,4 +2557,222 @@ GO
 ALTER TABLE dbo.UserProfile
 ADD CONSTRAINT CK_UserProfile_Gender
 CHECK (Gender IN ('Male', 'Female', 'Other') OR Gender IS NULL);
+GO
+
+--טבלה חדשה
+CREATE TABLE dbo.UserProfileInteractions (
+    InteractionID INT IDENTITY(1,1) PRIMARY KEY,
+
+    FromUserID INT NOT NULL,
+
+    ToUserID INT NOT NULL,
+
+    InteractionType NVARCHAR(20) NOT NULL,
+
+    CreatedAt DATETIME2 NOT NULL DEFAULT SYSDATETIME(),
+
+    CONSTRAINT FK_Interactions_FromUser
+        FOREIGN KEY (FromUserID)
+        REFERENCES dbo.Users(UserID),
+
+    CONSTRAINT FK_Interactions_ToUser
+        FOREIGN KEY (ToUserID)
+        REFERENCES dbo.Users(UserID),
+
+    CONSTRAINT CK_Interaction_Type
+        CHECK (
+            InteractionType IN (
+                'View',
+                'Like',
+                'ChatRequest'
+            )
+        ),
+
+    CONSTRAINT CK_Interaction_NotSelf
+        CHECK (FromUserID <> ToUserID)
+);
+
+------------------------------------------
+-- 1) MatchRequests.TripID -> NULLABLE (מאפשר בקשת צ'אט בלי טיול)
+IF EXISTS (SELECT 1 FROM sys.objects 
+           WHERE name = 'UQ_MatchRequests_From_To_Trip')
+    ALTER TABLE dbo.MatchRequests DROP CONSTRAINT UQ_MatchRequests_From_To_Trip;
+GO
+
+ALTER TABLE dbo.MatchRequests ALTER COLUMN TripID INT NULL;
+GO
+
+CREATE UNIQUE INDEX UX_MatchRequests_From_To_Trip
+    ON dbo.MatchRequests (FromUserID, ToUserID, TripID)
+    WHERE TripID IS NOT NULL;
+
+CREATE UNIQUE INDEX UX_MatchRequests_From_To_NoTrip
+    ON dbo.MatchRequests (FromUserID, ToUserID)
+    WHERE TripID IS NULL AND Status = 'Pending';
+GO
+
+-- 2) SendMatchRequest - תומך עכשיו ב-TripID NULL
+CREATE OR ALTER PROCEDURE dbo.SendMatchRequest
+    @FromUserID INT, @ToUserID INT, @TripID INT = NULL
+AS
+BEGIN
+    SET NOCOUNT ON;
+    IF EXISTS (SELECT 1 FROM dbo.UserBlocks
+               WHERE (UserID=@FromUserID AND BlockedUserID=@ToUserID)
+                  OR (UserID=@ToUserID AND BlockedUserID=@FromUserID))
+    BEGIN RAISERROR('Blocked',16,1); RETURN; END
+
+    IF @FromUserID = @ToUserID
+    BEGIN RAISERROR('Cannot request self',16,1); RETURN; END
+
+    IF EXISTS (SELECT 1 FROM dbo.MatchRequests
+               WHERE FromUserID=@FromUserID AND ToUserID=@ToUserID
+                 AND ((TripID=@TripID) OR (TripID IS NULL AND @TripID IS NULL))
+                 AND Status='Pending')
+    BEGIN RAISERROR('Already pending',16,1); RETURN; END
+
+    INSERT INTO dbo.MatchRequests (FromUserID, ToUserID, TripID)
+    VALUES (@FromUserID, @ToUserID, @TripID);
+    SELECT SCOPE_IDENTITY() AS RequestID;
+END
+GO
+
+-- 3) GetPendingMatchRequestsByUserID - מחזיר גם שמות ותמונות
+CREATE OR ALTER PROCEDURE dbo.GetPendingMatchRequestsByUserID
+    @UserID INT
+AS
+BEGIN
+    SET NOCOUNT ON;
+    SELECT MR.RequestID, MR.FromUserID, MR.ToUserID, MR.TripID,
+           MR.Status, MR.RequestDate,
+           FP.FirstName AS FromFirstName, FP.LastName AS FromLastName,
+           FP.ProfileImage AS FromProfileImage, FP.BirthDate AS FromBirthDate,
+           TP.FirstName AS ToFirstName, TP.LastName AS ToLastName,
+           TP.ProfileImage AS ToProfileImage, TP.BirthDate AS ToBirthDate
+    FROM dbo.MatchRequests MR
+    LEFT JOIN dbo.UserProfile FP ON FP.UserID = MR.FromUserID
+    LEFT JOIN dbo.UserProfile TP ON TP.UserID = MR.ToUserID
+    WHERE (MR.ToUserID = @UserID OR MR.FromUserID = @UserID)
+      AND MR.Status = 'Pending'
+    ORDER BY MR.RequestDate DESC;
+END
+GO
+
+-- 4) טבלת Notifications חדשה
+CREATE TABLE dbo.Notifications (
+    NotificationID INT IDENTITY(1,1) PRIMARY KEY,
+    UserID         INT NOT NULL,
+    Type           NVARCHAR(40) NOT NULL,
+    Title          NVARCHAR(120) NOT NULL,
+    Body           NVARCHAR(400) NULL,
+    RelatedID      INT NULL,
+    IsRead         BIT NOT NULL DEFAULT 0,
+    CreatedAt      DATETIME2 NOT NULL DEFAULT SYSDATETIME(),
+    CONSTRAINT FK_Notifications_User FOREIGN KEY (UserID) REFERENCES dbo.Users(UserID)
+);
+CREATE INDEX IX_Notifications_UserID_CreatedAt ON dbo.Notifications (UserID, CreatedAt DESC);
+GO
+
+-- 5) פרוצדורות Notifications
+CREATE OR ALTER PROCEDURE dbo.CreateNotification
+    @UserID INT, @Type NVARCHAR(40), @Title NVARCHAR(120),
+    @Body NVARCHAR(400) = NULL, @RelatedID INT = NULL
+AS
+BEGIN
+    SET NOCOUNT ON;
+    INSERT INTO dbo.Notifications (UserID, Type, Title, Body, RelatedID)
+    VALUES (@UserID, @Type, @Title, @Body, @RelatedID);
+    SELECT SCOPE_IDENTITY() AS NotificationID;
+END
+GO
+
+CREATE OR ALTER PROCEDURE dbo.GetNotificationsByUserID @UserID INT
+AS
+BEGIN
+    SET NOCOUNT ON;
+    SELECT NotificationID, UserID, Type, Title, Body, RelatedID, IsRead, CreatedAt
+    FROM dbo.Notifications WHERE UserID = @UserID ORDER BY CreatedAt DESC;
+END
+GO
+
+CREATE OR ALTER PROCEDURE dbo.MarkNotificationRead @NotificationID INT
+AS
+BEGIN
+    SET NOCOUNT ON;
+    UPDATE dbo.Notifications SET IsRead = 1 WHERE NotificationID = @NotificationID;
+    SELECT @@ROWCOUNT AS RowsAffected;
+END
+GO
+
+-- 6) Push Tokens - עמודה ב-Users
+ALTER TABLE dbo.Users ADD ExpoPushToken NVARCHAR(255) NULL;
+GO
+
+CREATE OR ALTER PROCEDURE dbo.SaveExpoPushToken @UserID INT, @Token NVARCHAR(255)
+AS
+BEGIN
+    SET NOCOUNT ON;
+    UPDATE dbo.Users SET ExpoPushToken = @Token WHERE UserID = @UserID;
+    SELECT @@ROWCOUNT AS RowsAffected;
+END
+GO
+
+
+-- ========== החלפת RejectMatchRequest - מחזיר עכשיו גם FromUserID ==========
+CREATE OR ALTER PROCEDURE dbo.RejectMatchRequest
+    @RequestID INT
+AS
+BEGIN
+    SET NOCOUNT ON;
+
+    DECLARE @FromUserID INT;
+    SELECT @FromUserID = FromUserID FROM dbo.MatchRequests WHERE RequestID = @RequestID;
+
+    UPDATE dbo.MatchRequests
+    SET Status = 'Rejected'
+    WHERE RequestID = @RequestID AND Status = 'Pending';
+
+    SELECT @@ROWCOUNT AS RowsAffected, @FromUserID AS FromUserID;
+END
+GO
+
+-- ========== החלפת ApproveMatchRequest - מחזיר עכשיו גם FromUserID ==========
+CREATE OR ALTER PROCEDURE dbo.ApproveMatchRequest
+    @RequestID INT
+AS
+BEGIN
+    SET NOCOUNT ON;
+
+    DECLARE @FromUserID INT, @ToUserID INT, @TripID INT, @NewMatchID INT;
+
+    IF NOT EXISTS (SELECT 1 FROM dbo.MatchRequests
+                   WHERE RequestID = @RequestID AND Status = 'Pending')
+    BEGIN
+        RAISERROR('Pending request not found.', 16, 1);
+        RETURN;
+    END
+
+    SELECT @FromUserID = FromUserID, @ToUserID = ToUserID, @TripID = TripID
+    FROM dbo.MatchRequests WHERE RequestID = @RequestID;
+
+    BEGIN TRANSACTION;
+    BEGIN TRY
+        UPDATE dbo.MatchRequests SET Status = 'Approved' WHERE RequestID = @RequestID;
+
+        INSERT INTO dbo.Matches (RequestID, TripID, User1ID, User2ID)
+        VALUES (@RequestID, @TripID, @FromUserID, @ToUserID);
+
+        SET @NewMatchID = SCOPE_IDENTITY();
+
+        INSERT INTO dbo.MatchChats (MatchID) VALUES (@NewMatchID);
+
+        COMMIT TRANSACTION;
+
+        SELECT @NewMatchID AS MatchID, @FromUserID AS FromUserID;
+    END TRY
+    BEGIN CATCH
+        ROLLBACK TRANSACTION;
+        THROW;
+    END CATCH
+END
 GO

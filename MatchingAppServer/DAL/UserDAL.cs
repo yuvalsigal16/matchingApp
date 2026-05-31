@@ -345,7 +345,72 @@ namespace MatchingAppServer.DAL
             catch (Exception)
             {
                 throw;
-            }   
+            }
+            finally
+            {
+                if (con != null)
+                    con.Close();
+            }
+        }
+
+        // SAVE EXPO PUSH TOKEN - שומר את ה-token של המכשיר ב-DB
+        public int SaveExpoPushToken(int userId, string token)
+        {
+            try
+            {
+                con = connect();
+            }
+            catch (Exception) { throw; }
+
+            var param = new Dictionary<string, object>()
+            {
+                { "@UserID", userId },
+                { "@Token", token }
+            };
+
+            cmd = CreateCommandWithStoredProcedureGeneral("SaveExpoPushToken", con, param);
+
+            try
+            {
+                object result = cmd.ExecuteScalar();
+                return Convert.ToInt32(result);
+            }
+            catch (Exception)
+            {
+                throw;
+            }
+            finally
+            {
+                if (con != null)
+                    con.Close();
+            }
+        }
+
+        // GET EXPO PUSH TOKEN - שולף את ה-token לטובת שליחת push
+        public string GetExpoPushToken(int userId)
+        {
+            try
+            {
+                con = connect();
+            }
+            catch (Exception) { throw; }
+
+            var param = new Dictionary<string, object>()
+            {
+                { "@UserID", userId }
+            };
+
+            cmd = CreateCommandWithStoredProcedureGeneral("GetExpoPushToken", con, param);
+
+            try
+            {
+                object result = cmd.ExecuteScalar();
+                return result == null || result == DBNull.Value ? null : result.ToString();
+            }
+            catch (Exception)
+            {
+                throw;
+            }
             finally
             {
                 if (con != null)

@@ -1,33 +1,67 @@
-import React from "react";
+import React, { useCallback, useState } from "react";
 import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { useRouter } from "expo-router";
+import { useFocusEffect, useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 
 import { FONTS } from "../src/theme/fonts";
+import { getUser } from "../src/auth/authStore";
+import {
+  getNotifications,
+  markNotificationRead,
+} from "../src/api/notificationService";
 import BottomNav from "../../components/BottomNav";
 
-// מסך התראות - מציג שני כפתורים: סטטוס בקשות ששלחתי, וצ'אטים פעילים
+// אייקון לפי סוג ההתראה
+function iconForType(type) {
+  if (type === "RequestReceived") return { name: "person-add-outline", color: "#1A3C40" };
+  if (type === "RequestApproved") return { name: "checkmark-circle-outline", color: "#4CAF50" };
+  if (type === "RequestRejected") return { name: "close-circle-outline", color: "#C0392B" };
+  return { name: "notifications-outline", color: "#888" };
+}
+
 export default function NotificationsScreen() {
   const router = useRouter();
 
-  // הגדרת הפריטים בתפריט - כל פריט מוביל למסך אחר
-  const items = [
-    {
-      title: "סטטוס בקשות ששלחתי",
-      icon: "send-outline",
-      route: "/requestStatus",
-    },
-    {
-      title: "צ'אטים פעילים",
-      icon: "chatbubbles-outline",
-      route: "/activeChats",
-    },
+  const [notifications, setNotifications] = useState([]);
+
+  // קישורים מהירים בראש המסך
+  const links = [
+    { title: "סטטוס בקשות ששלחתי", icon: "send-outline", route: "/requestStatus" },
+    { title: "צ'אטים פעילים", icon: "chatbubbles-outline", route: "/activeChats" },
   ];
+
+  // טעינה בכל כניסה למסך - useFocusEffect מרענן כשחוזרים אליו
+  useFocusEffect(
+    useCallback(() => {
+      loadNotifications();
+    }, [])
+  );
+
+  const loadNotifications = async () => {
+    const userId = getUser()?.userID;
+    if (!userId) return;
+    const data = await getNotifications(userId);
+    setNotifications(data);
+  };
+
+  const handleTap = async (notif) => {
+    if (!notif.isRead) {
+      await markNotificationRead(notif.notificationID);
+      setNotifications((prev) =>
+        prev.map((n) =>
+          n.notificationID === notif.notificationID ? { ...n, isRead: true } : n,
+        ),
+      );
+    }
+    // ניווט לפי סוג
+    if (notif.type === "RequestReceived") router.push("/matchesForYou");
+    else if (notif.type === "RequestApproved") router.push("/activeChats");
+    else if (notif.type === "RequestRejected") router.push("/requestStatus");
+  };
 
   return (
     <SafeAreaView style={styles.container}>
-      {/* Header עם חץ חזרה למסך הראשי */}
       <View style={styles.headerRow}>
         <TouchableOpacity onPress={() => router.back()}>
           <Ionicons name="arrow-forward" size={26} color="#1A3C40" />
@@ -37,9 +71,10 @@ export default function NotificationsScreen() {
       </View>
 
       <ScrollView contentContainerStyle={styles.content}>
-        {items.map((item, index) => (
+        {/* קישורים מהירים */}
+        {links.map((item, index) => (
           <TouchableOpacity
-            key={index}
+            key={`link-${index}`}
             style={styles.card}
             activeOpacity={0.85}
             onPress={() => router.push(item.route)}
@@ -51,6 +86,32 @@ export default function NotificationsScreen() {
             </View>
           </TouchableOpacity>
         ))}
+
+        {/* כותרת ההתראות */}
+        <Text style={styles.sectionTitle}>ההתראות שלי</Text>
+
+        {notifications.length === 0 ? (
+          <Text style={styles.emptyText}>אין התראות חדשות</Text>
+        ) : (
+          notifications.map((n) => {
+            const ic = iconForType(n.type);
+            return (
+              <TouchableOpacity
+                key={n.notificationID}
+                style={[styles.notifCard, !n.isRead && styles.notifUnread]}
+                activeOpacity={0.85}
+                onPress={() => handleTap(n)}
+              >
+                <Ionicons name={ic.name} size={26} color={ic.color} />
+                <View style={styles.notifText}>
+                  <Text style={styles.notifTitle}>{n.title}</Text>
+                  {!!n.body && <Text style={styles.notifBody}>{n.body}</Text>}
+                </View>
+                {!n.isRead && <View style={styles.unreadDot} />}
+              </TouchableOpacity>
+            );
+          })
+        )}
       </ScrollView>
 
       <BottomNav active="notifications" />
@@ -107,5 +168,66 @@ const styles = StyleSheet.create({
     backgroundColor: "#EADFCB",
     justifyContent: "center",
     alignItems: "center",
+  },
+
+  sectionTitle: {
+    fontSize: 17,
+    fontFamily: FONTS.bold,
+    color: "#1A3C40",
+    textAlign: "right",
+    marginTop: 18,
+    marginBottom: 10,
+  },
+
+  emptyText: {
+    textAlign: "center",
+    color: "#888",
+    fontFamily: FONTS.regular,
+    marginTop: 20,
+  },
+
+  notifCard: {
+    flexDirection: "row-reverse",
+    alignItems: "center",
+    backgroundColor: "#fff",
+    padding: 14,
+    borderRadius: 14,
+    marginBottom: 10,
+    shadowColor: "#000",
+    shadowOpacity: 0.04,
+    shadowRadius: 5,
+    elevation: 1,
+  },
+
+  notifUnread: {
+    backgroundColor: "#FFF6D6",
+  },
+
+  notifText: {
+    flex: 1,
+    marginHorizontal: 12,
+    alignItems: "flex-end",
+  },
+
+  notifTitle: {
+    fontSize: 15,
+    fontFamily: FONTS.bold,
+    color: "#1A3C40",
+    textAlign: "right",
+  },
+
+  notifBody: {
+    fontSize: 13,
+    color: "#666",
+    fontFamily: FONTS.regular,
+    marginTop: 3,
+    textAlign: "right",
+  },
+
+  unreadDot: {
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+    backgroundColor: "#D4AF37",
   },
 });

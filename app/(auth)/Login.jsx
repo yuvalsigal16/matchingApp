@@ -16,6 +16,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { apiLogin } from "../src/api/authService";
 import { getUserProfile } from "../src/api/userProfileService";
 import { setAuth } from "../src/auth/authStore";
+import { registerForPushNotifications } from "../src/push/pushNotifications";
 import { FONTS } from "../src/theme/fonts";
 
 const isValidEmail = (val) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(val.trim());
@@ -61,6 +62,9 @@ export default function LoginScreen() {
 
       const { token, user } = await apiLogin(email, password);
       setAuth(token, user);
+
+      // רישום למנגנון Push Notifications - לא חוסם את ההתחברות אם נכשל
+      registerForPushNotifications(user.userID);
 
       // ניתוב חכם: אם יש פרופיל — Home. אם לא — להמשיך את ההרשמה דרך השאלון.
       // replace במקום navigate כדי שהמסך הזה יוסר מהמחסנית ו-back לא יחזיר לכאן.
