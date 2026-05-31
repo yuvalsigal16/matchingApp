@@ -2,7 +2,16 @@ import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import { useEffect, useMemo, useState } from "react";
 
+import { BASE_URL } from "../src/api/config";
+import { getUserInterests } from "../src/api/interestService";
+import {
+  approveRequest,
+  getPendingRequests,
+  rejectRequest,
+} from "../src/api/notificationService";
+import { getQuestionnaire } from "../src/api/questionnaireService";
 import { getAllUsers } from "../src/api/userService";
+import { getUserProfile } from "../src/api/userProfileService";
 import { getUser } from "../src/auth/authStore";
 
 import {
@@ -16,6 +25,28 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 import BottomNav from "../../components/BottomNav";
 import { FONTS } from "../../theme/fonts";
+
+// חישוב גיל מתאריך לידה (ISO string או Date)
+function computeAge(birthDate) {
+  if (!birthDate) return null;
+  const dob = new Date(birthDate);
+  if (Number.isNaN(dob.getTime())) return null;
+  const today = new Date();
+  let age = today.getFullYear() - dob.getFullYear();
+  const m = today.getMonth() - dob.getMonth();
+  if (m < 0 || (m === 0 && today.getDate() < dob.getDate())) age--;
+  return age;
+}
+
+// בונה URI מלא לתמונה (השרת עשוי להחזיר נתיב יחסי)
+function buildImageUri(raw) {
+  if (!raw) return null;
+  const value = String(raw).trim();
+  if (!value) return null;
+  if (/^(https?:|data:|file:)/i.test(value)) return value;
+  const origin = BASE_URL.replace(/\/api\/?$/, "");
+  return value.startsWith("/") ? `${origin}${value}` : `${origin}/${value}`;
+}
 
 export default function MatchesScreen() {
   const router = useRouter();
@@ -36,24 +67,91 @@ export default function MatchesScreen() {
     loadUsers();
   }, []);
 
+  // ממיר אובייקט פרופיל+תחומים+שאלון לאובייקט אחיד שהאלגוריתם משתמש בו.
+  // basicUser = מה ש-/User מחזיר (userID, email, profileImage בלבד).
+  const buildEnrichedUser = (basicUser, profile, interests, quest) => ({
+    ...basicUser,
+    userID: basicUser.userID,
+    name: [profile?.firstName, profile?.lastName]
+      .filter(Boolean)
+      .join(" ")
+      .trim(),
+    age: computeAge(profile?.birthDate),
+    profileImage: profile?.profileImage ?? basicUser.profileImage ?? null,
+    interests: (interests || []).map((i) => i?.interestName).filter(Boolean),
+    isSmoker: quest?.isSmoker ?? null,
+    keepsKosher: quest?.keepsKosher ?? null,
+    keepsShabbat: quest?.keepsShabbat ?? null,
+    spontaneityLevel: quest?.spontaneityLevel ?? null,
+    lifestyleLevel: quest?.lifestyleLevel ?? null,
+  });
+
+  // מעשיר משתמש בודד ע"י 3 קריאות מקבילות לפרופיל/תחומים/שאלון.
+  // הערה: בעתיד, כשה-controller יקרא ל-SP GetAllUsers, אפשר להוריד את זה
+  // ולחזור ל-getAllUsers בלבד (האנדפוינט יחזיר הכל בקריאה אחת).
+  const enrichUser = async (basicUser) => {
+    const [p, i, q] = await Promise.allSettled([
+      getUserProfile(basicUser.userID),
+      getUserInterests(basicUser.userID),
+      getQuestionnaire(basicUser.userID),
+    ]);
+    return buildEnrichedUser(
+      basicUser,
+      p.status === "fulfilled" ? p.value : null,
+      i.status === "fulfilled" ? i.value || [] : [],
+      q.status === "fulfilled" ? q.value : null,
+    );
+  };
+
   const loadUsers = async () => {
     try {
       setLoading(true);
 
-      // המשתמש המחובר
       const loggedInUser = getUser();
+      if (!loggedInUser?.userID) {
+        console.warn("[MatchesScreen] אין משתמש מחובר");
+        return;
+      }
+      const myId = loggedInUser.userID;
 
-      setCurrentUser(loggedInUser);
+      // 1) טוענים במקביל: משתמשים, פרופיל שלי, תחומים, שאלון, בקשות ממתינות
+      const [
+        allUsersRes,
+        myProfileRes,
+        myInterestsRes,
+        myQuestRes,
+        pendingRes,
+      ] = await Promise.allSettled([
+        getAllUsers(),
+        getUserProfile(myId),
+        getUserInterests(myId),
+        getQuestionnaire(myId),
+        getPendingRequests(myId),
+      ]);
 
-      // כל המשתמשים מהשרת
-      const allUsers = await getAllUsers();
+      const basicUsers =
+        allUsersRes.status === "fulfilled" ? allUsersRes.value || [] : [];
 
-      // לא להציג את המשתמש עצמו
-      const filteredUsers = allUsers.filter(
-        (u) => u.userID !== loggedInUser.userID,
+      const me = buildEnrichedUser(
+        loggedInUser,
+        myProfileRes.status === "fulfilled" ? myProfileRes.value : null,
+        myInterestsRes.status === "fulfilled" ? myInterestsRes.value || [] : [],
+        myQuestRes.status === "fulfilled" ? myQuestRes.value : null,
       );
 
-      setUsers(filteredUsers);
+      setCurrentUser(me);
+
+      // 2) מסננים אותי, ומעשירים כל משתמש במקביל
+      const others = basicUsers.filter((u) => u.userID !== myId);
+      const enriched = await Promise.all(others.map(enrichUser));
+
+      setUsers(enriched);
+
+      // 3) בקשות נכנסות בלבד (אני הנמען)
+      const allPending =
+        pendingRes.status === "fulfilled" ? pendingRes.value || [] : [];
+      const incoming = allPending.filter((r) => r.toUserID === myId);
+      setRequests(incoming);
     } catch (err) {
       console.log("Failed loading users:", err);
     } finally {
@@ -70,87 +168,88 @@ export default function MatchesScreen() {
     }
 
     return users
+      // מציגים רק משתמשים שיש להם פרופיל (שם) — לא מציגים רשומות חלקיות
+      .filter((user) => user.name && user.name.trim().length > 0)
       .map((user) => {
         let score = 0;
 
-        // =========================
-        // גיל
-        // =========================
-
+        // גיל — קרבה בגילים
         if (user.age && currentUser.age) {
           const ageDiff = Math.abs(user.age - currentUser.age);
-
           if (ageDiff <= 2) score += 20;
           else if (ageDiff <= 5) score += 10;
         }
 
-        // =========================
-        // תחומי עניין
-        // =========================
+        // תחומי עניין משותפים (השוואה case-insensitive)
+        const myInterests = (currentUser.interests || []).map((s) =>
+          String(s).toLowerCase(),
+        );
+        const theirInterests = (user.interests || []).map((s) =>
+          String(s).toLowerCase(),
+        );
+        const shared = theirInterests.filter((i) => myInterests.includes(i));
+        score += shared.length * 15;
 
-        const sharedInterests =
-          user.interests?.filter((interest) =>
-            currentUser.interests?.includes(interest),
-          ) || [];
-
-        score += sharedInterests.length * 15;
-
-        // =========================
-        // התאמה לפי שאלון העדפות
-        // =========================
-
-        if (user.preferredMinAge && user.preferredMaxAge && currentUser.age) {
-          if (
-            currentUser.age >= user.preferredMinAge &&
-            currentUser.age <= user.preferredMaxAge
-          ) {
-            score += 20;
-          }
+        // שאלון — התאמת אורח חיים
+        if (
+          user.isSmoker !== null &&
+          currentUser.isSmoker !== null &&
+          user.isSmoker === currentUser.isSmoker
+        ) {
+          score += 10;
+        }
+        if (
+          user.keepsKosher !== null &&
+          currentUser.keepsKosher !== null &&
+          user.keepsKosher === currentUser.keepsKosher
+        ) {
+          score += 10;
+        }
+        if (
+          user.keepsShabbat !== null &&
+          currentUser.keepsShabbat !== null &&
+          user.keepsShabbat === currentUser.keepsShabbat
+        ) {
+          score += 10;
         }
 
-        // =========================
-        // תחומי עניין רצויים
-        // =========================
-
-        const preferredShared =
-          user.preferredInterests?.filter((interest) =>
-            currentUser.interests?.includes(interest),
-          ) || [];
-
-        score += preferredShared.length * 20;
-
-        // =========================
-        // אלגוריתם התנהגותי
-        // =========================
-
-        if (user.viewedProfiles?.includes(currentUser.userID)) {
-          score += 15;
+        // רמת ספונטניות — ככל שקרוב יותר, ניקוד גבוה יותר (טווח 1-5)
+        if (user.spontaneityLevel != null && currentUser.spontaneityLevel != null) {
+          const diff = Math.abs(user.spontaneityLevel - currentUser.spontaneityLevel);
+          if (diff === 0) score += 15;
+          else if (diff === 1) score += 8;
         }
 
-        if (user.likedProfiles?.includes(currentUser.userID)) {
-          score += 30;
+        // רמת אורח חיים — דומה
+        if (user.lifestyleLevel != null && currentUser.lifestyleLevel != null) {
+          const diff = Math.abs(user.lifestyleLevel - currentUser.lifestyleLevel);
+          if (diff === 0) score += 15;
+          else if (diff === 1) score += 8;
         }
 
-        return {
-          ...user,
-          matchScore: score,
-        };
+        return { ...user, matchScore: Math.min(score, 100) };
       })
       .sort((a, b) => b.matchScore - a.matchScore);
   }, [users, currentUser]);
 
-  // ✔ אישור בקשה
-  const handleAccept = (id) => {
-    setRequests((prev) => prev.filter((item) => item.id !== id));
-
-    console.log("accepted:", id);
+  // ✔ אישור בקשה - יוצר Match בשרת ופותח צ'אט
+  const handleAccept = async (requestId) => {
+    const result = await approveRequest(requestId);
+    setRequests((prev) => prev.filter((r) => r.requestID !== requestId));
+    if (result?.matchID) {
+      router.push({
+        pathname: "/chat/[matchId]",
+        params: { matchId: result.matchID },
+      });
+    }
   };
 
   // ✖ דחייה
-  const handleReject = (id) => {
-    setRequests((prev) => prev.filter((item) => item.id !== id));
-
-    console.log("rejected:", id);
+  const handleReject = async (requestId) => {
+    const ok = await rejectRequest(requestId);
+    if (ok) {
+      setRequests((prev) => prev.filter((r) => r.requestID !== requestId));
+    }
   };
 
   // 👤 מעבר לפרופיל
@@ -199,70 +298,91 @@ export default function MatchesScreen() {
         {requests.length === 0 ? (
           <Text style={styles.placeholder}>אין בקשות חדשות</Text>
         ) : (
-          requests.map((item) => (
-            <View key={item.id} style={styles.requestCard}>
-              <Image source={{ uri: item.image }} style={styles.avatar} />
+          requests.map((req) => {
+            const name = [req.fromFirstName, req.fromLastName]
+              .filter(Boolean)
+              .join(" ")
+              .trim() || `משתמש #${req.fromUserID}`;
+            const age = computeAge(req.fromBirthDate);
+            const imageUri = buildImageUri(req.fromProfileImage);
 
-              <TouchableOpacity
-                onPress={() => openProfile(item)}
-                style={{ flex: 1 }}
-              >
-                <Text style={styles.name}>{item.name}</Text>
+            return (
+              <View key={req.requestID} style={styles.requestCard}>
+                {imageUri ? (
+                  <Image source={{ uri: imageUri }} style={styles.avatar} />
+                ) : (
+                  <View style={[styles.avatar, styles.avatarFallback]}>
+                    <Ionicons name="person" size={24} color="#fff" />
+                  </View>
+                )}
 
-                <Text style={styles.age}>גיל {item.age}</Text>
-              </TouchableOpacity>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.name}>{name}</Text>
+                  {age != null && <Text style={styles.age}>גיל {age}</Text>}
+                </View>
 
-              <View style={styles.actions}>
-                <TouchableOpacity onPress={() => handleAccept(item.id)}>
-                  <Ionicons name="checkmark-circle" size={28} color="green" />
-                </TouchableOpacity>
+                <View style={styles.actions}>
+                  <TouchableOpacity onPress={() => handleAccept(req.requestID)}>
+                    <Ionicons name="checkmark-circle" size={28} color="green" />
+                  </TouchableOpacity>
 
-                <TouchableOpacity onPress={() => handleReject(item.id)}>
-                  <Ionicons name="close-circle" size={28} color="red" />
-                </TouchableOpacity>
+                  <TouchableOpacity onPress={() => handleReject(req.requestID)}>
+                    <Ionicons name="close-circle" size={28} color="red" />
+                  </TouchableOpacity>
+                </View>
               </View>
-            </View>
-          ))
+            );
+          })
         )}
 
         {/* התאמות חכמות */}
         <Text style={styles.sectionTitle}>התאמות חכמות עבורך</Text>
 
-        {smartMatches.map((user) => (
-          <TouchableOpacity
-            key={user.UserID}
-            style={styles.matchCard}
-            onPress={() => openProfile(user)}
-          >
-            <Image
-              source={
-                user.ProfileImage
-                  ? { uri: user.ProfileImage }
-                  : require("../../assets/images/icon.png")
-              }
-              style={styles.matchAvatar}
-            />
+        {smartMatches.length === 0 ? (
+          <Text style={styles.placeholder}>אין משתמשים להציג כרגע</Text>
+        ) : (
+          smartMatches.map((user) => {
+            const imageUri = buildImageUri(user.profileImage);
+            return (
+              <TouchableOpacity
+                key={user.userID}
+                style={styles.matchCard}
+                onPress={() => openProfile(user)}
+              >
+                {imageUri ? (
+                  <Image
+                    source={{ uri: imageUri }}
+                    style={styles.matchAvatar}
+                  />
+                ) : (
+                  <View style={[styles.matchAvatar, styles.avatarFallback]}>
+                    <Ionicons name="person" size={32} color="#fff" />
+                  </View>
+                )}
 
-            <View style={styles.matchInfo}>
-              <Text style={styles.matchName}>{user.name}</Text>
+                <View style={styles.matchInfo}>
+                  <Text style={styles.matchName}>{user.name}</Text>
 
-              <Text style={styles.matchDetails}>גיל {user.age}</Text>
+                  {user.age != null && (
+                    <Text style={styles.matchDetails}>גיל {user.age}</Text>
+                  )}
 
-              <Text style={styles.matchDetails}>
-                {user.interests?.slice(0, 3).join(" • ") || "אין תחומי עניין"}
-              </Text>
-            </View>
+                  <Text style={styles.matchDetails}>
+                    {user.interests.length > 0
+                      ? user.interests.slice(0, 3).join(" • ")
+                      : "אין תחומי עניין"}
+                  </Text>
+                </View>
 
-            {/* ציון התאמה */}
-            <View style={styles.scoreContainer}>
-              <Ionicons name="sparkles" size={18} color="#D4AF37" />
-
-              <Text style={styles.scoreText}>
-                {user.matchScore || user.similarityScore}%
-              </Text>
-            </View>
-          </TouchableOpacity>
-        ))}
+                {/* ציון התאמה */}
+                <View style={styles.scoreContainer}>
+                  <Ionicons name="sparkles" size={18} color="#D4AF37" />
+                  <Text style={styles.scoreText}>{user.matchScore}%</Text>
+                </View>
+              </TouchableOpacity>
+            );
+          })
+        )}
       </ScrollView>
 
       <BottomNav active="home" />
@@ -377,6 +497,12 @@ const styles = StyleSheet.create({
     borderRadius: 29,
     backgroundColor: "#D9D9D9",
     marginLeft: 12,
+  },
+
+  avatarFallback: {
+    backgroundColor: "#7BBDBF",
+    justifyContent: "center",
+    alignItems: "center",
   },
 
   matchInfo: {

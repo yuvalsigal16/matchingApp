@@ -214,9 +214,36 @@ namespace MatchingAppServer.Controllers
             }
         }
 
+        // SAVE EXPO PUSH TOKEN - לטובת שליחת push notifications לטלפון של המשתמש
+        [Authorize]
+        [HttpPost("pushToken")]
+        public IActionResult SavePushToken([FromBody] PushTokenRequest req)
+        {
+            try
+            {
+                int result = bl.SaveExpoPushToken(req.UserID, req.Token);
 
-        
+                if (result > 0)
+                    return Ok("Token saved");
 
+                return NotFound("User not found");
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(new
+                {
+                    ok = false,
+                    message = ex.Message
+                });
+            }
+        }
 
+    }
+
+    // DTO לבקשת שמירת push token
+    public class PushTokenRequest
+    {
+        public int UserID { get; set; }
+        public string Token { get; set; }
     }
 }
