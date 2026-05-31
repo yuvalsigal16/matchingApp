@@ -2558,3 +2558,31 @@ ALTER TABLE dbo.UserProfile
 ADD CONSTRAINT CK_UserProfile_Gender
 CHECK (Gender IN ('Male', 'Female', 'Other') OR Gender IS NULL);
 GO
+
+
+
+
+
+
+
+
+
+CREATE PROCEDURE dbo.AddProfileView
+    @ViewerUserID INT,
+    @ViewedUserID INT
+AS
+BEGIN
+
+    INSERT INTO dbo.ProfileViews
+    (
+        ViewerUserID,
+        ViewedUserID
+    )
+    VALUES
+    (
+        @ViewerUserID,
+        @ViewedUserID
+    );
+
+END
+GO
