@@ -10,14 +10,34 @@ namespace MatchingAppServer.Controllers
     {
         MatchRequest bl = new MatchRequest();
 
-        // SEND REQUEST
+        // SEND REQUEST - TripID אופציונלי (לבקשות צ'אט חופשיות בלי טיול)
         [Authorize]
         [HttpPost]
-        public IActionResult Send(int fromUserID, int toUserID, int tripID)
+        public IActionResult Send(int fromUserID, int toUserID, int? tripID = null)
         {
             try
             {
                 return Ok(bl.Send(fromUserID, toUserID, tripID));
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(ex.Message);
+            }
+        }
+
+        // APPROVE - אישור בקשה. יוצר Match, מחזיר MatchID, ושולח התראה לשולח
+        [Authorize]
+        [HttpPut("approve/{requestID}")]
+        public IActionResult Approve(int requestID)
+        {
+            try
+            {
+                int matchID = bl.Approve(requestID);
+
+                if (matchID > 0)
+                    return Ok(new { matchID });
+
+                return NotFound();
             }
             catch (Exception ex)
             {
@@ -65,7 +85,7 @@ namespace MatchingAppServer.Controllers
             }
         }
 
-        // GET PENDING
+        // GET PENDING - מחזיר גם בקשות נכנסות וגם יוצאות, מועשרות בפרטי המשתמש השני
         [Authorize]
         [HttpGet("pending/{userID}")]
         public IActionResult GetPending(int userID)

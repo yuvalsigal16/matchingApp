@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState } from "react";
 import {
   View,
   Text,
@@ -6,11 +6,25 @@ import {
   Image,
   TouchableOpacity,
   ScrollView,
+  Alert,
 } from "react-native";
 
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
+import { BASE_URL } from "../src/api/config";
+import { sendChatRequest } from "../src/api/notificationService";
+import { getUser } from "../src/auth/authStore";
+
+// בונה URI מלא לתמונה (השרת עשוי להחזיר נתיב יחסי)
+function buildImageUri(raw) {
+  if (!raw) return null;
+  const value = String(raw).trim();
+  if (!value) return null;
+  if (/^(https?:|data:|file:)/i.test(value)) return value;
+  const origin = BASE_URL.replace(/\/api\/?$/, "");
+  return value.startsWith("/") ? `${origin}${value}` : `${origin}/${value}`;
+}
 
 export default function MatchProfile() {
   const router = useRouter();
@@ -19,6 +33,29 @@ export default function MatchProfile() {
 
   // הנתונים שמגיעים מהעמוד הקודם
   const user = JSON.parse(params.user);
+  const imageUri = buildImageUri(user.profileImage);
+
+  const [sending, setSending] = useState(false);
+
+  // שליחת בקשת צ'אט למשתמש
+  const handleSendRequest = async () => {
+    const me = getUser();
+    if (!me?.userID) {
+      Alert.alert("שגיאה", "לא מחובר");
+      return;
+    }
+    if (sending) return;
+    setSending(true);
+    try {
+      await sendChatRequest(me.userID, user.userID);
+      Alert.alert("נשלח", "הבקשה נשלחה בהצלחה");
+      router.back();
+    } catch (err) {
+      Alert.alert("שגיאה", err.message || "שליחת הבקשה נכשלה");
+    } finally {
+      setSending(false);
+    }
+  };
 
   return (
     <SafeAreaView style={styles.container}>
@@ -43,10 +80,13 @@ export default function MatchProfile() {
       <ScrollView contentContainerStyle={styles.content}>
         
         {/* תמונת משתמש */}
-        <Image
-          source={{ uri: user.image }}
-          style={styles.image}
-        />
+        {imageUri ? (
+          <Image source={{ uri: imageUri }} style={styles.image} />
+        ) : (
+          <View style={[styles.image, styles.imageFallback]}>
+            <Ionicons name="person" size={90} color="#fff" />
+          </View>
+        )}
 
         {/* שם וגיל */}
         <Text style={styles.name}>
@@ -61,46 +101,35 @@ export default function MatchProfile() {
             color="#D4AF37"
           />
 
-          <Text style={styles.matchText}>
-            {user.matchScore || user.similarityScore}% התאמה
-          </Text>
+          <Text style={styles.matchText}>{user.matchScore}% התאמה</Text>
         </View>
 
         {/* תחומי עניין */}
-        <Text style={styles.sectionTitle}>
-          תחומי עניין
-        </Text>
+        <Text style={styles.sectionTitle}>תחומי עניין</Text>
 
         <View style={styles.tagsContainer}>
-          {user.interests.map((interest, index) => (
-            <View key={index} style={styles.tag}>
-              <Text style={styles.tagText}>
-                {interest}
-              </Text>
-            </View>
-          ))}
+          {user.interests && user.interests.length > 0 ? (
+            user.interests.map((interest, index) => (
+              <View key={index} style={styles.tag}>
+                <Text style={styles.tagText}>{interest}</Text>
+              </View>
+            ))
+          ) : (
+            <Text style={styles.emptyText}>לא הוגדרו תחומי עניין</Text>
+          )}
         </View>
-
-        {/* תיאור */}
-        <Text style={styles.sectionTitle}>
-          קצת עליי
-        </Text>
-
-        <Text style={styles.bio}>
-          {user.bio ||
-            "אוהב לטייל, להכיר אנשים חדשים ולחוות מקומות מיוחדים בעולם 🌍"}
-        </Text>
 
         {/* כפתורים */}
         <View style={styles.buttonsRow}>
           
           {/* שליחת בקשה */}
           <TouchableOpacity
-            style={styles.chatBtn}
-            onPress={() => alert("בקשה נשלחה")}
+            style={[styles.chatBtn, sending && { opacity: 0.6 }]}
+            onPress={handleSendRequest}
+            disabled={sending}
           >
             <Text style={styles.chatBtnText}>
-              שלח בקשה לצ׳אט
+              {sending ? "שולח..." : "שלח בקשה לצ׳אט"}
             </Text>
           </TouchableOpacity>
 
@@ -152,6 +181,12 @@ const styles = StyleSheet.create({
     height: 180,
     borderRadius: 90,
     marginTop: 20,
+  },
+
+  imageFallback: {
+    backgroundColor: "#7BBDBF",
+    justifyContent: "center",
+    alignItems: "center",
   },
 
   name: {
@@ -209,12 +244,10 @@ const styles = StyleSheet.create({
     fontWeight: "600",
   },
 
-  bio: {
-    fontSize: 16,
-    lineHeight: 28,
-    color: "#444",
-    textAlign: "center",
-    paddingHorizontal: 28,
+  emptyText: {
+    fontSize: 14,
+    color: "#888",
+    fontStyle: "italic",
   },
 
   buttonsRow: {
