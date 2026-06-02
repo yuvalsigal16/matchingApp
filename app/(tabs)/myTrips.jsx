@@ -1,4 +1,6 @@
-import React, { useEffect, useState } from "react";
+import { Ionicons } from "@expo/vector-icons";
+import { useRouter } from "expo-router";
+import { useEffect, useState } from "react";
 import {
   ActivityIndicator,
   ScrollView,
@@ -8,13 +10,11 @@ import {
   View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { useRouter } from "expo-router";
-import { Ionicons } from "@expo/vector-icons";
 
+import BottomNav from "../../components/BottomNav";
 import { BASE_URL } from "../src/api/config";
 import { getToken, getUser } from "../src/auth/authStore";
 import { FONTS } from "../src/theme/fonts";
-import BottomNav from "../../components/BottomNav";
 
 export default function MyTripsScreen() {
   const router = useRouter();
@@ -24,20 +24,35 @@ export default function MyTripsScreen() {
 
   useEffect(() => {
     const loadTrips = async () => {
+      console.log("=== LOAD TRIPS STARTED ===");
       try {
         const userId = getUser()?.userID;
         const token = getToken();
 
+        console.log("userId =", userId);
+        console.log("token exists =", !!token);
+
         if (!userId || !token) return;
 
-        const res = await fetch(`${BASE_URL}/Trips/user/${userId}`, {
+        const res = await fetch(`${BASE_URL}/Trip/user/${userId}`, {
           headers: {
             Authorization: `Bearer ${token}`,
           },
         });
 
-        const data = await res.json();
-        setTrips(data || []);
+        console.log("status =", res.status);
+
+        const text = await res.text();
+
+        console.log("status =", res.status);
+        console.log("response =", text);
+
+        if (!res.ok) {
+          throw new Error(`Server returned ${res.status}`);
+        }
+
+        const data = text ? JSON.parse(text) : [];
+        setTrips(data);
       } catch (err) {
         console.log("Trips error:", err);
       } finally {
@@ -51,9 +66,7 @@ export default function MyTripsScreen() {
   const formatDate = (dateStr) => {
     if (!dateStr) return "";
     const d = new Date(dateStr);
-    return `${d.getDate().toString().padStart(2, "0")}/${(
-      d.getMonth() + 1
-    )
+    return `${d.getDate().toString().padStart(2, "0")}/${(d.getMonth() + 1)
       .toString()
       .padStart(2, "0")}/${d.getFullYear()}`;
   };
@@ -149,17 +162,16 @@ export default function MyTripsScreen() {
       </ScrollView>
 
       <TouchableOpacity
-  style={styles.fab}
-  onPress={() =>
-    router.push({
-      pathname: "/quiz/PreferencesQuiz",
-      params: { mode: "newTrip" },
-    })
-  }
->
-  <Ionicons name="add" size={30} color="#fff" />
-</TouchableOpacity>
-
+        style={styles.fab}
+        onPress={() =>
+          router.push({
+            pathname: "/PreferencesQuiz",
+            params: { mode: "newTrip" },
+          })
+        }
+      >
+        <Ionicons name="add" size={30} color="#fff" />
+      </TouchableOpacity>
 
       <BottomNav active="trips" />
     </SafeAreaView>
@@ -280,15 +292,15 @@ const styles = StyleSheet.create({
   },
 
   fab: {
-  position: "absolute",
-  bottom: 90,
-  alignSelf: "center",
-  backgroundColor: "#1A3C40",
-  width: 60,
-  height: 60,
-  borderRadius: 30,
-  justifyContent: "center",
-  alignItems: "center",
-  elevation: 5,
-},
+    position: "absolute",
+    bottom: 90,
+    alignSelf: "center",
+    backgroundColor: "#1A3C40",
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    justifyContent: "center",
+    alignItems: "center",
+    elevation: 5,
+  },
 });
