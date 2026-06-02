@@ -10,8 +10,8 @@ import {
   rejectRequest,
 } from "../src/api/notificationService";
 import { getQuestionnaire } from "../src/api/questionnaireService";
-import { getAllUsers } from "../src/api/userService";
 import { getUserProfile } from "../src/api/userProfileService";
+import { getAllUsers } from "../src/api/userService";
 import { getUser } from "../src/auth/authStore";
 
 import {
@@ -167,69 +167,81 @@ export default function MatchesScreen() {
       return [];
     }
 
-    return users
-      // מציגים רק משתמשים שיש להם פרופיל (שם) — לא מציגים רשומות חלקיות
-      .filter((user) => user.name && user.name.trim().length > 0)
-      .map((user) => {
-        let score = 0;
+    return (
+      users
+        // מציגים רק משתמשים שיש להם פרופיל (שם) — לא מציגים רשומות חלקיות
+        .filter((user) => user.name && user.name.trim().length > 0)
+        .map((user) => {
+          let score = 0;
 
-        // גיל — קרבה בגילים
-        if (user.age && currentUser.age) {
-          const ageDiff = Math.abs(user.age - currentUser.age);
-          if (ageDiff <= 2) score += 20;
-          else if (ageDiff <= 5) score += 10;
-        }
+          // גיל — קרבה בגילים
+          if (user.age && currentUser.age) {
+            const ageDiff = Math.abs(user.age - currentUser.age);
+            if (ageDiff <= 2) score += 20;
+            else if (ageDiff <= 5) score += 10;
+          }
 
-        // תחומי עניין משותפים (השוואה case-insensitive)
-        const myInterests = (currentUser.interests || []).map((s) =>
-          String(s).toLowerCase(),
-        );
-        const theirInterests = (user.interests || []).map((s) =>
-          String(s).toLowerCase(),
-        );
-        const shared = theirInterests.filter((i) => myInterests.includes(i));
-        score += shared.length * 15;
+          // תחומי עניין משותפים (השוואה case-insensitive)
+          const myInterests = (currentUser.interests || []).map((s) =>
+            String(s).toLowerCase(),
+          );
+          const theirInterests = (user.interests || []).map((s) =>
+            String(s).toLowerCase(),
+          );
+          const shared = theirInterests.filter((i) => myInterests.includes(i));
+          score += shared.length * 15;
 
-        // שאלון — התאמת אורח חיים
-        if (
-          user.isSmoker !== null &&
-          currentUser.isSmoker !== null &&
-          user.isSmoker === currentUser.isSmoker
-        ) {
-          score += 10;
-        }
-        if (
-          user.keepsKosher !== null &&
-          currentUser.keepsKosher !== null &&
-          user.keepsKosher === currentUser.keepsKosher
-        ) {
-          score += 10;
-        }
-        if (
-          user.keepsShabbat !== null &&
-          currentUser.keepsShabbat !== null &&
-          user.keepsShabbat === currentUser.keepsShabbat
-        ) {
-          score += 10;
-        }
+          // שאלון — התאמת אורח חיים
+          if (
+            user.isSmoker !== null &&
+            currentUser.isSmoker !== null &&
+            user.isSmoker === currentUser.isSmoker
+          ) {
+            score += 10;
+          }
+          if (
+            user.keepsKosher !== null &&
+            currentUser.keepsKosher !== null &&
+            user.keepsKosher === currentUser.keepsKosher
+          ) {
+            score += 10;
+          }
+          if (
+            user.keepsShabbat !== null &&
+            currentUser.keepsShabbat !== null &&
+            user.keepsShabbat === currentUser.keepsShabbat
+          ) {
+            score += 10;
+          }
 
-        // רמת ספונטניות — ככל שקרוב יותר, ניקוד גבוה יותר (טווח 1-5)
-        if (user.spontaneityLevel != null && currentUser.spontaneityLevel != null) {
-          const diff = Math.abs(user.spontaneityLevel - currentUser.spontaneityLevel);
-          if (diff === 0) score += 15;
-          else if (diff === 1) score += 8;
-        }
+          // רמת ספונטניות — ככל שקרוב יותר, ניקוד גבוה יותר (טווח 1-5)
+          if (
+            user.spontaneityLevel != null &&
+            currentUser.spontaneityLevel != null
+          ) {
+            const diff = Math.abs(
+              user.spontaneityLevel - currentUser.spontaneityLevel,
+            );
+            if (diff === 0) score += 15;
+            else if (diff === 1) score += 8;
+          }
 
-        // רמת אורח חיים — דומה
-        if (user.lifestyleLevel != null && currentUser.lifestyleLevel != null) {
-          const diff = Math.abs(user.lifestyleLevel - currentUser.lifestyleLevel);
-          if (diff === 0) score += 15;
-          else if (diff === 1) score += 8;
-        }
+          // רמת אורח חיים — דומה
+          if (
+            user.lifestyleLevel != null &&
+            currentUser.lifestyleLevel != null
+          ) {
+            const diff = Math.abs(
+              user.lifestyleLevel - currentUser.lifestyleLevel,
+            );
+            if (diff === 0) score += 15;
+            else if (diff === 1) score += 8;
+          }
 
-        return { ...user, matchScore: Math.min(score, 100) };
-      })
-      .sort((a, b) => b.matchScore - a.matchScore);
+          return { ...user, matchScore: Math.min(score, 100) };
+        })
+        .sort((a, b) => b.matchScore - a.matchScore)
+    );
   }, [users, currentUser]);
 
   // ✔ אישור בקשה - יוצר Match בשרת ופותח צ'אט
@@ -299,10 +311,11 @@ export default function MatchesScreen() {
           <Text style={styles.placeholder}>אין בקשות חדשות</Text>
         ) : (
           requests.map((req) => {
-            const name = [req.fromFirstName, req.fromLastName]
-              .filter(Boolean)
-              .join(" ")
-              .trim() || `משתמש #${req.fromUserID}`;
+            const name =
+              [req.fromFirstName, req.fromLastName]
+                .filter(Boolean)
+                .join(" ")
+                .trim() || `משתמש #${req.fromUserID}`;
             const age = computeAge(req.fromBirthDate);
             const imageUri = buildImageUri(req.fromProfileImage);
 

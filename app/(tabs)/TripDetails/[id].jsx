@@ -1,23 +1,19 @@
 import { Ionicons } from "@expo/vector-icons";
 import { useLocalSearchParams, useRouter } from "expo-router";
-import React, { useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
   ScrollView,
-  StyleSheet,
   Text,
   TouchableOpacity,
   View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-
+import { BASE_URL } from "../../src/api/config";
 import { getToken } from "../../src/auth/authStore";
-import { FONTS } from "../../src/theme/fonts";
 
-import {
-  getMatchesByTrip,
-} from "../../src/api/chatService";
+import { getMatchesByTrip } from "../../src/api/chatService";
 
 export default function TripDetails() {
   const router = useRouter();
@@ -33,9 +29,9 @@ export default function TripDetails() {
   const formatDate = (dateStr) => {
     if (!dateStr) return "";
     const d = new Date(dateStr);
-    return `${d.getDate().toString().padStart(2, "0")}/${(
-      d.getMonth() + 1
-    ).toString().padStart(2, "0")}/${d.getFullYear()}`;
+    return `${d.getDate().toString().padStart(2, "0")}/${(d.getMonth() + 1)
+      .toString()
+      .padStart(2, "0")}/${d.getFullYear()}`;
   };
 
   const isPast = trip?.endDate && new Date(trip.endDate) < new Date();
@@ -74,6 +70,10 @@ export default function TripDetails() {
           fetch(`${BASE_URL}/Trips/${id}/participants`, { headers }),
         ]);
 
+        if (!tripRes.ok) throw new Error("Trip load failed");
+
+        if (!participantsRes.ok) throw new Error("Participants load failed");
+
         const tripData = await tripRes.json();
         const participantsData = await participantsRes.json();
 
@@ -90,9 +90,8 @@ export default function TripDetails() {
           (matchesData || []).map((m) => ({
             matchID: m.matchID,
             name: m.name || `משתמש ${m.userId}`,
-          }))
+          })),
         );
-
       } catch (err) {
         console.log(err);
         Alert.alert("שגיאה", "טעינת הטיול נכשלה");
@@ -121,14 +120,12 @@ export default function TripDetails() {
 
             const res = await fetch(`${BASE_URL}/Trips/${id}`, {
               method: "DELETE",
-              headers: token
-                ? { Authorization: `Bearer ${token}` }
-                : {},
+              headers: token ? { Authorization: `Bearer ${token}` } : {},
             });
 
             if (!res.ok) throw new Error("מחיקה נכשלה");
 
-            router.replace("/MyTrips");
+            router.back();
           } catch (err) {
             Alert.alert("שגיאה", err.message);
           } finally {
@@ -165,7 +162,6 @@ export default function TripDetails() {
 
   return (
     <SafeAreaView style={styles.container}>
-
       {/* HEADER */}
       <View style={styles.header}>
         <TouchableOpacity onPress={() => router.back()}>
@@ -177,13 +173,12 @@ export default function TripDetails() {
       </View>
 
       <ScrollView contentContainerStyle={styles.content}>
-
         {/* TRIP CARD */}
         <View style={[styles.card, isPast && styles.cardPast]}>
-          <Text style={styles.title}>{trip.destination}</Text>
+          <Text style={styles.title}>{trip.Destination}</Text>
 
           <Text style={styles.label}>יעד</Text>
-          <Text style={styles.value}>{trip.destination}</Text>
+          <Text style={styles.value}>{trip.Destination}</Text>
 
           <Text style={styles.label}>תאריכים</Text>
           <Text style={styles.value}>
@@ -226,9 +221,7 @@ export default function TripDetails() {
                 onPress={() => openProfile(m.userId)}
               >
                 <View style={styles.avatar} />
-                <Text style={styles.name}>
-                  {m.name || "משתמש"}
-                </Text>
+                <Text style={styles.name}>{m.name || "משתמש"}</Text>
               </TouchableOpacity>
             ))}
           </ScrollView>
@@ -266,7 +259,6 @@ export default function TripDetails() {
             </Text>
           </TouchableOpacity>
         </View>
-
       </ScrollView>
     </SafeAreaView>
   );

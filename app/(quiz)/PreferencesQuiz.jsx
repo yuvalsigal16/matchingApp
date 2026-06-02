@@ -353,14 +353,23 @@ export default function PreferencesQuizScreen() {
       setSubmitError("");
       setSubmitting(true);
       try {
+        console.log("START submitFullTrip");
+
         await submitFullTrip();
+
+        console.log("submitFullTrip SUCCESS");
+        console.log("isNewTripFlow =", isNewTripFlow);
+
         if (isNewTripFlow) {
-          router.replace("/MyTrips");
+          console.log("NAVIGATING TO MYTRIPS");
+          router.replace("/(tabs)/myTrips");
         } else {
-          router.replace("/Home");
+          console.log("NAVIGATING TO HOME");
+          router.replace("/(tabs)/Home");
         }
       } catch (err) {
-        setSubmitError(err.message); // נכשל → מציג שגיאה
+        console.log("SUBMIT ERROR:", err);
+        setSubmitError(err.message);
       } finally {
         setSubmitting(false);
       }
