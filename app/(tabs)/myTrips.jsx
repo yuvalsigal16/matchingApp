@@ -1,6 +1,7 @@
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
+import { useFocusEffect } from "@react-navigation/native";
 import {
   ActivityIndicator,
   ScrollView,
@@ -22,46 +23,52 @@ export default function MyTripsScreen() {
   const [trips, setTrips] = useState([]);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    const loadTrips = async () => {
-      console.log("=== LOAD TRIPS STARTED ===");
-      try {
-        const userId = getUser()?.userID;
-        const token = getToken();
 
-        console.log("userId =", userId);
-        console.log("token exists =", !!token);
 
-        if (!userId || !token) return;
+  const loadTrips = async () => {
+  console.log("=== LOAD TRIPS STARTED ===");
 
-        const res = await fetch(`${BASE_URL}/Trip/user/${userId}`, {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        });
+  try {
+    const userId = getUser()?.userID;
+    const token = getToken();
 
-        console.log("status =", res.status);
+    if (!userId || !token) return;
 
-        const text = await res.text();
-
-        console.log("status =", res.status);
-        console.log("response =", text);
-
-        if (!res.ok) {
-          throw new Error(`Server returned ${res.status}`);
-        }
-
-        const data = text ? JSON.parse(text) : [];
-        setTrips(data);
-      } catch (err) {
-        console.log("Trips error:", err);
-      } finally {
-        setLoading(false);
+    const res = await fetch(
+      `${BASE_URL}/Trip/user/${userId}`,
+      {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
       }
-    };
+    );
 
+    const text = await res.text();
+
+    if (!res.ok) {
+      throw new Error(`Server returned ${res.status}`);
+    }
+
+    const data = text ? JSON.parse(text) : [];
+    setTrips(data);
+  } catch (err) {
+    console.log("Trips error:", err);
+  } finally {
+    setLoading(false);
+  }
+};
+
+
+
+useEffect(() => {
+  loadTrips();
+}, []);
+
+useFocusEffect(
+  useCallback(() => {
     loadTrips();
-  }, []);
+  }, [])
+);
 
   const formatDate = (dateStr) => {
     if (!dateStr) return "";
@@ -84,11 +91,11 @@ export default function MyTripsScreen() {
         style={[styles.card, past && styles.cardPast]}
         activeOpacity={0.85}
         onPress={() =>
-          router.push({
-            pathname: "/trips/[id]",
-            params: { id: trip.tripID },
-          })
-        }
+  router.push({
+    pathname: "/TripDetails/[id]",
+    params: { id: trip.tripID },
+  })
+}
       >
         {/* כותרת ראשית */}
         <View style={styles.row}>
