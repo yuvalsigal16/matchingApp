@@ -15,6 +15,7 @@ import { getToken } from "../../src/auth/authStore";
 
 import { getMatchesByTrip } from "../../src/api/chatService";
 
+import { StyleSheet } from "react-native";
 export default function TripDetails() {
   const router = useRouter();
   const { id } = useLocalSearchParams();
@@ -66,9 +67,9 @@ export default function TripDetails() {
 
         // Trip + Participants
         const [tripRes, participantsRes] = await Promise.all([
-          fetch(`${BASE_URL}/Trips/${id}`, { headers }),
-          fetch(`${BASE_URL}/Trips/${id}/participants`, { headers }),
-        ]);
+  fetch(`${BASE_URL}/Trip/${id}`, { headers }),
+  fetch(`${BASE_URL}/Trips/${id}/participants`, { headers }),
+]);
 
         if (!tripRes.ok) throw new Error("Trip load failed");
 
@@ -118,7 +119,7 @@ export default function TripDetails() {
             setDeleting(true);
             const token = getToken();
 
-            const res = await fetch(`${BASE_URL}/Trips/${id}`, {
+            const res = await fetch(`${BASE_URL}/Trip/${id}`, {
               method: "DELETE",
               headers: token ? { Authorization: `Bearer ${token}` } : {},
             });
@@ -263,3 +264,124 @@ export default function TripDetails() {
     </SafeAreaView>
   );
 }
+
+
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: "#F5F0E8",
+  },
+
+  center: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+
+  header: {
+    flexDirection: "row-reverse",
+    justifyContent: "space-between",
+    alignItems: "center",
+    padding: 20,
+  },
+
+  headerTitle: {
+    fontSize: 20,
+    fontWeight: "bold",
+    color: "#1A3C40",
+  },
+
+  content: {
+    padding: 20,
+  },
+
+  card: {
+    backgroundColor: "#fff",
+    borderRadius: 16,
+    padding: 16,
+    marginBottom: 15,
+  },
+
+  cardPast: {
+    opacity: 0.7,
+  },
+
+  title: {
+    fontSize: 22,
+    fontWeight: "bold",
+    textAlign: "right",
+    marginBottom: 10,
+  },
+
+  label: {
+    fontSize: 12,
+    color: "#777",
+    textAlign: "right",
+    marginTop: 8,
+  },
+
+  value: {
+    fontSize: 15,
+    textAlign: "right",
+  },
+
+  sectionTitle: {
+    fontSize: 18,
+    fontWeight: "bold",
+    textAlign: "right",
+    marginBottom: 10,
+    marginTop: 15,
+  },
+
+  participant: {
+    flexDirection: "row-reverse",
+    alignItems: "center",
+    gap: 10,
+    marginBottom: 8,
+  },
+
+  matchCard: {
+    backgroundColor: "#fff",
+    borderRadius: 12,
+    padding: 12,
+    marginLeft: 10,
+    alignItems: "center",
+    width: 100,
+  },
+
+  avatar: {
+    width: 50,
+    height: 50,
+    borderRadius: 25,
+    backgroundColor: "#ddd",
+    marginBottom: 8,
+  },
+
+  name: {
+    fontSize: 14,
+  },
+
+  chatRow: {
+    flexDirection: "row-reverse",
+    alignItems: "center",
+    gap: 10,
+    marginBottom: 10,
+  },
+
+  actions: {
+    marginTop: 20,
+  },
+
+  deleteBtn: {
+    backgroundColor: "#D9534F",
+    padding: 14,
+    borderRadius: 12,
+    alignItems: "center",
+  },
+
+  btnText: {
+    color: "#fff",
+    fontWeight: "bold",
+  },
+});

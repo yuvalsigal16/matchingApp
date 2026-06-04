@@ -1,23 +1,31 @@
 // ייבוא אייקונים מ-lucide-react-native
 import {
   ChevronRight, // חץ ימינה — לכפתור חזרה
-  RotateCw,     // חץ סיבוב — לכפתור "סובב את הגלגל"
-  Sparkles,     // אייקון נצנוצים — לכותרת "גלגל המזל"
-  MapPin,       // סיכת מפה — לכרטיס התוצאה
-  User,         // אייקון משתמש — לפרטי הפרטנר
+  RotateCw, // חץ סיבוב — לכפתור "סובב את הגלגל"
+  Sparkles, // אייקון נצנוצים — לכותרת "גלגל המזל"
+  MapPin, // סיכת מפה — לכרטיס התוצאה
+  User, // אייקון משתמש — לפרטי הפרטנר
 } from "lucide-react-native";
 
+import {
+  getUserTrips,
+  getTripPreferences,
+  getTripPreferenceInterests,
+  getDestinations,
+  createTrip,
+} from "../src/api/tripService";
+
 // ייבוא Hooks של React
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 // ייבוא רכיבי UI מ-React Native
 import {
-  Animated,    // מאפשר אנימציות (סיבוב הגלגל)
-  Easing,      // פונקציות שולטות במהירות האנימציה (האם מאיץ? מאט?)
-  Pressable,   // כפתור עם פידבק שינוי צבע בלחיצה
-  StyleSheet,  // הגדרת עיצובים
-  Text,        // הצגת טקסט
-  View,        // מיכל/קופסה
+  Animated, // מאפשר אנימציות (סיבוב הגלגל)
+  Easing, // פונקציות שולטות במהירות האנימציה (האם מאיץ? מאט?)
+  Pressable, // כפתור עם פידבק שינוי צבע בלחיצה
+  StyleSheet, // הגדרת עיצובים
+  Text, // הצגת טקסט
+  View, // מיכל/קופסה
 } from "react-native";
 
 // SafeAreaView — מבטיח שהתוכן לא ייחסם על ידי ה-notch או סרגל הניווט
@@ -25,6 +33,12 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
 // פונטים מותאמים של האפליקציה
 import { FONTS } from "../src/theme/fonts";
+import { getAllUsers } from "../src/api/userService";
+import { getUser } from "../src/auth/authStore";
+import { getUserProfile } from "../src/api/userProfileService";
+import { getUserInterests } from "../src/api/interestService";
+import { getQuestionnaire } from "../src/api/questionnaireService";
+import { saveWheelSelection } from "../src/api/tripService";
 
 // גודל הגלגל בפיקסלים — בסיס לחישוב כל המידות הפנימיות
 const WHEEL_SIZE = 290;
@@ -43,24 +57,328 @@ const COLORS = [
   "#4ECDC4", // turquoise בהיר
 ];
 
-// ── מאגר היעדים האפשריים ──
-// 8 יעדים, כל אחד עם פרטנר מוצע ומידע קצר
-// בעתיד — תוחלף ברשימה דינמית מהשרת
-const DESTINATIONS_POOL = [
-  { name: "ניו יורק", partner: "אלון, 28", info: "אוהב קולינריה וחיי לילה" },
-  { name: "טוקיו", partner: "מיה, 24", info: "חובבת אנימה ותרבות יפן" },
-  { name: "פריז", partner: "נועה, 31", info: "צלמת, מחפשת פינות נסתרות" },
-  { name: "לונדון", partner: "עידו, 27", info: "חובב היסטוריה וכדורגל" },
-  { name: "תאילנד", partner: "איתי, 26", info: "מחפש בטן-גב וצלילות באיים" },
-  { name: "רומא", partner: "יובל, 26", info: "חובבת איטלקית ופיצה" },
-  { name: "ברלין", partner: "תומר, 29", info: "מחפש מסיבות טכנו ואמנות" },
-  { name: "מדריד", partner: "דניאל, 25", info: "חובב כדורגל וטאפאס" },
-];
+
+
+
+
+function computeAge(birthDate) {
+  if (!birthDate) return null;
+  const dob = new Date(birthDate);
+  if (Number.isNaN(dob.getTime())) return null;
+  const today = new Date();
+  let age = today.getFullYear() - dob.getFullYear();
+  const m = today.getMonth() - dob.getMonth();
+  if (m < 0 || (m === 0 && today.getDate() < dob.getDate())) age--;
+  return age;
+}
+
+const buildEnrichedUser = (basicUser, profile, interests, quest) => ({
+  ...basicUser,
+  userID: basicUser.userID,
+  name: [profile?.firstName, profile?.lastName]
+    .filter(Boolean)
+    .join(" ")
+    .trim(),
+  age: computeAge(profile?.birthDate),
+  profileImage: profile?.profileImage ?? basicUser.profileImage ?? null,
+  interests: (interests || []).map((i) => i?.interestName).filter(Boolean),
+  isSmoker: quest?.isSmoker ?? null,
+  keepsKosher: quest?.keepsKosher ?? null,
+  keepsShabbat: quest?.keepsShabbat ?? null,
+  spontaneityLevel: quest?.spontaneityLevel ?? null,
+  lifestyleLevel: quest?.lifestyleLevel ?? null,
+});
+
+const enrichUser = async (basicUser) => {
+  const [p, i, q] = await Promise.allSettled([
+    getUserProfile(basicUser.userID),
+    getUserInterests(basicUser.userID),
+    getQuestionnaire(basicUser.userID),
+  ]);
+
+  return buildEnrichedUser(
+    basicUser,
+    p.status === "fulfilled" ? p.value : null,
+    i.status === "fulfilled" ? i.value || [] : [],
+    q.status === "fulfilled" ? q.value : null
+  );
+};
+
+
+
 
 // ── הקומפוננטה הראשית של מסך גלגל המזל ──
 // מסך זה מוצג כאשר המשתמש מדלג על בחירת יעד בשאלון ההעדפות
 export default function WheelScreen() {
   const router = useRouter();
+  const [destinations, setDestinations] = useState([]);
+  const [users, setUsers] = useState([]);
+const [currentUser, setCurrentUser] = useState(null);
+const [bestMatch, setBestMatch] = useState(null);
+// const [matches, setMatches] = useState([]);
+
+// const saveTripToDB = async () => {
+//   if (!result) return;
+
+//   try {
+//     const currentUser = getUser();
+
+//     const payload = {
+//   userID: currentUser.userID,
+//   destination: result.name,
+//   partnerID: bestMatch?.userID || null,
+// };
+
+// console.log("SENDING TRIP:");
+// console.log(JSON.stringify(payload, null, 2));
+
+// const response = await createTrip(payload);
+
+// console.log("CREATE TRIP RESPONSE:");
+// console.log(response);
+
+// await saveWheelSelection(
+//   currentUser.userID,
+//   result.destinationId,
+//   bestMatch?.userID
+// );
+
+// router.replace("/Home");
+//   } catch (err) {
+//   console.log("SAVE TRIP ERROR");
+//   console.log(err);
+// }
+// };
+
+const saveTripToDB = async () => {
+  try {
+    console.log("BUTTON CLICKED");
+
+    if (!result) {
+      console.log("NO RESULT");
+      return;
+    }
+
+    const loggedUser = getUser();
+
+    console.log("USER:", loggedUser);
+
+    const startDate = new Date();
+startDate.setDate(startDate.getDate() + 30);
+
+const endDate = new Date();
+endDate.setDate(endDate.getDate() + 37);
+
+const payload = {
+  createdByUserID: loggedUser.userID,
+  destination: result.name,
+  startDate: startDate.toISOString(),
+  endDate: endDate.toISOString(),
+  status: "Active",
+};
+
+    console.log("PAYLOAD:");
+    console.log(JSON.stringify(payload, null, 2));
+
+    const response = await createTrip(payload);
+
+    console.log("CREATE TRIP SUCCESS:");
+    console.log(response);
+
+    router.replace("/Home");
+  } catch (err) {
+    console.log("SAVE TRIP ERROR:");
+    console.log(err);
+    console.log(err?.message);
+  }
+};
+
+useEffect(() => {
+  loadDestinations();
+  loadUsers();
+}, []);
+
+async function loadDestinations() {
+  try {
+    const data = await getDestinations();
+
+    console.log("API returned:", data);
+
+    console.log(
+      data.map((d) => ({
+        destinationId: d.destinationID,
+        name: d.destinationName,
+        info: d.description,
+      }))
+    );
+
+    setDestinations(
+      data.map((d) => ({
+        destinationId: d.destinationID,
+        name: d.destinationName,
+        info: d.description,
+      }))
+    );
+  } catch (err) {
+    console.log("Wheel destinations error:", err);
+  }
+}
+
+async function loadUsers() {
+  try {
+    const loggedInUser = getUser();
+
+    if (!loggedInUser?.userID) return;
+
+    const myId = loggedInUser.userID;
+
+    const [
+      allUsersRes,
+      myProfileRes,
+      myInterestsRes,
+      myQuestRes,
+    ] = await Promise.allSettled([
+      getAllUsers(),
+      getUserProfile(myId),
+      getUserInterests(myId),
+      getQuestionnaire(myId),
+    ]);
+
+    const basicUsers =
+      allUsersRes.status === "fulfilled"
+        ? allUsersRes.value || []
+        : [];
+
+    const me = buildEnrichedUser(
+      loggedInUser,
+      myProfileRes.status === "fulfilled"
+        ? myProfileRes.value
+        : null,
+      myInterestsRes.status === "fulfilled"
+        ? myInterestsRes.value || []
+        : [],
+      myQuestRes.status === "fulfilled"
+        ? myQuestRes.value
+        : null
+    );
+
+    setCurrentUser(me);
+
+    const others = basicUsers.filter(
+      (u) => u.userID !== myId
+    );
+
+    const enriched = await Promise.all(
+      others.map(enrichUser)
+    );
+
+    const usersWithScore = enriched.map((user) => {
+  let score = 0;
+
+  if (user.age && me.age) {
+    const ageDiff = Math.abs(user.age - me.age);
+
+    if (ageDiff <= 2) score += 20;
+    else if (ageDiff <= 5) score += 10;
+  }
+
+  const myInterests = (me.interests || []).map((s) =>
+    s.toLowerCase()
+  );
+
+  const shared = (user.interests || []).filter((i) =>
+    myInterests.includes(i.toLowerCase())
+  );
+
+  score += shared.length * 15;
+
+  if (user.isSmoker === me.isSmoker) score += 10;
+  if (user.keepsKosher === me.keepsKosher) score += 10;
+  if (user.keepsShabbat === me.keepsShabbat) score += 10;
+
+  return {
+    ...user,
+    matchScore: Math.min(score, 100),
+  };
+});
+
+const topMatches = usersWithScore
+  .sort((a, b) => b.matchScore - a.matchScore)
+  .slice(0, 5);
+
+
+
+
+
+  const tripsArrays = await Promise.all(
+  topMatches.map((u) =>
+    getUserTrips(u.userID)
+  )
+);
+console.log(
+  "topMatches:",
+  topMatches.map(u => ({
+    id: u.userID,
+    name: u.name
+  }))
+);
+
+console.log(
+  "tripsArrays:",
+  JSON.stringify(tripsArrays, null, 2)
+);
+console.log("tripsArrays:", JSON.stringify(tripsArrays, null, 2));
+
+const destinationsFromTrips = [];
+
+topMatches.forEach((user, index) => {
+  const trips = tripsArrays[index];
+
+  trips.forEach((trip) => {
+    destinationsFromTrips.push({
+  destinationId: trip.destinationID,
+  tripId: trip.tripID,
+  name: trip.destination,
+  info: "יעד מטיול של משתמש בעל התאמה גבוהה",
+  partner: user,
+});
+  });
+});
+
+const uniqueDestinations = [
+  ...new Map(
+    destinationsFromTrips.map((d) => [
+      d.name,
+      d,
+    ])
+  ).values(),
+];
+
+console.log(
+  "unique destinations:",
+  uniqueDestinations
+);
+
+console.log(
+  "destinationsFromTrips:",
+  JSON.stringify(destinationsFromTrips, null, 2)
+);
+setDestinations(uniqueDestinations);
+
+console.log("uniqueDestinations:", uniqueDestinations);
+
+
+
+
+
+
+
+    setUsers(usersWithScore);
+  } catch (err) {
+    console.log(err);
+  }
+}
+
   // ── ערכי אנימציה ──
   // ערך הסיבוב הנוכחי של הגלגל (0 = עומד במקום, גדל בכל סיבוב)
   // useRef מונע יצירה מחדש בכל render
@@ -80,14 +398,70 @@ export default function WheelScreen() {
   const [currentDeg, setCurrentDeg] = useState(0);
 
   // ── חישוב מספרי המקטעים והזווית של כל מקטע ──
-  const numberOfSectors = DESTINATIONS_POOL.length; // 8 מקטעים
-  const sectorAngle = 360 / numberOfSectors;        // 45 מעלות לכל מקטע
+  // const numberOfSectors = DESTINATIONS_POOL.length; // 8 מקטעים
+  const numberOfSectors = destinations.length || 1;
+  const sectorAngle = 360 / numberOfSectors; // 45 מעלות לכל מקטע
+
+  // const smartMatches =
+  // currentUser && users.length
+  //   ? users
+  //       .map((user) => {
+  //         let score = 0;
+
+  //         if (user.age && currentUser.age) {
+  //           const ageDiff = Math.abs(
+  //             user.age - currentUser.age
+  //           );
+
+  //           if (ageDiff <= 2) score += 20;
+  //           else if (ageDiff <= 5) score += 10;
+  //         }
+
+  //         const myInterests = (
+  //           currentUser.interests || []
+  //         ).map((s) => s.toLowerCase());
+
+  //         const shared = (
+  //           user.interests || []
+  //         ).filter((i) =>
+  //           myInterests.includes(i.toLowerCase())
+  //         );
+
+  //         score += shared.length * 15;
+
+  //         if (
+  //           user.isSmoker === currentUser.isSmoker
+  //         )
+  //           score += 10;
+
+  //         if (
+  //           user.keepsKosher === currentUser.keepsKosher
+  //         )
+  //           score += 10;
+
+  //         if (
+  //           user.keepsShabbat ===
+  //           currentUser.keepsShabbat
+  //         )
+  //           score += 10;
+
+  //         return {
+  //           ...user,
+  //           matchScore: Math.min(score, 100),
+  //         };
+  //       })
+  //       .sort(
+  //         (a, b) =>
+  //           b.matchScore - a.matchScore
+  //       )
+  //   : [];
 
   // ── פונקציה ראשית: מסובבת את הגלגל ──
   const spinWheel = () => {
+    console.log("destinations:", destinations);
+  console.log("length:", destinations.length);
     // אם הגלגל כבר מסתובב — לא לעשות כלום (מניעת לחיצה כפולה)
-    if (isSpinning) 
-      return;
+    if (isSpinning || !destinations.length) return;
     setIsSpinning(true);
     setResult(null); // מנקה תוצאה קודמת
 
@@ -106,15 +480,30 @@ export default function WheelScreen() {
 
     // ── מפעיל את אנימציית הסיבוב ──
     Animated.timing(spinValue, {
-      toValue: totalRotation,                    // הזווית הסופית
-      duration: 5000,                            // 5 שניות של סיבוב
-      easing: Easing.out(Easing.back(0.5)),      // האטה הדרגתית עם "back" — נראה טבעי
-      useNativeDriver: true,                     // הרצה על thread גרפי — חלק יותר
+      toValue: totalRotation, // הזווית הסופית
+      duration: 5000, // 5 שניות של סיבוב
+      easing: Easing.out(Easing.back(0.5)), // האטה הדרגתית עם "back" — נראה טבעי
+      useNativeDriver: true, // הרצה על thread גרפי — חלק יותר
     }).start(() => {
       // callback: רץ אחרי שהאנימציה הסתיימה
       setIsSpinning(false);
-      setCurrentDeg(totalRotation);              // שומר את המיקום הסופי
-      setResult(DESTINATIONS_POOL[randomIndex]); // מציג את התוצאה
+      setCurrentDeg(totalRotation); // שומר את המיקום הסופי
+      // setResult(destinations[randomIndex]);
+
+    const chosenDestination =
+  destinations[randomIndex];
+
+const partner =
+  chosenDestination.partner ?? null;
+
+setBestMatch(partner);
+
+setResult({
+  ...chosenDestination,
+  partner: partner?.name || "לא נמצא פרטנר",
+});
+
+
     });
   };
 
@@ -192,7 +581,7 @@ export default function WheelScreen() {
             ]}
           >
             {/* רנדור כל מקטע של הגלגל */}
-            {DESTINATIONS_POOL.map((item, i) => (
+            {destinations.map((item, i) => (
               <View key={i} style={styles.sectorWrapper}>
                 {/* המקטע עצמו — צורת משולש שמסובבת לזווית הנכונה */}
                 <View
@@ -250,6 +639,11 @@ export default function WheelScreen() {
             <View style={styles.bubblePartnerRow}>
               <User size={16} color="#1A3C40" strokeWidth={1.8} />
               <Text style={styles.bubblePartner}>{result.partner}</Text>
+              {bestMatch && (
+  <Text style={styles.bubbleInfo}>
+    התאמה של {bestMatch.matchScore}% · גיל {bestMatch.age}
+  </Text>
+)}
             </View>
             <Text style={styles.bubbleInfo}>{result.info}</Text>
           </View>
@@ -287,11 +681,7 @@ export default function WheelScreen() {
             />
             {/* טקסט דינמי לפי המצב הנוכחי */}
             <Text style={styles.spinBtnText}>
-              {isSpinning
-                ? "מסתובב..."
-                : result
-                  ? "סובב שוב"
-                  : "סובב את הגלגל"}
+              {isSpinning ? "מסתובב..." : result ? "סובב שוב" : "סובב את הגלגל"}
             </Text>
           </Pressable>
         </Animated.View>
@@ -299,22 +689,19 @@ export default function WheelScreen() {
         {/* כפתור אישור — מוצג רק אחרי שיש תוצאה */}
         {result && !isSpinning ? (
           <Pressable
-            style={({ pressed }) => [
-              styles.confirmBtn,
-              pressed && { opacity: 0.85 },
-            ]}
-            onPress={() => router.replace("/Home")}
-          >
+  style={({ pressed }) => [
+    styles.confirmBtn,
+    pressed && { opacity: 0.85 },
+  ]}
+  onPress={saveTripToDB}
+>
             <Text style={styles.confirmBtnText}>זה היעד שלי!</Text>
           </Pressable>
         ) : null}
 
         {/* כפתור דילוג — תמיד מוצג, מוביל למסך הבית בלי לבחור */}
         <Pressable
-          style={({ pressed }) => [
-            styles.skipBtn,
-            pressed && { opacity: 0.5 },
-          ]}
+          style={({ pressed }) => [styles.skipBtn, pressed && { opacity: 0.5 }]}
           onPress={() => router.replace("/Home")}
           disabled={isSpinning}
         >

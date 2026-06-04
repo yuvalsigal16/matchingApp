@@ -68,7 +68,7 @@ function toIsoDateOnly(date) {
 const GENDER_HE_TO_DB = {
   גבר: "Male",
   אישה: "Female",
-  // "הכל" → null
+  הכל: "Any",
 };
 
 // ─── הגדרת שאלות השאלון ─────────────────────────────────────────────────────
@@ -313,18 +313,17 @@ export default function PreferencesQuizScreen() {
     // ── שלב 2: יצירת רשומת TripPreferences (קשורה ל-Trip) ──
     // טווח הגיל מגיע כ-{ min, max } מסליידר הטווח
     const prefId = await createTripPreferences({
-      TripID: tripId, // מזהה הטיול שנוצר בשלב 1
-      PreferredGender: GENDER_HE_TO_DB[data.gender] || null,
-      PreferredAgeMin: data.ageRange?.min ?? null,
-      PreferredAgeMax: data.ageRange?.max ?? null,
-      // שדות לא רלוונטיים לטיול (שייכים לפרופיל המשתמש)
-      IsSmoker: null,
-      KeepsKosher: null,
-      KeepsShabbat: null,
-      SpontaneityLevel: null,
-      LifestyleLevel: null,
-    });
+  TripID: tripId,
+  PreferredGender: GENDER_HE_TO_DB[data.gender],
+  PreferredAgeMin: data.ageRange?.min,
+  PreferredAgeMax: data.ageRange?.max,
 
+  IsSmoker: null,
+  KeepsKosher: null,
+  KeepsShabbat: null,
+  SpontaneityLevel: null,
+  LifestyleLevel: null,
+});
     // ── שלב 3: שמירת תחומי העניין שנבחרו (קישור many-to-many) ──
     if (Array.isArray(data.interests) && data.interests.length > 0) {
       // Promise.all שולח את כל הקריאות במקביל לחיסכון בזמן

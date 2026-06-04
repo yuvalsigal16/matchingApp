@@ -210,5 +210,11 @@ namespace MatchingAppServer.DAL
                     con.Close();
             }
         }
+
+
+        public List<Trip> GetAllTrips()
+{
+    // SELECT * FROM Trips
+}
     }
 }

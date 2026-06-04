@@ -158,6 +158,9 @@ export default function MatchesScreen() {
       setLoading(false);
     }
   };
+
+
+
   // =========================================
   // 🧠 SMART MATCHING ALGORITHM
   // =========================================
@@ -243,6 +246,10 @@ export default function MatchesScreen() {
         .sort((a, b) => b.matchScore - a.matchScore)
     );
   }, [users, currentUser]);
+
+
+
+
 
   // ✔ אישור בקשה - יוצר Match בשרת ופותח צ'אט
   const handleAccept = async (requestId) => {

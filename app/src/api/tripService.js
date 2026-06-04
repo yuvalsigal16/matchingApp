@@ -274,3 +274,57 @@ export async function addTripPreferenceInterest(tripPreferenceId, interestId) {
 
   return safeParse(text);
 }
+
+
+export async function getDestinations() {
+  const url = `${BASE_URL}/Trip/destinations`;
+
+  const token = getToken();
+
+  console.log("GET", url);
+
+  const res = await fetch(url, {
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
+  });
+
+  console.log("status:", res.status);
+
+  const text = await res.text();
+
+  console.log("body:", text);
+
+  if (!res.ok) {
+    throw new Error(`Failed to load destinations (${res.status})`);
+  }
+
+  return JSON.parse(text);
+}
+
+export async function saveWheelSelection(
+  userId,
+  destinationId,
+  partnerId
+) {
+  const response = await fetch(
+    `${BASE_URL}/wheel-selection`,
+    {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        userId,
+        destinationId,
+        partnerId,
+      }),
+    }
+  );
+
+  if (!response.ok) {
+    throw new Error("Failed to save selection");
+  }
+
+  return response.json();
+}
