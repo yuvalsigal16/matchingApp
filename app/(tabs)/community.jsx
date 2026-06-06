@@ -118,12 +118,12 @@ export default function CommunityScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#F5F0E8" },
+  container: { flex: 1, backgroundColor: "#F0F2F5" },
   center: {
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
-    backgroundColor: "#F5F0E8",
+    backgroundColor: "#F0F2F5",
   },
 
   headerRow: {
@@ -163,7 +163,7 @@ const styles = StyleSheet.create({
     width: 48,
     height: 48,
     borderRadius: 24,
-    backgroundColor: "#E0D5E8",
+    backgroundColor: "#D1FAE5",
     justifyContent: "center",
     alignItems: "center",
   },

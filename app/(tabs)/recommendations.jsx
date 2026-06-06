@@ -144,12 +144,12 @@ export default function RecommendationsScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#F5F0E8" },
+  container: { flex: 1, backgroundColor: "#F0F2F5" },
   center: {
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
-    backgroundColor: "#F5F0E8",
+    backgroundColor: "#F0F2F5",
   },
 
   headerRow: {
@@ -189,7 +189,7 @@ const styles = StyleSheet.create({
     width: 48,
     height: 48,
     borderRadius: 24,
-    backgroundColor: "#D4E8E6",
+    backgroundColor: "#E7F3FF",
     justifyContent: "center",
     alignItems: "center",
   },
@@ -209,7 +209,7 @@ const styles = StyleSheet.create({
   tripName: {
     fontSize: 12,
     fontFamily: FONTS.regular,
-    color: "#7BBDBF",
+    color: "#1877F2",
     marginTop: 2,
   },
 

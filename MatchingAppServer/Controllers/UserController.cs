@@ -73,10 +73,17 @@ namespace MatchingAppServer.Controllers
                 // יצירת טוקן JWT למשתמש שהצליח להתחבר
                 var token = _jwtService.GenerateToken(result.UserID, result.Email);
 
+                // מחזירים אובייקט אנונימי - רק שדות שהלקוח צריך.
+                // לא חושפים UserPassword/CreatedAt בתגובה.
                 return Ok(new
                 {
                     token,
-                    user = result
+                    user = new
+                    {
+                        result.UserID,
+                        result.Email,
+                        result.ProfileImage
+                    }
                 });
             }
             catch (Exception ex)
@@ -105,10 +112,16 @@ namespace MatchingAppServer.Controllers
 
                 var token = _jwtService.GenerateToken(user.UserID, user.Email);
 
+                // מחזירים אובייקט אנונימי - רק שדות שהלקוח צריך.
                 return Ok(new
                 {
                     token,
-                    user
+                    user = new
+                    {
+                        user.UserID,
+                        user.Email,
+                        user.ProfileImage
+                    }
                 });
             }
             catch (Exception ex)

@@ -98,7 +98,7 @@ export default function MatchProfile() {
           <Ionicons
             name="sparkles"
             size={20}
-            color="#D4AF37"
+            color="#F59E0B"
           />
 
           <Text style={styles.matchText}>{user.matchScore}% התאמה</Text>
@@ -153,7 +153,7 @@ export default function MatchProfile() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#E8EDEF",
+    backgroundColor: "#F0F2F5",
   },
 
   header: {
@@ -184,7 +184,7 @@ const styles = StyleSheet.create({
   },
 
   imageFallback: {
-    backgroundColor: "#7BBDBF",
+    backgroundColor: "#1877F2",
     justifyContent: "center",
     alignItems: "center",
   },

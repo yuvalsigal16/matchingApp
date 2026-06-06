@@ -169,7 +169,7 @@ export default function EditTrip() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#F5F0E8",
+    backgroundColor: "#F0F2F5",
   },
 
   center: {
