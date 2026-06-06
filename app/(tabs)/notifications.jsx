@@ -120,7 +120,7 @@ export default function NotificationsScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#F5F0E8" },
+  container: { flex: 1, backgroundColor: "#F0F2F5" },
   content: { paddingHorizontal: 20, paddingTop: 10, paddingBottom: 40 },
 
   headerRow: {
@@ -165,7 +165,7 @@ const styles = StyleSheet.create({
     width: 44,
     height: 44,
     borderRadius: 22,
-    backgroundColor: "#EADFCB",
+    backgroundColor: "#E7F3FF",
     justifyContent: "center",
     alignItems: "center",
   },
@@ -200,7 +200,7 @@ const styles = StyleSheet.create({
   },
 
   notifUnread: {
-    backgroundColor: "#FFF6D6",
+    backgroundColor: "#E7F3FF",
   },
 
   notifText: {
@@ -228,6 +228,6 @@ const styles = StyleSheet.create({
     width: 10,
     height: 10,
     borderRadius: 5,
-    backgroundColor: "#D4AF37",
+    backgroundColor: "#F59E0B",
   },
 });

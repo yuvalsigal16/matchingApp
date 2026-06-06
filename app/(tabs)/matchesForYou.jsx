@@ -402,7 +402,7 @@ export default function MatchesScreen() {
 
                 {/* ציון התאמה */}
                 <View style={styles.scoreContainer}>
-                  <Ionicons name="sparkles" size={18} color="#D4AF37" />
+                  <Ionicons name="sparkles" size={18} color="#F59E0B" />
                   <Text style={styles.scoreText}>{user.matchScore}%</Text>
                 </View>
               </TouchableOpacity>
@@ -419,7 +419,7 @@ export default function MatchesScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#F5F0E8",
+    backgroundColor: "#F0F2F5",
   },
 
   headerRow: {
@@ -526,7 +526,7 @@ const styles = StyleSheet.create({
   },
 
   avatarFallback: {
-    backgroundColor: "#7BBDBF",
+    backgroundColor: "#1877F2",
     justifyContent: "center",
     alignItems: "center",
   },
@@ -553,7 +553,7 @@ const styles = StyleSheet.create({
   scoreContainer: {
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: "#FFF6D6",
+    backgroundColor: "#E7F3FF",
     paddingVertical: 8,
     paddingHorizontal: 10,
     borderRadius: 14,
@@ -563,7 +563,7 @@ const styles = StyleSheet.create({
   scoreText: {
     marginTop: 2,
     fontSize: 14,
-    color: "#B8860B",
+    color: "#B45309",
     fontFamily: FONTS.bold,
   },
 });

@@ -219,7 +219,7 @@ const styles = StyleSheet.create({
   // עיצוב המיכל הראשי - מלא את כל המסך, רקע קרם חמים
   safe: {
     flex: 1,
-    backgroundColor: "#F5F0E8",
+    backgroundColor: "#F0F2F5",
   },
 
   // עיצוב תוכן ה-ScrollView - ממרכז את הטופס אנכית במסך

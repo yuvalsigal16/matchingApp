@@ -727,7 +727,7 @@ const styles = StyleSheet.create({
   // המיכל הראשי של המסך
   container: {
     flex: 1,
-    backgroundColor: "#E8EDEF", // אפור-ירוק עדין
+    backgroundColor: "#F0F2F5", // אפור-ירוק עדין
     paddingHorizontal: 18,
   },
 

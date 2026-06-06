@@ -386,7 +386,7 @@ export default function UpdateIntroQuizScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#F5F0E8" },
+  container: { flex: 1, backgroundColor: "#F0F2F5" },
   center: { justifyContent: "center", alignItems: "center" },
 
   header: {
@@ -538,7 +538,7 @@ const styles = StyleSheet.create({
     borderRadius: 20,
     backgroundColor: "#fff",
     borderWidth: 1.5,
-    borderColor: "#E5DBC7",
+    borderColor: "#DADDE1",
   },
   tagActive: { backgroundColor: "#1A3C40", borderColor: "#1A3C40" },
   tagText: { fontSize: 14, fontFamily: FONTS.regular, color: "#1A3C40" },
@@ -547,9 +547,9 @@ const styles = StyleSheet.create({
   saveBar: {
     paddingHorizontal: 20,
     paddingVertical: 14,
-    backgroundColor: "#F5F0E8",
+    backgroundColor: "#F0F2F5",
     borderTopWidth: 1,
-    borderTopColor: "#E5DBC7",
+    borderTopColor: "#DADDE1",
   },
   saveBtn: {
     backgroundColor: "#1A3C40",

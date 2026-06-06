@@ -41,6 +41,12 @@ export default function ChatScreen() {
   const flatListRef = useRef(null);
 
   useEffect(() => {
+    // אם המשתמש לא מחובר - להחזיר ל-Login במקום לקרוס.
+    // יכול לקרות אם מישהו פותח קישור לצ'אט אחרי logout.
+    if (!currentUser?.userID) {
+      router.replace("/Login");
+      return;
+    }
     loadChat();
   }, []);
 
@@ -66,7 +72,7 @@ export default function ChatScreen() {
       const saved = await sendChatMessage(
         matchId,
         messageText.trim(),
-        currentUser.userID
+        currentUser?.userID
       );
 
       setMessages((prev) => [...prev, saved]);
@@ -110,7 +116,7 @@ export default function ChatScreen() {
   };
 
   const renderMessage = ({ item }) => {
-    const isMine = item.senderID === currentUser.userID;
+    const isMine = item.senderID === currentUser?.userID;
 
     return (
       <View
@@ -207,7 +213,7 @@ export default function ChatScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#F5F0E8" },
+  container: { flex: 1, backgroundColor: "#F0F2F5" },
 
   center: {
     flex: 1,

@@ -243,12 +243,12 @@ export default function ProfileScreen() {
     );
   };
 
-  // route = ה-path אליו הכפתור מנווט (null = לא לחיץ עדיין, כמו "הגדרות" שטרם פותח)
+  // route = ה-path אליו הכפתור מנווט (null = לא לחיץ עדיין)
   const MENU = [
     {
       title: "הגדרות",
       Icon: Settings,
-      route: null,
+      route: "/Settings",
     },
     {
       title: "עדכון פרטים אישיים",
@@ -404,7 +404,7 @@ export default function ProfileScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#F5F0E8" },
+  container: { flex: 1, backgroundColor: "#F0F2F5" },
   // ScrollView contentContainerStyle: לא משתמשים ב-flex:1 כי זה משבית גלילה.
   // paddingBottom נותן אוויר מתחת לכפתור ההתנתקות לפני ה-BottomNav.
   content: { paddingHorizontal: 20, paddingTop: 28, paddingBottom: 30 },
@@ -427,7 +427,7 @@ const styles = StyleSheet.create({
   },
 
   avatarFallback: {
-    backgroundColor: "#E5B7B0",
+    backgroundColor: "#1877F2",
     justifyContent: "center",
     alignItems: "center",
   },
@@ -573,7 +573,7 @@ const styles = StyleSheet.create({
     paddingVertical: 14,
     paddingHorizontal: 16,
     borderRadius: 14,
-    backgroundColor: "#F5F0E8",
+    backgroundColor: "#F0F2F5",
     marginBottom: 10,
     gap: 12,
   },

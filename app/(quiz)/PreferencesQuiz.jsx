@@ -857,7 +857,7 @@ const SHADOW = {
 };
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#E8EDEF" },
+  container: { flex: 1, backgroundColor: "#F0F2F5" },
   flex: { flex: 1, alignItems: "center" },
 
   // ── Progress ──
@@ -1221,7 +1221,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     paddingTop: 12,
     paddingBottom: 20,
-    backgroundColor: "#E8EDEF",
+    backgroundColor: "#F0F2F5",
   },
   nextBtnWrapper: { width: "72%", marginBottom: 8 },
   nextBtn: {

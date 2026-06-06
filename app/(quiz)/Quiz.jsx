@@ -1312,7 +1312,7 @@ const SHADOW = {
 };
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#E8EDEF" },
+  container: { flex: 1, backgroundColor: "#F0F2F5" },
   flex: { flex: 1, alignItems: "center" },
 
   stepsWrapper: {
@@ -1390,7 +1390,7 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
     borderWidth: 2,
-    borderColor: "#E8EDEF",
+    borderColor: "#F0F2F5",
   },
   imagePickerHint: {
     marginTop: 10,
@@ -1516,7 +1516,7 @@ const styles = StyleSheet.create({
   },
   segmentedControl: {
     flexDirection: "row",
-    backgroundColor: "#E8EDEF",
+    backgroundColor: "#F0F2F5",
     borderRadius: 10,
     padding: 3,
   },
@@ -1744,7 +1744,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     paddingTop: 12,
     paddingBottom: 20,
-    backgroundColor: "#E8EDEF",
+    backgroundColor: "#F0F2F5",
   },
   nextBtnWrapper: { width: "72%", marginBottom: 12 },
   nextBtn: {

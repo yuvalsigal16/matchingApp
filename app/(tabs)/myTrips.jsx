@@ -1,6 +1,6 @@
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useState } from "react";
 import { useFocusEffect } from "@react-navigation/native";
 import {
   ActivityIndicator,
@@ -57,12 +57,6 @@ export default function MyTripsScreen() {
     setLoading(false);
   }
 };
-
-
-
-useEffect(() => {
-  loadTrips();
-}, []);
 
 useFocusEffect(
   useCallback(() => {
@@ -156,7 +150,11 @@ useFocusEffect(
         <View style={{ width: 26 }} />
       </View>
 
-      <ScrollView contentContainerStyle={styles.content}>
+      <ScrollView
+        style={styles.scroll}
+        contentContainerStyle={styles.content}
+        showsVerticalScrollIndicator={false}
+      >
         {/* ריק */}
         {trips.length === 0 ? (
           <View style={styles.emptyBox}>
@@ -188,13 +186,20 @@ useFocusEffect(
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#F5F0E8",
+    backgroundColor: "#F0F2F5",
+  },
+
+  // flex: 1 - ה-ScrollView לוקח את כל המקום הפנוי בין ה-Header ל-BottomNav.
+  // בלי flex הוא לא יודע מה גובהו ולא ניתן לגלול בו.
+  scroll: {
+    flex: 1,
   },
 
   content: {
     paddingHorizontal: 20,
     paddingTop: 10,
-    paddingBottom: 40,
+    // paddingBottom גדול כדי שהכפתור הצף (+) וה-BottomNav לא יסתירו את הכרטיס האחרון.
+    paddingBottom: 170,
   },
 
   headerRow: {

@@ -63,9 +63,9 @@ const styles = StyleSheet.create({
     alignItems: "center",
     paddingVertical: 12,
     paddingBottom: 14,
-    backgroundColor: "#F5F0E8",
+    backgroundColor: "#FFFFFF",
     borderTopWidth: 1,
-    borderTopColor: "#E5DBC7",
+    borderTopColor: "#DADDE1",
   },
   navItem: {
     width: 56,

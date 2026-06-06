@@ -59,7 +59,7 @@ export default function DiscoveryScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#F5F0E8" },
+  container: { flex: 1, backgroundColor: "#F0F2F5" },
   content: { paddingHorizontal: 20, paddingTop: 10, paddingBottom: 40 },
 
   headerRow: {
@@ -104,7 +104,7 @@ const styles = StyleSheet.create({
     width: 44,
     height: 44,
     borderRadius: 22,
-    backgroundColor: "#E0D5E8",
+    backgroundColor: "#D1FAE5",
     justifyContent: "center",
     alignItems: "center",
   },
