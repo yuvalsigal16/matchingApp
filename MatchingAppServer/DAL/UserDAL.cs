@@ -28,28 +28,44 @@ namespace MatchingAppServer.DAL
                 { "@CurrentUserID", currentUserId }
             };
 
-            //יצירת פקודה שמפעילה את הפונקציה הזו ואין לה פרמטרים נדרשים
+            //יצירת פקודה שמפעילה את הפונקציה הזו
             cmd = CreateCommandWithStoredProcedureGeneral("GetAllUsers", con, paramDic);
             try
             {
                 List<User> users = new List<User>();
-                reader = cmd.ExecuteReader(); //קריאת נתונים מהמסד נתונים 
-                while (reader.Read()) //מעברי שורה שורה בתוצאות 
+                reader = cmd.ExecuteReader();
+                while (reader.Read())
                 {
-                    //user יצירת אובייקט לכל שורה שנקראת  
+                    // קריאת כל 14 העמודות שה-SP מחזיר -
+                    // מנע 63 קריאות נוספות בקליינט (פרופיל/תחומים/שאלון לכל משתמש).
                     users.Add(new User()
                     {
-                        UserID = Convert.ToInt32(reader["UserId"].ToString()), // int המרה מהמסד ל 
-                        Email = reader["Email"].ToString(),
-                        CreatedAt = Convert.ToDateTime(reader["CreatedAt"])
+                        UserID    = Convert.ToInt32(reader["UserID"]),
+                        Email     = reader["Email"].ToString(),
+                        CreatedAt = Convert.ToDateTime(reader["CreatedAt"]),
+
+                        FirstName    = reader["FirstName"]    == DBNull.Value ? null : reader["FirstName"].ToString(),
+                        LastName     = reader["LastName"]     == DBNull.Value ? null : reader["LastName"].ToString(),
+                        BirthDate    = reader["BirthDate"]    == DBNull.Value ? (DateTime?)null : Convert.ToDateTime(reader["BirthDate"]),
+                        Gender       = reader["Gender"]       == DBNull.Value ? null : reader["Gender"].ToString(),
+                        City         = reader["City"]         == DBNull.Value ? null : reader["City"].ToString(),
+                        ProfileImage = reader["ProfileImage"] == DBNull.Value ? null : reader["ProfileImage"].ToString(),
+
+                        IsSmoker         = reader["IsSmoker"]         == DBNull.Value ? (bool?)null : Convert.ToBoolean(reader["IsSmoker"]),
+                        KeepsKosher      = reader["KeepsKosher"]      == DBNull.Value ? (bool?)null : Convert.ToBoolean(reader["KeepsKosher"]),
+                        KeepsShabbat     = reader["KeepsShabbat"]     == DBNull.Value ? (bool?)null : Convert.ToBoolean(reader["KeepsShabbat"]),
+                        SpontaneityLevel = reader["SpontaneityLevel"] == DBNull.Value ? (int?)null  : Convert.ToInt32(reader["SpontaneityLevel"]),
+                        LifestyleLevel   = reader["LifestyleLevel"]   == DBNull.Value ? (int?)null  : Convert.ToInt32(reader["LifestyleLevel"]),
+
+                        // Interests מגיע כמחרוזת JSON (FOR JSON PATH ב-SP)
+                        Interests = reader["Interests"] == DBNull.Value ? null : reader["Interests"].ToString(),
                     });
                 }
-                return users;// החזרת כל המשתמשים מהרשימה
+                return users;
             }
             catch (Exception) { throw; }
             finally
             {
-                // סגירת החיבור כדי למנוע דליפת משאבים
                 if (con != null)
                 {
                     con.Close();

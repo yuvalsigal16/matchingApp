@@ -6,8 +6,15 @@ import {
   useFonts,
 } from "@expo-google-fonts/heebo";
 import { Stack } from "expo-router";
-import { View } from "react-native";
+import { useEffect, useState } from "react";
+import { I18nManager, View } from "react-native";
 import { SafeAreaProvider } from "react-native-safe-area-context";
+import { loadAuth } from "./src/auth/authStore";
+
+// מבטלים RTL ברמת המערכת. הקוד משתמש ב-"row-reverse" ידני להשגת תצוגת RTL,
+// ולכן ה-isRTL של React Native חייב להישאר false (אחרת זה מתהפך).
+I18nManager.allowRTL(false);
+I18nManager.forceRTL(false);
 
 export default function RootLayout() {
   const [fontsLoaded] = useFonts({
@@ -17,7 +24,14 @@ export default function RootLayout() {
     Heebo_800ExtraBold,
   });
 
-  if (!fontsLoaded) {
+  // טעינת אימות שמור (token + user) מ-SecureStore לזיכרון בעלייה.
+  // עד שהטעינה תסתיים מציגים מסך טעינה זהה לזה של fontsLoaded.
+  const [authLoaded, setAuthLoaded] = useState(false);
+  useEffect(() => {
+    loadAuth().finally(() => setAuthLoaded(true));
+  }, []);
+
+  if (!fontsLoaded || !authLoaded) {
     return <View style={{ flex: 1, backgroundColor: "#1A3C40" }} />;
   }
 
