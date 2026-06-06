@@ -95,5 +95,20 @@ namespace MatchingAppServer.Controllers
                 return BadRequest(ex.Message);
             }
         }
+
+
+        [Authorize]
+[HttpGet("destinations")]
+public IActionResult GetDestinations()
+{
+    try
+    {
+        return Ok(bl.GetDestinations());
+    }
+    catch (Exception ex)
+    {
+        return BadRequest(ex.Message);
+    }
+}
     }
 }

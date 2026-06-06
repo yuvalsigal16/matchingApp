@@ -75,7 +75,7 @@ export default function EditTrip() {
           ...(token ? { Authorization: `Bearer ${token}` } : {}),
         },
         body: JSON.stringify({
-          TripID: id,
+          TripID: Number(id),
           Destination: destination,
           StartDate: startDate,
           EndDate: endDate,

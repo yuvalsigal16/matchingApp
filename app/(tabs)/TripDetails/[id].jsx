@@ -1,24 +1,21 @@
 import { Ionicons } from "@expo/vector-icons";
 import { useLocalSearchParams, useRouter } from "expo-router";
-import React, { useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
   ScrollView,
-  StyleSheet,
   Text,
   TouchableOpacity,
   View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-
+import { BASE_URL } from "../../src/api/config";
 import { getToken } from "../../src/auth/authStore";
-import { FONTS } from "../../src/theme/fonts";
 
-import {
-  getMatchesByTrip,
-} from "../../src/api/chatService";
+import { getMatchesByTrip } from "../../src/api/chatService";
 
+import { StyleSheet } from "react-native";
 export default function TripDetails() {
   const router = useRouter();
   const { id } = useLocalSearchParams();
@@ -33,9 +30,9 @@ export default function TripDetails() {
   const formatDate = (dateStr) => {
     if (!dateStr) return "";
     const d = new Date(dateStr);
-    return `${d.getDate().toString().padStart(2, "0")}/${(
-      d.getMonth() + 1
-    ).toString().padStart(2, "0")}/${d.getFullYear()}`;
+    return `${d.getDate().toString().padStart(2, "0")}/${(d.getMonth() + 1)
+      .toString()
+      .padStart(2, "0")}/${d.getFullYear()}`;
   };
 
   const isPast = trip?.endDate && new Date(trip.endDate) < new Date();
@@ -70,9 +67,13 @@ export default function TripDetails() {
 
         // Trip + Participants
         const [tripRes, participantsRes] = await Promise.all([
-          fetch(`${BASE_URL}/Trips/${id}`, { headers }),
-          fetch(`${BASE_URL}/Trips/${id}/participants`, { headers }),
-        ]);
+  fetch(`${BASE_URL}/Trip/${id}`, { headers }),
+  fetch(`${BASE_URL}/Trips/${id}/participants`, { headers }),
+]);
+
+        if (!tripRes.ok) throw new Error("Trip load failed");
+
+        if (!participantsRes.ok) throw new Error("Participants load failed");
 
         const tripData = await tripRes.json();
         const participantsData = await participantsRes.json();
@@ -90,9 +91,8 @@ export default function TripDetails() {
           (matchesData || []).map((m) => ({
             matchID: m.matchID,
             name: m.name || `משתמש ${m.userId}`,
-          }))
+          })),
         );
-
       } catch (err) {
         console.log(err);
         Alert.alert("שגיאה", "טעינת הטיול נכשלה");
@@ -119,16 +119,14 @@ export default function TripDetails() {
             setDeleting(true);
             const token = getToken();
 
-            const res = await fetch(`${BASE_URL}/Trips/${id}`, {
+            const res = await fetch(`${BASE_URL}/Trip/${id}`, {
               method: "DELETE",
-              headers: token
-                ? { Authorization: `Bearer ${token}` }
-                : {},
+              headers: token ? { Authorization: `Bearer ${token}` } : {},
             });
 
             if (!res.ok) throw new Error("מחיקה נכשלה");
 
-            router.replace("/MyTrips");
+            router.back();
           } catch (err) {
             Alert.alert("שגיאה", err.message);
           } finally {
@@ -165,7 +163,6 @@ export default function TripDetails() {
 
   return (
     <SafeAreaView style={styles.container}>
-
       {/* HEADER */}
       <View style={styles.header}>
         <TouchableOpacity onPress={() => router.back()}>
@@ -177,13 +174,12 @@ export default function TripDetails() {
       </View>
 
       <ScrollView contentContainerStyle={styles.content}>
-
         {/* TRIP CARD */}
         <View style={[styles.card, isPast && styles.cardPast]}>
-          <Text style={styles.title}>{trip.destination}</Text>
+          <Text style={styles.title}>{trip.Destination}</Text>
 
           <Text style={styles.label}>יעד</Text>
-          <Text style={styles.value}>{trip.destination}</Text>
+          <Text style={styles.value}>{trip.Destination}</Text>
 
           <Text style={styles.label}>תאריכים</Text>
           <Text style={styles.value}>
@@ -226,9 +222,7 @@ export default function TripDetails() {
                 onPress={() => openProfile(m.userId)}
               >
                 <View style={styles.avatar} />
-                <Text style={styles.name}>
-                  {m.name || "משתמש"}
-                </Text>
+                <Text style={styles.name}>{m.name || "משתמש"}</Text>
               </TouchableOpacity>
             ))}
           </ScrollView>
@@ -266,8 +260,128 @@ export default function TripDetails() {
             </Text>
           </TouchableOpacity>
         </View>
-
       </ScrollView>
     </SafeAreaView>
   );
 }
+
+
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: "#F5F0E8",
+  },
+
+  center: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+
+  header: {
+    flexDirection: "row-reverse",
+    justifyContent: "space-between",
+    alignItems: "center",
+    padding: 20,
+  },
+
+  headerTitle: {
+    fontSize: 20,
+    fontWeight: "bold",
+    color: "#1A3C40",
+  },
+
+  content: {
+    padding: 20,
+  },
+
+  card: {
+    backgroundColor: "#fff",
+    borderRadius: 16,
+    padding: 16,
+    marginBottom: 15,
+  },
+
+  cardPast: {
+    opacity: 0.7,
+  },
+
+  title: {
+    fontSize: 22,
+    fontWeight: "bold",
+    textAlign: "right",
+    marginBottom: 10,
+  },
+
+  label: {
+    fontSize: 12,
+    color: "#777",
+    textAlign: "right",
+    marginTop: 8,
+  },
+
+  value: {
+    fontSize: 15,
+    textAlign: "right",
+  },
+
+  sectionTitle: {
+    fontSize: 18,
+    fontWeight: "bold",
+    textAlign: "right",
+    marginBottom: 10,
+    marginTop: 15,
+  },
+
+  participant: {
+    flexDirection: "row-reverse",
+    alignItems: "center",
+    gap: 10,
+    marginBottom: 8,
+  },
+
+  matchCard: {
+    backgroundColor: "#fff",
+    borderRadius: 12,
+    padding: 12,
+    marginLeft: 10,
+    alignItems: "center",
+    width: 100,
+  },
+
+  avatar: {
+    width: 50,
+    height: 50,
+    borderRadius: 25,
+    backgroundColor: "#ddd",
+    marginBottom: 8,
+  },
+
+  name: {
+    fontSize: 14,
+  },
+
+  chatRow: {
+    flexDirection: "row-reverse",
+    alignItems: "center",
+    gap: 10,
+    marginBottom: 10,
+  },
+
+  actions: {
+    marginTop: 20,
+  },
+
+  deleteBtn: {
+    backgroundColor: "#D9534F",
+    padding: 14,
+    borderRadius: 12,
+    alignItems: "center",
+  },
+
+  btnText: {
+    color: "#fff",
+    fontWeight: "bold",
+  },
+});
