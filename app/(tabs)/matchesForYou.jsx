@@ -48,6 +48,20 @@ function buildImageUri(raw) {
   return value.startsWith("/") ? `${origin}${value}` : `${origin}/${value}`;
 }
 
+// ממיר את מחרוזת ה-Interests (JSON מ-FOR JSON PATH ב-SP) למערך שמות.
+// תומך גם במערך מוכן (אם השרת כבר פירק).
+function parseInterestNames(raw) {
+  if (!raw) return [];
+  let arr = raw;
+  if (typeof raw === "string") {
+    try { arr = JSON.parse(raw); } catch { return []; }
+  }
+  if (!Array.isArray(arr)) return [];
+  return arr
+    .map((it) => (typeof it === "string" ? it : it?.interestName || it?.InterestName))
+    .filter(Boolean);
+}
+
 export default function MatchesScreen() {
   const router = useRouter();
 
@@ -67,17 +81,27 @@ export default function MatchesScreen() {
     loadUsers();
   }, []);
 
-  // ממיר אובייקט פרופיל+תחומים+שאלון לאובייקט אחיד שהאלגוריתם משתמש בו.
-  // basicUser = מה ש-/User מחזיר (userID, email, profileImage בלבד).
-  const buildEnrichedUser = (basicUser, profile, interests, quest) => ({
-    ...basicUser,
-    userID: basicUser.userID,
+  // ממיר משתמש שהגיע מועשר מ-/User (SP) לפורמט שהאלגוריתם משתמש בו.
+  // השרת מחזיר את כל השדות ישירות - אין צורך בקריאות נוספות.
+  const enrichServerUser = (u) => ({
+    ...u,
+    name: [u.firstName, u.lastName].filter(Boolean).join(" ").trim(),
+    age: computeAge(u.birthDate),
+    profileImage: u.profileImage ?? null,
+    interests: parseInterestNames(u.interests),
+  });
+
+  // ממיר את הנתונים של המשתמש המחובר (מגיעים מ-3 endpoints נפרדים)
+  // לאותו פורמט. נחוץ כי ה-SP מסנן את המשתמש עצמו מ-/User.
+  const buildMyEnrichedData = (loggedInUser, profile, interests, quest) => ({
+    ...loggedInUser,
+    userID: loggedInUser.userID,
     name: [profile?.firstName, profile?.lastName]
       .filter(Boolean)
       .join(" ")
       .trim(),
     age: computeAge(profile?.birthDate),
-    profileImage: profile?.profileImage ?? basicUser.profileImage ?? null,
+    profileImage: profile?.profileImage ?? loggedInUser.profileImage ?? null,
     interests: (interests || []).map((i) => i?.interestName).filter(Boolean),
     isSmoker: quest?.isSmoker ?? null,
     keepsKosher: quest?.keepsKosher ?? null,
@@ -85,23 +109,6 @@ export default function MatchesScreen() {
     spontaneityLevel: quest?.spontaneityLevel ?? null,
     lifestyleLevel: quest?.lifestyleLevel ?? null,
   });
-
-  // מעשיר משתמש בודד ע"י 3 קריאות מקבילות לפרופיל/תחומים/שאלון.
-  // הערה: בעתיד, כשה-controller יקרא ל-SP GetAllUsers, אפשר להוריד את זה
-  // ולחזור ל-getAllUsers בלבד (האנדפוינט יחזיר הכל בקריאה אחת).
-  const enrichUser = async (basicUser) => {
-    const [p, i, q] = await Promise.allSettled([
-      getUserProfile(basicUser.userID),
-      getUserInterests(basicUser.userID),
-      getQuestionnaire(basicUser.userID),
-    ]);
-    return buildEnrichedUser(
-      basicUser,
-      p.status === "fulfilled" ? p.value : null,
-      i.status === "fulfilled" ? i.value || [] : [],
-      q.status === "fulfilled" ? q.value : null,
-    );
-  };
 
   const loadUsers = async () => {
     try {
@@ -114,7 +121,9 @@ export default function MatchesScreen() {
       }
       const myId = loggedInUser.userID;
 
-      // 1) טוענים במקביל: משתמשים, פרופיל שלי, תחומים, שאלון, בקשות ממתינות
+      // קריאה אחת ל-/User מביאה את כל המשתמשים מועשרים -
+      // ה-SP כבר מסנן את עצמי + חסומים, ומחזיר 14 שדות לכל אחד.
+      // לידם: פרופיל/תחומים/שאלון של המשתמש המחובר + בקשות ממתינות.
       const [
         allUsersRes,
         myProfileRes,
@@ -122,17 +131,19 @@ export default function MatchesScreen() {
         myQuestRes,
         pendingRes,
       ] = await Promise.allSettled([
-        getAllUsers(),
+        getAllUsers(myId),
         getUserProfile(myId),
         getUserInterests(myId),
         getQuestionnaire(myId),
         getPendingRequests(myId),
       ]);
 
-      const basicUsers =
-        allUsersRes.status === "fulfilled" ? allUsersRes.value || [] : [];
+      // משתמשים מועשרים מהשרת. מסננים פריטים null/undefined ליתר ביטחון.
+      const serverUsers = (
+        allUsersRes.status === "fulfilled" ? allUsersRes.value || [] : []
+      ).filter((u) => u && u.userID);
 
-      const me = buildEnrichedUser(
+      const me = buildMyEnrichedData(
         loggedInUser,
         myProfileRes.status === "fulfilled" ? myProfileRes.value : null,
         myInterestsRes.status === "fulfilled" ? myInterestsRes.value || [] : [],
@@ -140,14 +151,9 @@ export default function MatchesScreen() {
       );
 
       setCurrentUser(me);
+      setUsers(serverUsers.map(enrichServerUser));
 
-      // 2) מסננים אותי, ומעשירים כל משתמש במקביל
-      const others = basicUsers.filter((u) => u.userID !== myId);
-      const enriched = await Promise.all(others.map(enrichUser));
-
-      setUsers(enriched);
-
-      // 3) בקשות נכנסות בלבד (אני הנמען)
+      // בקשות נכנסות בלבד (אני הנמען)
       const allPending =
         pendingRes.status === "fulfilled" ? pendingRes.value || [] : [];
       const incoming = allPending.filter((r) => r.toUserID === myId);

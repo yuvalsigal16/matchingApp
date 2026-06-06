@@ -10,6 +10,24 @@ namespace MatchingAppServer.BL
         public DateTime CreatedAt { get; set; }
         public string? ProfileImage { get; set; }
 
+        // שדות מועשרים מ-GetAllUsers - מאפשרים לקליינט להציג שם/גיל/תחומים/שאלון
+        // בלי קריאות נוספות. NULL כשלמשתמש חסר פרופיל/שאלון.
+        public string? FirstName { get; set; }
+        public string? LastName { get; set; }
+        public DateTime? BirthDate { get; set; }
+        public string? Gender { get; set; }
+        public string? City { get; set; }
+
+        public bool? IsSmoker { get; set; }
+        public bool? KeepsKosher { get; set; }
+        public bool? KeepsShabbat { get; set; }
+        public int? SpontaneityLevel { get; set; }
+        public int? LifestyleLevel { get; set; }
+
+        // מחרוזת JSON של תחומי עניין (תוצאה של FOR JSON PATH ב-SP).
+        // הקליינט מבצע JSON.parse כדי להפוך למערך של { interestName }.
+        public string? Interests { get; set; }
+
 
         UserDAL dal = new UserDAL();
 

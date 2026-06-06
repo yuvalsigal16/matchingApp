@@ -1,6 +1,7 @@
 import { useRouter } from "expo-router";
 import { useEffect, useRef } from "react";
 import { Animated, Image, StyleSheet, Text, View } from "react-native";
+import { getUser } from "./src/auth/authStore";
 import { FONTS } from "./src/theme/fonts";
 
 export default function SplashScreen() {
@@ -15,7 +16,9 @@ export default function SplashScreen() {
     }).start();
 
     const timer = setTimeout(() => {
-      router.replace("/Login");
+      // אם יש משתמש מחובר ב-SecureStore - ישר ל-Home, אחרת ל-Login
+      const user = getUser();
+      router.replace(user ? "/Home" : "/Login");
     }, 3500);
 
     return () => clearTimeout(timer);
