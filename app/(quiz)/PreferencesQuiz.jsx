@@ -4,7 +4,17 @@ import { Slider } from "@miblanchard/react-native-slider";
 import DateTimePicker from "@react-native-community/datetimepicker";
 import { useLocalSearchParams, useRouter } from "expo-router";
 // אייקונים מותאמים אישית — Globe2 לכותרת ה-intro, Plane/Home לתאריכים, Calendar למועדים
-import { Calendar, Globe2, Home, Plane } from "lucide-react-native";
+import {
+  Calendar,
+  Cigarette,
+  Gem,
+  Globe2,
+  Home,
+  MoonStar,
+  Plane,
+  UtensilsCrossed,
+  Zap,
+} from "lucide-react-native";
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator, // אינדיקטור טעינה (ספינר עגול)
@@ -64,11 +74,12 @@ function toIsoDateOnly(date) {
 }
 
 // ── מיפוי מגדר מעברית לאנגלית (לשרת) ──
-// השרת מצפה לערכים באנגלית; "הכל" מתורגם ל-null (אין העדפה)
+// השרת מצפה לערכים באנגלית; "הכל" מתורגם ל-null (אין העדפה).
+// CHECK constraint ב-DB מתיר רק Male/Female/Other/NULL.
 const GENDER_HE_TO_DB = {
   גבר: "Male",
   אישה: "Female",
-  הכל: "Any",
+  הכל: null,
 };
 
 // ─── הגדרת שאלות השאלון ─────────────────────────────────────────────────────
@@ -111,6 +122,12 @@ const QUESTIONS = [
     title: "איזה גיל מתאים לי?",
   },
   {
+    id: "lifestyle", // 5 העדפות לאורח חיים של הפרטנר — כולן אופציונליות
+    type: "lifestyle",
+    title: "אורח החיים שאני מחפש/ת",
+    subtitle: "הכל אופציונלי — בחרי 'אין העדפה' אם זה לא חשוב לך",
+  },
+  {
     id: "interests", // תחומי עניין — נטענים מהשרת
     type: "multi-select",
     title: "תחומי עניין לטיול",
@@ -150,6 +167,9 @@ function getIsAnswered(question, data) {
     case "multi-select":
       // חייב לפחות תחום עניין אחד
       return Array.isArray(data.interests) && data.interests.length > 0;
+    case "lifestyle":
+      // כל השאלות אופציונליות — תמיד מאושר
+      return true;
     default:
       return false;
   }
@@ -173,6 +193,12 @@ export default function PreferencesQuizScreen() {
     gender: "", // העדפת מגדר
     ageRange: { min: 24, max: 38 }, // העדפת גיל — טווח עם min/max
     interests: [], // מערך IDs של תחומי עניין
+    // ── העדפות אורח חיים לפרטנר/ית (אופציונלי — null = אין העדפה) ──
+    partnerIsSmoker: null,       // true / false / null
+    partnerKeepsKosher: null,
+    partnerKeepsShabbat: null,
+    partnerSpontaneity: null,    // 1..5 / null
+    partnerLifestyle: null,
   });
   const isNewTripFlow = mode === "newTrip" || mode === "editTrip";
 
@@ -312,18 +338,18 @@ export default function PreferencesQuizScreen() {
 
     // ── שלב 2: יצירת רשומת TripPreferences (קשורה ל-Trip) ──
     // טווח הגיל מגיע כ-{ min, max } מסליידר הטווח
+    // שדות אורח חיים — null משמעו "אין העדפה" (כל השאלות בשלב lifestyle אופציונליות)
     const prefId = await createTripPreferences({
-  TripID: tripId,
-  PreferredGender: GENDER_HE_TO_DB[data.gender],
-  PreferredAgeMin: data.ageRange?.min,
-  PreferredAgeMax: data.ageRange?.max,
-
-  IsSmoker: null,
-  KeepsKosher: null,
-  KeepsShabbat: null,
-  SpontaneityLevel: null,
-  LifestyleLevel: null,
-});
+      TripID: tripId,
+      PreferredGender: GENDER_HE_TO_DB[data.gender],
+      PreferredAgeMin: data.ageRange?.min,
+      PreferredAgeMax: data.ageRange?.max,
+      IsSmoker: data.partnerIsSmoker,
+      KeepsKosher: data.partnerKeepsKosher,
+      KeepsShabbat: data.partnerKeepsShabbat,
+      SpontaneityLevel: data.partnerSpontaneity,
+      LifestyleLevel: data.partnerLifestyle,
+    });
     // ── שלב 3: שמירת תחומי העניין שנבחרו (קישור many-to-many) ──
     if (Array.isArray(data.interests) && data.interests.length > 0) {
       // Promise.all שולח את כל הקריאות במקביל לחיסכון בזמן
@@ -694,6 +720,113 @@ export default function PreferencesQuizScreen() {
     );
   };
 
+  // ── שאלת lifestyle — 5 העדפות לפרטנר בקבוצה אחת ──
+  // 3 שאלות בוליאניות (כן/לא/אין העדפה) + 2 דירוגים (1-5/אין העדפה)
+  const renderTriToggle = (value, onChange) => (
+    <View style={styles.triToggleRow}>
+      <Pressable
+        style={[styles.triBtn, value === true && styles.triBtnActive]}
+        onPress={() => onChange(true)}
+      >
+        <Text style={[styles.triBtnText, value === true && styles.triBtnTextActive]}>כן</Text>
+      </Pressable>
+      <Pressable
+        style={[styles.triBtn, value === false && styles.triBtnActive]}
+        onPress={() => onChange(false)}
+      >
+        <Text style={[styles.triBtnText, value === false && styles.triBtnTextActive]}>לא</Text>
+      </Pressable>
+      <Pressable
+        style={[styles.triBtnWide, value === null && styles.triBtnActive]}
+        onPress={() => onChange(null)}
+      >
+        <Text style={[styles.triBtnText, value === null && styles.triBtnTextActive]}>אין העדפה</Text>
+      </Pressable>
+    </View>
+  );
+
+  const renderRatingWithNone = (value, onChange) => (
+    <View>
+      <View style={styles.ratingRow}>
+        {[1, 2, 3, 4, 5].map((n) => (
+          <Pressable
+            key={n}
+            style={[styles.ratingDot, value === n && styles.ratingDotActive]}
+            onPress={() => onChange(n)}
+          >
+            <Text style={[styles.ratingNum, value === n && styles.ratingNumActive]}>{n}</Text>
+          </Pressable>
+        ))}
+      </View>
+      <Pressable
+        style={[styles.noPrefBtn, value === null && styles.noPrefBtnActive]}
+        onPress={() => onChange(null)}
+      >
+        <Text style={[styles.noPrefText, value === null && styles.noPrefTextActive]}>
+          אין העדפה
+        </Text>
+      </Pressable>
+    </View>
+  );
+
+  const renderLifestyleCard = (Icon, label, content) => (
+    <View style={styles.lifestyleCard}>
+      <View style={styles.lifestyleCardHeader}>
+        <Icon size={20} color="#1A3C40" strokeWidth={2} />
+        <Text style={styles.lifestyleCardLabel}>{label}</Text>
+      </View>
+      {content}
+    </View>
+  );
+
+  const renderLifestyle = () => (
+    <View style={styles.fieldsWrapper}>
+      <Text style={styles.lifestyleIntro}>{currentQ.subtitle}</Text>
+
+      {renderLifestyleCard(
+        Cigarette,
+        "פרטנר/ית מעשן/ת?",
+        renderTriToggle(data.partnerIsSmoker, (v) => updateField("partnerIsSmoker", v)),
+      )}
+
+      {renderLifestyleCard(
+        MoonStar,
+        "פרטנר/ית שומר/ת שבת?",
+        renderTriToggle(data.partnerKeepsShabbat, (v) =>
+          updateField("partnerKeepsShabbat", v),
+        ),
+      )}
+
+      {renderLifestyleCard(
+        UtensilsCrossed,
+        "פרטנר/ית שומר/ת כשרות?",
+        renderTriToggle(data.partnerKeepsKosher, (v) => updateField("partnerKeepsKosher", v)),
+      )}
+
+      {renderLifestyleCard(
+        Zap,
+        "רמת ספונטניות מועדפת",
+        <View>
+          <Text style={styles.lifestyleHelp}>1 = שקול/ה ומחושב/ת · 5 = הרפתקנ/ית</Text>
+          {renderRatingWithNone(data.partnerSpontaneity, (v) =>
+            updateField("partnerSpontaneity", v),
+          )}
+        </View>,
+      )}
+
+      {renderLifestyleCard(
+        Gem,
+        "אורח חיים בטיול",
+        <View>
+          <Text style={styles.lifestyleHelp}>1 = פשוט וחסכוני · 5 = יוקרתי ומפנק</Text>
+          {renderRatingWithNone(data.partnerLifestyle, (v) =>
+            updateField("partnerLifestyle", v),
+          )}
+        </View>,
+      )}
+    </View>
+  );
+
   const renderQuestionContent = () => {
     switch (currentQ.type) {
       case "intro":
@@ -706,6 +839,8 @@ export default function PreferencesQuizScreen() {
         return renderSingleSelect();
       case "age":
         return renderAge();
+      case "lifestyle":
+        return renderLifestyle();
       case "multi-select":
         return renderMultiSelect();
       default:
@@ -1201,6 +1336,122 @@ const styles = StyleSheet.create({
     color: "#333",
   },
   tagTextSelected: {
+    color: "#fff",
+    fontFamily: FONTS.bold,
+  },
+
+  // ── Lifestyle section (5 partner preferences) ──
+  lifestyleIntro: {
+    fontSize: 14,
+    fontFamily: FONTS.regular,
+    color: "#7A8B8E",
+    textAlign: "center",
+    marginBottom: 16,
+    paddingHorizontal: 10,
+    lineHeight: 20,
+  },
+  lifestyleCard: {
+    backgroundColor: "#fff",
+    padding: 14,
+    borderRadius: 14,
+    marginBottom: 10,
+    ...SHADOW,
+  },
+  lifestyleCardHeader: {
+    flexDirection: "row-reverse",
+    alignItems: "center",
+    gap: 10,
+    marginBottom: 12,
+  },
+  lifestyleCardLabel: {
+    fontSize: 15,
+    fontFamily: FONTS.bold,
+    color: "#1A3C40",
+    flex: 1,
+    textAlign: "right",
+  },
+  lifestyleHelp: {
+    fontSize: 12,
+    fontFamily: FONTS.regular,
+    color: "#9A9A9A",
+    textAlign: "right",
+    marginBottom: 10,
+  },
+
+  // ── Tri-state toggle (yes / no / no-preference) ──
+  triToggleRow: {
+    flexDirection: "row-reverse",
+    gap: 8,
+  },
+  triBtn: {
+    flex: 1,
+    paddingVertical: 10,
+    borderRadius: 10,
+    backgroundColor: "#F4F6F7",
+    alignItems: "center",
+  },
+  triBtnWide: {
+    flex: 1.4,
+    paddingVertical: 10,
+    borderRadius: 10,
+    backgroundColor: "#F4F6F7",
+    alignItems: "center",
+  },
+  triBtnActive: {
+    backgroundColor: "#1A3C40",
+  },
+  triBtnText: {
+    fontSize: 13,
+    fontFamily: FONTS.regular,
+    color: "#1A3C40",
+  },
+  triBtnTextActive: {
+    color: "#fff",
+    fontFamily: FONTS.bold,
+  },
+
+  // ── Rating 1-5 with "no preference" option ──
+  ratingRow: {
+    flexDirection: "row-reverse",
+    gap: 6,
+    marginBottom: 10,
+  },
+  ratingDot: {
+    flex: 1,
+    aspectRatio: 1,
+    maxWidth: 48,
+    borderRadius: 10,
+    backgroundColor: "#F4F6F7",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  ratingDotActive: {
+    backgroundColor: "#1A3C40",
+  },
+  ratingNum: {
+    fontSize: 15,
+    fontFamily: FONTS.bold,
+    color: "#1A3C40",
+  },
+  ratingNumActive: {
+    color: "#fff",
+  },
+  noPrefBtn: {
+    alignSelf: "center",
+    paddingVertical: 7,
+    paddingHorizontal: 18,
+    borderRadius: 14,
+    backgroundColor: "#F4F6F7",
+  },
+  noPrefBtnActive: {
+    backgroundColor: "#1A3C40",
+  },
+  noPrefText: {
+    fontSize: 12,
+    fontFamily: FONTS.regular,
+    color: "#1A3C40",
+  },
+  noPrefTextActive: {
     color: "#fff",
     fontFamily: FONTS.bold,
   },

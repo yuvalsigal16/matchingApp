@@ -6,7 +6,7 @@ namespace MatchingAppServer.BL
     {
         public int TripPreferenceID { get; set; }
         public int TripID { get; set; }
-        public string PreferredGender { get; set; }
+        public string? PreferredGender { get; set; }
         public int? PreferredAgeMin { get; set; }
         public int? PreferredAgeMax { get; set; }
         public bool? IsSmoker { get; set; }

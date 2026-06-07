@@ -252,6 +252,11 @@ const QUESTIONS = [
   },
 ];
 
+// פורמט "YYYY-MM-DD" לשליחה לשרת — בלי המרת timezone (toISOString זז יום אחורה ב-UTC+)
+function toLocalISODate(d) {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
+
 // ─── Validation ───────────────────────────────────────────────────────────────
 
 //פונקציה שבודקת האם המשתמש מילא את השאלה כמו שצריך
@@ -568,9 +573,8 @@ export default function QuizScreen() {
     }
 
     // תאריך הלידה נשמר כאובייקט Date מבורר התאריכים.
-    // toISOString() ממיר אותו למחרוזת בפורמט תאריך תקני שהשרת מצפה לקבל,
-    // לדוגמה: "1995-04-27T00:00:00.000Z"
-    const birthDate = answers.birthDate.toISOString();
+    // שולחים בפורמט "YYYY-MM-DD" לפי הזמן המקומי כדי שלא יזוז יום אחורה ב-UTC.
+    const birthDate = toLocalISODate(answers.birthDate);
 
     const profile = {
       UserID: u.userID,
