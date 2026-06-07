@@ -258,7 +258,7 @@ export default function ProfileScreen() {
     {
       title: "עדכון העדפות טיול",
       Icon: Heart,
-      route: null, // יבוא בעתיד — מסך עדכון העדפות הוסר זמנית
+      route: "/UpdateTravelPreferences",
     },
   ];
 

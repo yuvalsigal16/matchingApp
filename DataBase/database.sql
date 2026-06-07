@@ -705,14 +705,16 @@ BEGIN
         LifestyleLevel = @LifestyleLevel,
         SocialNetworks = @SocialNetworks
     WHERE UserID = @UserID;
+    -- שומרים את מספר השורות מיד אחרי ה-UPDATE
+    DECLARE @RowsAffected INT = @@ROWCOUNT;
 
-    IF @@ROWCOUNT = 0
+    IF @RowsAffected = 0
     BEGIN
         RAISERROR('Questionnaire not found.', 16, 1);
         RETURN;
     END
 
-    SELECT @@ROWCOUNT AS RowsAffected;
+    SELECT @RowsAffected AS RowsAffected;
 END
 GO
 
