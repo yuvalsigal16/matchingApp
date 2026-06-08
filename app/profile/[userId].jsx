@@ -1,51 +1,69 @@
 import React, { useEffect, useState } from "react";
-import { View, Text, StyleSheet, ActivityIndicator, ScrollView } from "react-native";
-import { useLocalSearchParams } from "expo-router";
+import {
+  ActivityIndicator,
+  Image,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
+} from "react-native";
+import { useLocalSearchParams, useRouter } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { ChevronRight, MapPin, Plane } from "lucide-react-native";
 import { BASE_URL } from "../src/api/config";
 import { getToken } from "../src/auth/authStore";
 import { FONTS } from "../src/theme/fonts";
 
+const GENDER_DB_TO_HE = { Male: "זכר", Female: "נקבה", Other: "אחר" };
+
+const calcAge = (birthDate) => {
+  if (!birthDate) return null;
+  const diff = Date.now() - new Date(birthDate).getTime();
+  return new Date(diff).getUTCFullYear() - 1970;
+};
+
+const formatDate = (d) => {
+  if (!d) return "";
+  const m = String(d).match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if (m) return `${m[3]}/${m[2]}/${m[1]}`;
+  const dt = new Date(d);
+  return `${dt.getDate().toString().padStart(2, "0")}/${(dt.getMonth() + 1).toString().padStart(2, "0")}/${dt.getFullYear()}`;
+};
+
 export default function UserProfileScreen() {
   const { userId } = useLocalSearchParams();
+  const router = useRouter();
 
   const [user, setUser] = useState(null);
+  const [trips, setTrips] = useState([]);
   const [loading, setLoading] = useState(true);
 
-  // חישוב גיל
-  const calcAge = (birthDate) => {
-    if (!birthDate) return "";
-    const d = new Date(birthDate);
-    const diff = Date.now() - d.getTime();
-    const age = new Date(diff).getUTCFullYear() - 1970;
-    return age;
-  };
-
-  // הערך נשמר ב-DB באנגלית; מציגים למשתמש בעברית
-  const GENDER_DB_TO_HE = { Male: "זכר", Female: "נקבה", Other: "אחר" };
-  const displayGender = (g) => GENDER_DB_TO_HE[g] || g || "";
-
   useEffect(() => {
-    const loadUser = async () => {
+    const load = async () => {
       try {
         const token = getToken();
+        const headers = { Authorization: `Bearer ${token}` };
 
-        const res = await fetch(`${BASE_URL}/Users/${userId}`, {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        });
+        const [userRes, tripsRes] = await Promise.allSettled([
+          fetch(`${BASE_URL}/Users/${userId}`, { headers }),
+          fetch(`${BASE_URL}/Trip/user/${userId}`, { headers }),
+        ]);
 
-        const data = await res.json();
-        setUser(data);
+        if (userRes.status === "fulfilled" && userRes.value.ok) {
+          setUser(await userRes.value.json());
+        }
+        if (tripsRes.status === "fulfilled" && tripsRes.value.ok) {
+          const all = await tripsRes.value.json();
+          setTrips((all || []).filter((t) => t.status === "Active" || t.Status === "Active"));
+        }
       } catch (err) {
         console.log("profile error:", err);
       } finally {
         setLoading(false);
       }
     };
-
-    loadUser();
+    load();
   }, [userId]);
 
   if (loading) {
@@ -59,61 +77,105 @@ export default function UserProfileScreen() {
   if (!user) {
     return (
       <SafeAreaView style={styles.center}>
-        <Text>לא נמצא משתמש</Text>
+        <Text style={styles.notFound}>לא נמצא משתמש</Text>
       </SafeAreaView>
     );
   }
 
+  const age = calcAge(user.birthDate);
+  const initials = `${user.firstName?.[0] || ""}${user.lastName?.[0] || ""}`.toUpperCase();
+
+  const lifestyleTags = [
+    user.isSmoker != null && { label: user.isSmoker ? "מעשן/ת" : "לא מעשן/ת", icon: user.isSmoker ? "🚬" : "🚭" },
+    user.keepsKosher != null && { label: user.keepsKosher ? "שומר/ת כשרות" : "לא שומר/ת כשרות", icon: "🍽️" },
+    user.keepsShabbat != null && { label: user.keepsShabbat ? "שומר/ת שבת" : "לא שומר/ת שבת", icon: "🕍" },
+  ].filter(Boolean);
+
   return (
     <SafeAreaView style={styles.container}>
-      <ScrollView contentContainerStyle={styles.content}>
+      {/* כפתור חזרה */}
+      <TouchableOpacity style={styles.backBtn} onPress={() => router.back()}>
+        <ChevronRight size={22} color="#1A3C40" />
+      </TouchableOpacity>
 
-        {/* שם */}
-        <Text style={styles.name}>
-          {user.firstName} {user.lastName}
-        </Text>
+      <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
 
-        {/* גיל + מגדר */}
-        <Text style={styles.info}>
-          גיל: {calcAge(user.birthDate)} | מגדר: {displayGender(user.gender)}
-        </Text>
-
-        {/* עיר */}
-        <Text style={styles.info}>
-          עיר: {user.city}
-        </Text>
-
-        {/* אורח חיים */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>אורח חיים</Text>
-
-          <Text style={styles.item}>
-            🚬 מעשן: {user.isSmoker ? "כן" : "לא"}
-          </Text>
-
-          <Text style={styles.item}>
-            🌙 שומר שבת: {user.keepsShabbat ? "כן" : "לא"}
-          </Text>
-
-          <Text style={styles.item}>
-            🍽️ שומר כשרות: {user.keepsKosher ? "כן" : "לא"}
-          </Text>
-        </View>
-
-        {/* תחומי עניין */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>תחומי עניין</Text>
-
-          {user.interests?.length > 0 ? (
-            user.interests.map((i, idx) => (
-              <Text key={idx} style={styles.item}>
-                • {i}
-              </Text>
-            ))
+        {/* ── אזור הפרופיל העליון ── */}
+        <View style={styles.heroSection}>
+          {user.profileImage ? (
+            <Image source={{ uri: user.profileImage }} style={styles.avatar} />
           ) : (
-            <Text style={styles.item}>אין תחומי עניין</Text>
+            <View style={styles.avatarPlaceholder}>
+              <Text style={styles.avatarInitials}>{initials}</Text>
+            </View>
           )}
+
+          <Text style={styles.name}>{user.firstName} {user.lastName}</Text>
+
+          {(age || user.gender) ? (
+            <Text style={styles.ageLine}>
+              {age ? `בן/בת ${age}` : ""}
+              {age && user.gender ? " · " : ""}
+              {GENDER_DB_TO_HE[user.gender] || ""}
+            </Text>
+          ) : null}
+
+          {user.city ? (
+            <View style={styles.cityRow}>
+              <MapPin size={14} color="#7A8B8E" />
+              <Text style={styles.cityText}>{user.city}</Text>
+            </View>
+          ) : null}
         </View>
+
+        {/* ── טיולים פעילים ── */}
+        {trips.length > 0 && (
+          <View style={styles.section}>
+            <View style={styles.sectionHeader}>
+              <Plane size={17} color="#1A3C40" />
+              <Text style={styles.sectionTitle}>טיולים מתוכננים</Text>
+            </View>
+            {trips.map((t, i) => (
+              <View key={i} style={styles.tripCard}>
+                <Text style={styles.tripDest}>{t.destination ?? t.Destination}</Text>
+                {(t.startDate || t.endDate) && (
+                  <Text style={styles.tripDates}>
+                    {formatDate(t.startDate)}
+                    {t.endDate ? ` – ${formatDate(t.endDate)}` : " · כרטיס לכיוון אחד"}
+                  </Text>
+                )}
+              </View>
+            ))}
+          </View>
+        )}
+
+        {/* ── אורח חיים ── */}
+        {lifestyleTags.length > 0 && (
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>אורח חיים</Text>
+            <View style={styles.tagsRow}>
+              {lifestyleTags.map((tag, i) => (
+                <View key={i} style={styles.tag}>
+                  <Text style={styles.tagText}>{tag.icon} {tag.label}</Text>
+                </View>
+              ))}
+            </View>
+          </View>
+        )}
+
+        {/* ── תחומי עניין ── */}
+        {user.interests?.length > 0 && (
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>תחומי עניין</Text>
+            <View style={styles.tagsRow}>
+              {user.interests.map((interest, i) => (
+                <View key={i} style={styles.interestTag}>
+                  <Text style={styles.interestText}>{interest}</Text>
+                </View>
+              ))}
+            </View>
+          </View>
+        )}
 
       </ScrollView>
     </SafeAreaView>
@@ -121,54 +183,177 @@ export default function UserProfileScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: "#F0F2F5",
-  },
+  container: { flex: 1, backgroundColor: "#F0F2F5" },
+  center: { flex: 1, justifyContent: "center", alignItems: "center" },
+  notFound: { fontSize: 16, color: "#888", fontFamily: FONTS.regular },
 
-  content: {
-    padding: 20,
-  },
-
-  center: {
-    flex: 1,
+  backBtn: {
+    position: "absolute",
+    top: 54,
+    right: 20,
+    zIndex: 10,
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: "#fff",
     justifyContent: "center",
     alignItems: "center",
+    shadowColor: "#000",
+    shadowOpacity: 0.08,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+
+  content: { paddingBottom: 40 },
+
+  heroSection: {
+    alignItems: "center",
+    paddingTop: 30,
+    paddingBottom: 28,
+    paddingHorizontal: 24,
+    backgroundColor: "#fff",
+    marginBottom: 16,
+    borderBottomLeftRadius: 28,
+    borderBottomRightRadius: 28,
+    shadowColor: "#000",
+    shadowOpacity: 0.06,
+    shadowRadius: 8,
+    elevation: 3,
+  },
+
+  avatar: {
+    width: 96,
+    height: 96,
+    borderRadius: 48,
+    marginBottom: 14,
+    borderWidth: 3,
+    borderColor: "#E8F0F0",
+  },
+
+  avatarPlaceholder: {
+    width: 96,
+    height: 96,
+    borderRadius: 48,
+    backgroundColor: "#1A3C40",
+    justifyContent: "center",
+    alignItems: "center",
+    marginBottom: 14,
+  },
+
+  avatarInitials: {
+    fontSize: 34,
+    fontFamily: FONTS.bold,
+    color: "#fff",
   },
 
   name: {
-    fontSize: 24,
-    fontFamily: FONTS.bold,
-    textAlign: "center",
-    marginBottom: 6,
-    color: "#1A3C40",
-  },
-
-  info: {
-    fontSize: 15,
-    textAlign: "center",
-    color: "#555",
+    fontSize: 22,
+    fontFamily: FONTS.extraBold || FONTS.bold,
+    color: "#1A1A1A",
     marginBottom: 4,
   },
 
+  ageLine: {
+    fontSize: 15,
+    fontFamily: FONTS.regular,
+    color: "#666",
+    marginBottom: 6,
+  },
+
+  cityRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    marginTop: 2,
+  },
+
+  cityText: {
+    fontSize: 14,
+    fontFamily: FONTS.regular,
+    color: "#7A8B8E",
+  },
+
   section: {
-    marginTop: 25,
     backgroundColor: "#fff",
-    padding: 15,
-    borderRadius: 12,
+    marginHorizontal: 16,
+    marginBottom: 12,
+    borderRadius: 18,
+    padding: 18,
+    shadowColor: "#000",
+    shadowOpacity: 0.04,
+    shadowRadius: 6,
+    elevation: 2,
+  },
+
+  sectionHeader: {
+    flexDirection: "row-reverse",
+    alignItems: "center",
+    gap: 6,
+    marginBottom: 12,
   },
 
   sectionTitle: {
+    fontSize: 15,
+    fontFamily: FONTS.bold,
+    color: "#1A3C40",
+    textAlign: "right",
+    marginBottom: 12,
+  },
+
+  tripCard: {
+    backgroundColor: "#F0F8F8",
+    borderRadius: 12,
+    padding: 12,
+    marginBottom: 8,
+    borderRightWidth: 3,
+    borderRightColor: "#1A3C40",
+    alignItems: "flex-end",
+  },
+
+  tripDest: {
     fontSize: 16,
     fontFamily: FONTS.bold,
-    marginBottom: 10,
+    color: "#1A3C40",
+    textAlign: "right",
+  },
+
+  tripDates: {
+    fontSize: 13,
+    fontFamily: FONTS.regular,
+    color: "#7A8B8E",
+    marginTop: 3,
+    textAlign: "right",
+  },
+
+  tagsRow: {
+    flexDirection: "row-reverse",
+    flexWrap: "wrap",
+    gap: 8,
+  },
+
+  tag: {
+    backgroundColor: "#EEF6F6",
+    borderRadius: 20,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+  },
+
+  tagText: {
+    fontSize: 13,
+    fontFamily: FONTS.regular,
     color: "#1A3C40",
   },
 
-  item: {
-    fontSize: 14,
-    color: "#333",
-    marginBottom: 6,
-    textAlign: "right",
+  interestTag: {
+    backgroundColor: "#F3EFFF",
+    borderRadius: 20,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+  },
+
+  interestText: {
+    fontSize: 13,
+    fontFamily: FONTS.regular,
+    color: "#7C3AED",
   },
 });

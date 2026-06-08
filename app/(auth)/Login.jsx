@@ -1,6 +1,7 @@
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import {
   ActivityIndicator,
   KeyboardAvoidingView,
@@ -27,6 +28,12 @@ export default function LoginScreen() {
   //שומר מה שהמשתמש מקליד באימייל ובסיסמה, וגם מצבים של הצגת סיסמה, שגיאות, וטעינה
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+
+  useEffect(() => {
+    AsyncStorage.getItem("saved_email").then((saved) => {
+      if (saved) setEmail(saved);
+    });
+  }, []);
   const [showPassword, setShowPassword] = useState(false);
   const [emailError, setEmailError] = useState("");
   const [passwordError, setPasswordError] = useState("");
@@ -62,6 +69,7 @@ export default function LoginScreen() {
 
       const { token, user } = await apiLogin(email, password);
       setAuth(token, user);
+      AsyncStorage.setItem("saved_email", email.trim()).catch(() => {});
 
       // רישום למנגנון Push Notifications - לא חוסם את ההתחברות אם נכשל
       registerForPushNotifications(user.userID);

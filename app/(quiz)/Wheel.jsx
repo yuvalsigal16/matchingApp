@@ -22,6 +22,7 @@ import { useEffect, useRef, useState } from "react";
 import {
   Animated, // מאפשר אנימציות (סיבוב הגלגל)
   Easing, // פונקציות שולטות במהירות האנימציה (האם מאיץ? מאט?)
+  Platform,
   Pressable, // כפתור עם פידבק שינוי צבע בלחיצה
   StyleSheet, // הגדרת עיצובים
   Text, // הצגת טקסט
@@ -31,6 +32,7 @@ import {
 // SafeAreaView — מבטיח שהתוכן לא ייחסם על ידי ה-notch או סרגל הניווט
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
+import Svg, { Path, G, Text as SvgText } from "react-native-svg";
 // פונטים מותאמים של האפליקציה
 import { FONTS } from "../src/theme/fonts";
 import { getAllUsers } from "../src/api/userService";
@@ -40,12 +42,38 @@ import { getUserInterests } from "../src/api/interestService";
 import { getQuestionnaire } from "../src/api/questionnaireService";
 import { saveWheelSelection } from "../src/api/tripService";
 
-// גודל הגלגל בפיקסלים — בסיס לחישוב כל המידות הפנימיות
 const WHEEL_SIZE = 290;
+const CX = WHEEL_SIZE / 2;
+const CY = WHEEL_SIZE / 2;
+const R = WHEEL_SIZE / 2 - 12;
+const TEXT_R = R * 0.70;
+
+function sectorPath(startDeg, endDeg) {
+  const toRad = (d) => ((d - 90) * Math.PI) / 180;
+  const s = toRad(startDeg);
+  const e = toRad(endDeg);
+  const x1 = CX + R * Math.cos(s);
+  const y1 = CY + R * Math.sin(s);
+  const x2 = CX + R * Math.cos(e);
+  const y2 = CY + R * Math.sin(e);
+  const large = endDeg - startDeg > 180 ? 1 : 0;
+  return `M ${CX} ${CY} L ${x1} ${y1} A ${R} ${R} 0 ${large} 1 ${x2} ${y2} Z`;
+}
+
+// יעדים קבועים לגיבוי — מוצגים אם ה-API לא מחזיר נתונים
+const FALLBACK_DESTINATIONS = [
+  { destinationId: 1, name: "פריז", info: "רומנטיקה וקולינריה" },
+  { destinationId: 2, name: "אתונה", info: "היסטוריה ואיים" },
+  { destinationId: 3, name: "קפריסין", info: "חופים ואקלים נעים" },
+  { destinationId: 4, name: "ניו יורק", info: "עיר שלא ישנה" },
+  { destinationId: 5, name: "אמסטרדם", info: "תעלות ואמנות" },
+  { destinationId: 6, name: "ברצלונה", info: "ארכיטקטורה ואנרגיה" },
+  { destinationId: 7, name: "תאילנד", info: "חופים ותרבות" },
+  { destinationId: 8, name: "רומא", info: "תרבות ואוכל" },
+  { destinationId: 9, name: "טוקיו", info: "טכנולוגיה ותרבות" },
+];
 
 // ── פלטת הצבעים של מקטעי הגלגל ──
-// 8 צבעים שמתאימים לעיצוב של האפליקציה
-// הסדר חוזר על עצמו אם יש יותר יעדים מצבעים (i % COLORS.length)
 const COLORS = [
   "#1A3C40", // ירוק כהה — הצבע הראשי של האפליקציה
   "#7FB3B3", // turquoise בינוני
@@ -55,6 +83,7 @@ const COLORS = [
   "#B89BC9", // סגול עדין
   "#FF8B8B", // אדום-ורוד בהיר
   "#4ECDC4", // turquoise בהיר
+  "#F9A66C", // כתום אפרסק
 ];
 
 
@@ -111,7 +140,7 @@ const enrichUser = async (basicUser) => {
 // מסך זה מוצג כאשר המשתמש מדלג על בחירת יעד בשאלון ההעדפות
 export default function WheelScreen() {
   const router = useRouter();
-  const [destinations, setDestinations] = useState([]);
+  const [destinations, setDestinations] = useState(FALLBACK_DESTINATIONS);
   const [users, setUsers] = useState([]);
 const [currentUser, setCurrentUser] = useState(null);
 const [bestMatch, setBestMatch] = useState(null);
@@ -201,26 +230,12 @@ useEffect(() => {
 async function loadDestinations() {
   try {
     const data = await getDestinations();
-
-    console.log("API returned:", data);
-
-    console.log(
-      data.map((d) => ({
-        destinationId: d.destinationID,
-        name: d.destinationName,
-        info: d.description,
-      }))
-    );
-
-    setDestinations(
-      data.map((d) => ({
-        destinationId: d.destinationID,
-        name: d.destinationName,
-        info: d.description,
-      }))
-    );
-  } catch (err) {
-    console.log("Wheel destinations error:", err);
+    const mapped = (data || [])
+      .map((d) => ({ destinationId: d.destinationID, name: d.destinationName?.trim(), info: d.description }))
+      .filter((d) => d.name); // מסנן יעדים ללא שם
+    setDestinations(mapped.length > 0 ? mapped : FALLBACK_DESTINATIONS);
+  } catch {
+    setDestinations(FALLBACK_DESTINATIONS);
   }
 }
 
@@ -363,9 +378,7 @@ console.log(
   "destinationsFromTrips:",
   JSON.stringify(destinationsFromTrips, null, 2)
 );
-setDestinations(uniqueDestinations);
-
-console.log("uniqueDestinations:", uniqueDestinations);
+console.log("uniqueDestinations (not overriding wheel):", uniqueDestinations);
 
 
 
@@ -480,10 +493,10 @@ console.log("uniqueDestinations:", uniqueDestinations);
 
     // ── מפעיל את אנימציית הסיבוב ──
     Animated.timing(spinValue, {
-      toValue: totalRotation, // הזווית הסופית
-      duration: 5000, // 5 שניות של סיבוב
-      easing: Easing.out(Easing.back(0.5)), // האטה הדרגתית עם "back" — נראה טבעי
-      useNativeDriver: true, // הרצה על thread גרפי — חלק יותר
+      toValue: totalRotation,
+      duration: 5000,
+      easing: Easing.out(Easing.cubic),
+      useNativeDriver: Platform.OS !== "web",
     }).start(() => {
       // callback: רץ אחרי שהאנימציה הסתיימה
       setIsSpinning(false);
@@ -513,16 +526,15 @@ setResult({
     if (isSpinning) return;
     Animated.spring(spinBtnScale, {
       toValue: 0.96,
-      useNativeDriver: true,
+      useNativeDriver: Platform.OS !== "web",
       speed: 30,
       bounciness: 4,
     }).start();
   };
-  // בשחרור — מחזיר לגודל המלא
   const onSpinPressOut = () => {
     Animated.spring(spinBtnScale, {
       toValue: 1,
-      useNativeDriver: true,
+      useNativeDriver: Platform.OS !== "web",
       speed: 30,
       bounciness: 4,
     }).start();
@@ -570,49 +582,49 @@ setResult({
               {
                 transform: [
                   {
-                    // המרת ערך מספרי לזווית בdegrees
                     rotate: spinValue.interpolate({
                       inputRange: [0, 360],
                       outputRange: ["0deg", "360deg"],
                     }),
                   },
                 ],
+                ...(Platform.OS === "web" ? { willChange: "transform" } : {}),
               },
             ]}
           >
-            {/* רנדור כל מקטע של הגלגל */}
-            {destinations.map((item, i) => (
-              <View key={i} style={styles.sectorWrapper}>
-                {/* המקטע עצמו — צורת משולש שמסובבת לזווית הנכונה */}
-                <View
-                  style={[
-                    styles.sector,
-                    {
-                      backgroundColor: COLORS[i % COLORS.length], // צבע מהפלטה
-                      transform: [{ rotate: `${i * sectorAngle}deg` }],
-                    },
-                  ]}
-                />
-                {/* תווית הטקסט של המקטע — מסובבת לאמצע המקטע */}
-                <View
-                  style={[
-                    styles.labelContainer,
-                    {
-                      transform: [
-                        { rotate: `${i * sectorAngle + sectorAngle / 2}deg` },
-                      ],
-                    },
-                  ]}
-                >
-                  <Text
-                    numberOfLines={1} // לא מאפשר ירידת שורה
-                    style={styles.sliceText}
-                  >
-                    {item.name}
-                  </Text>
-                </View>
-              </View>
-            ))}
+            {/* גלגל SVG — פרוסות מדויקות */}
+            <Svg width={WHEEL_SIZE} height={WHEEL_SIZE}>
+              {destinations.map((item, i) => {
+                const startDeg = i * sectorAngle;
+                const endDeg = (i + 1) * sectorAngle;
+                const midDeg = startDeg + sectorAngle / 2;
+                const midRad = ((midDeg - 90) * Math.PI) / 180;
+                const tx = CX + TEXT_R * Math.cos(midRad);
+                const ty = CY + TEXT_R * Math.sin(midRad);
+                return (
+                  <G key={i}>
+                    <Path
+                      d={sectorPath(startDeg, endDeg)}
+                      fill={COLORS[i % COLORS.length]}
+                      stroke="white"
+                      strokeWidth="1.5"
+                    />
+                    <SvgText
+                      x={tx}
+                      y={ty}
+                      fill="white"
+                      fontSize="13"
+                      fontWeight="bold"
+                      textAnchor="middle"
+                      dy="0.35em"
+                      transform={`rotate(${midDeg}, ${tx}, ${ty})`}
+                    >
+                      {item.name}
+                    </SvgText>
+                  </G>
+                );
+              })}
+            </Svg>
           </Animated.View>
 
           {/* עיגול קטן במרכז הגלגל — לעיצוב בלבד */}
@@ -645,7 +657,6 @@ setResult({
   </Text>
 )}
             </View>
-            <Text style={styles.bubbleInfo}>{result.info}</Text>
           </View>
         ) : (
           // אם אין תוצאה — מציג טקסט מנחה
@@ -796,54 +807,14 @@ const styles = StyleSheet.create({
   wheelContainer: {
     width: WHEEL_SIZE,
     height: WHEEL_SIZE,
-    borderRadius: WHEEL_SIZE / 2, // עיגול מושלם
-    borderWidth: 6,
-    borderColor: "#fff",
-    overflow: "hidden", // חותך את התוכן שיוצא מחוץ לעיגול
+    borderRadius: WHEEL_SIZE / 2,
+    overflow: "hidden",
     position: "relative",
     backgroundColor: "#fff",
     ...SHADOW,
     shadowOpacity: 0.18,
     shadowRadius: 10,
     elevation: 8,
-  },
-  // עטיפת מקטע — תופסת את כל הגלגל ומאפשרת מיקום מדויק
-  sectorWrapper: {
-    position: "absolute",
-    width: "100%",
-    height: "100%",
-  },
-  // מקטע בודד של הגלגל — חצי ריבוע שמסובב לזווית מסוימת
-  // transformOrigin מגדיר את נקודת הסיבוב של המקטע
-  sector: {
-    position: "absolute",
-    width: WHEEL_SIZE / 2,
-    height: WHEEL_SIZE / 2,
-    left: WHEEL_SIZE / 2, // ממוקם במרכז
-    top: WHEEL_SIZE / 2,
-    transformOrigin: "0% 0%", // נקודת הסיבוב — הפינה הקרובה למרכז
-  },
-  // עטיפת הטקסט של המקטע — תופסת את כל הגלגל ומסובבת לזווית של המקטע.
-  // justifyContent: "flex-start" מציב את הטקסט בקצה העליון של העטיפה (השוליים
-  // החיצוניים של הגלגל), כך שאחרי הסיבוב כל תווית מופיעה ברדיוס של המקטע
-  // שלה ולא נדחסת למרכז.
-  labelContainer: {
-    position: "absolute",
-    width: WHEEL_SIZE,
-    height: WHEEL_SIZE,
-    left: 0,
-    top: 0,
-    justifyContent: "flex-start",
-    alignItems: "center",
-    paddingTop: 38, // מרחק מהקצה החיצוני — מספיק כדי שטקסט לא ייחתך ע"י overflow: hidden
-  },
-  // הטקסט של המקטע — שם היעד. צבע אחיד לכל המקטעים (לבן).
-  sliceText: {
-    fontFamily: FONTS.bold,
-    fontSize: 12,
-    textAlign: "center",
-    width: 64,
-    color: "#fff",
   },
   // העיגול המרכזי של הגלגל
   centerHub: {

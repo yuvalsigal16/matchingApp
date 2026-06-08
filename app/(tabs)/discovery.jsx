@@ -2,7 +2,7 @@ import React from "react";
 import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
-import { ChevronLeft, Users, Star } from "lucide-react-native";
+import { ChevronRight, Users, Star } from "lucide-react-native";
 
 import { FONTS } from "../src/theme/fonts";
 import { getUser } from "../src/auth/authStore";
@@ -35,48 +35,47 @@ export default function DiscoveryScreen() {
 
   return (
     <SafeAreaView style={styles.container}>
-      {/* שורת ראש: ראשי תיבות משמאל, חץ חזרה מימין */}
-      <View style={styles.topRow}>
-        <TouchableOpacity style={styles.backBtn} onPress={() => router.back()}>
-          <ChevronLeft size={22} color="#1A3C40" />
-        </TouchableOpacity>
-        {initials ? (
-          <View style={styles.initialsBox}>
-            <Text style={styles.initialsText}>{initials}</Text>
-          </View>
-        ) : (
-          <View style={{ width: 36 }} />
-        )}
-      </View>
+      <View style={styles.inner}>
+        {/* Header */}
+        <View style={styles.headerRow}>
+          <TouchableOpacity style={styles.backBtn} onPress={() => router.back()}>
+            <ChevronRight size={22} color="#1A3C40" />
+          </TouchableOpacity>
+          <Text style={styles.title}>גילוי וקהילה</Text>
+          {initials ? (
+            <View style={styles.initialsBox}>
+              <Text style={styles.initialsText}>{initials}</Text>
+            </View>
+          ) : (
+            <View style={{ width: 36 }} />
+          )}
+        </View>
 
-      {/* כותרת */}
-      <View style={styles.titleBlock}>
-        <Text style={styles.title}>גילוי וקהילה</Text>
         <Text style={styles.subtitle}>התחבר/י לאנשים עם אהבה לטיולים</Text>
-      </View>
 
-      {/* כרטיסים */}
-      <View style={styles.list}>
-        {items.map((item, i) => {
-          const Icon = item.Icon;
-          return (
-            <TouchableOpacity
-              key={i}
-              style={styles.card}
-              activeOpacity={0.85}
-              onPress={() => router.push(item.route)}
-            >
-              <ChevronLeft size={20} color="#999" />
-              <View style={styles.cardText}>
-                <Text style={styles.cardTitle}>{item.title}</Text>
-                <Text style={styles.cardSub}>{item.sub}</Text>
-              </View>
-              <View style={[styles.iconBox, { backgroundColor: item.iconBg }]}>
-                <Icon size={22} color={item.iconColor} strokeWidth={2} />
-              </View>
-            </TouchableOpacity>
-          );
-        })}
+        {/* כרטיסים */}
+        <View style={styles.list}>
+          {items.map((item, i) => {
+            const Icon = item.Icon;
+            return (
+              <TouchableOpacity
+                key={i}
+                style={styles.card}
+                activeOpacity={0.85}
+                onPress={() => router.push(item.route)}
+              >
+                <ChevronRight size={20} color="#999" />
+                <View style={styles.cardText}>
+                  <Text style={styles.cardTitle}>{item.title}</Text>
+                  <Text style={styles.cardSub}>{item.sub}</Text>
+                </View>
+                <View style={[styles.iconBox, { backgroundColor: item.iconBg }]}>
+                  <Icon size={22} color={item.iconColor} strokeWidth={2} />
+                </View>
+              </TouchableOpacity>
+            );
+          })}
+        </View>
       </View>
 
       <BottomNav active="discovery" />
@@ -87,13 +86,15 @@ export default function DiscoveryScreen() {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: "#F0F2F5" },
 
-  topRow: {
-    flexDirection: "row",
+  inner: { flex: 1 },
+
+  headerRow: {
+    flexDirection: "row-reverse",
     justifyContent: "space-between",
     alignItems: "center",
     paddingHorizontal: 20,
     paddingTop: 16,
-    paddingBottom: 8,
+    paddingBottom: 12,
   },
 
   backBtn: {
@@ -124,24 +125,18 @@ const styles = StyleSheet.create({
     color: "#1A3C40",
   },
 
-  titleBlock: {
-    alignItems: "center",
-    paddingHorizontal: 24,
-    paddingTop: 28,
-    paddingBottom: 32,
-  },
-
   title: {
-    fontSize: 24,
+    fontSize: 20,
     fontFamily: FONTS.extraBold,
     color: "#1A1A1A",
-    marginBottom: 8,
   },
 
   subtitle: {
     fontSize: 14,
     fontFamily: FONTS.regular,
     color: "#888",
+    textAlign: "center",
+    marginBottom: 20,
   },
 
   list: {

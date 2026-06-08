@@ -8,6 +8,7 @@ import {
   Alert,
   Image,
   Modal,
+  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -203,6 +204,14 @@ export default function ProfileScreen() {
   // ומחזיר אותו למסך ההתחברות. משתמשים ב-replace כדי שלא יהיה אפשר לחזור אחורה
   // למסך הפרופיל אחרי ההתנתקות.
   const handleLogout = () => {
+    if (Platform.OS === "web") {
+      // ב-web אין Alert נייטיב — משתמשים ב-confirm של הדפדפן
+      if (window.confirm("האם להתנתק מהחשבון?")) {
+        clearAuth();
+        router.replace("/Login");
+      }
+      return;
+    }
     Alert.alert(
       "התנתקות",
       "האם להתנתק מהחשבון?",
