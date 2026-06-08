@@ -974,6 +974,43 @@ export default function QuizScreen() {
       today.getDate(),
     );
 
+    // ב-Web אין תמיכה ב-DateTimePicker הנייטיב — משתמשים ב-<input type="date"> של HTML
+    if (Platform.OS === "web") {
+      const maxDate = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}-${String(today.getDate()).padStart(2, "0")}`;
+      const webValue = selected
+        ? `${selected.getFullYear()}-${String(selected.getMonth() + 1).padStart(2, "0")}-${String(selected.getDate()).padStart(2, "0")}`
+        : "";
+
+      return (
+        <View key="birthDate" style={styles.dateInputBtn}>
+          <input
+            type="date"
+            max={maxDate}
+            value={webValue}
+            onChange={(e) => {
+              if (e.target.value) {
+                const [y, m, d] = e.target.value.split("-").map(Number);
+                updateAnswer("birthDate", new Date(y, m - 1, d));
+              }
+            }}
+            style={{
+              flex: 1,
+              border: "none",
+              outline: "none",
+              background: "transparent",
+              fontSize: 16,
+              colorScheme: "light",
+              color: selected ? "#222" : "#aaa",
+              direction: "rtl",
+              cursor: "pointer",
+              marginRight: 8,
+              width: "100%",
+            }}
+          />
+        </View>
+      );
+    }
+
     return (
       <View key="birthDate">
         <Pressable

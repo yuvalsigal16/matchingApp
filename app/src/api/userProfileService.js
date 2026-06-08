@@ -1,3 +1,4 @@
+import { Platform } from "react-native";
 import { getToken } from "../auth/authStore";
 import { BASE_URL } from "./config";
 
@@ -128,13 +129,21 @@ export async function uploadProfileImage(userId, localUri) {
   //קובע סוג קובץ לפי הסיומת (png או jpeg)
   const mime = ext === "png" ? "image/png" : "image/jpeg";
 
-  // שימוש באובייקט FormData לצורך שליחת קובץ תמונה בינארי לשרת
   const formData = new FormData();
-  formData.append("file", {
-    uri: localUri,
-    name: `profile.${ext}`,
-    type: mime,
-  });
+
+  if (Platform.OS === "web") {
+    // ב-web הנייטיב {uri,name,type} לא עובד — צריך Blob/File אמיתי
+    const blobRes = await fetch(localUri);
+    const blob = await blobRes.blob();
+    const file = new File([blob], `profile.${ext}`, { type: mime });
+    formData.append("file", file);
+  } else {
+    formData.append("file", {
+      uri: localUri,
+      name: `profile.${ext}`,
+      type: mime,
+    });
+  }
 
   const token = getToken();
   let res;

@@ -1,13 +1,14 @@
 import { Ionicons } from "@expo/vector-icons";
 import * as ImagePicker from "expo-image-picker";
 import { useRouter } from "expo-router";
-import { ChevronLeft, FileText, Heart, LogOut, Settings } from "lucide-react-native";
+import { ChevronLeft, FileText, Heart, LogOut, Settings, Users } from "lucide-react-native";
 import React, { useEffect, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
   Image,
   Modal,
+  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -203,6 +204,14 @@ export default function ProfileScreen() {
   // ומחזיר אותו למסך ההתחברות. משתמשים ב-replace כדי שלא יהיה אפשר לחזור אחורה
   // למסך הפרופיל אחרי ההתנתקות.
   const handleLogout = () => {
+    if (Platform.OS === "web") {
+      // ב-web אין Alert נייטיב — משתמשים ב-confirm של הדפדפן
+      if (window.confirm("האם להתנתק מהחשבון?")) {
+        clearAuth();
+        router.replace("/Login");
+      }
+      return;
+    }
     Alert.alert(
       "התנתקות",
       "האם להתנתק מהחשבון?",
@@ -245,6 +254,13 @@ export default function ProfileScreen() {
 
   // route = ה-path אליו הכפתור מנווט (null = לא לחיץ עדיין)
   const MENU = [
+    {
+      title: "גילוי וקהילה",
+      sub: "בקרב המטיילים",
+      Icon: Users,
+      route: "/discovery",
+      iconBg: "#E3EFE5",
+    },
     {
       title: "הגדרות",
       Icon: Settings,
@@ -332,8 +348,13 @@ export default function ProfileScreen() {
                 onPress={() => item.route && router.push(item.route)}
               >
                 <ChevronLeft size={20} color="#999" />
-                <Text style={styles.menuText}>{item.title}</Text>
-                <View style={styles.menuIcon}>
+                <View style={styles.menuTextBlock}>
+                  <Text style={styles.menuText}>{item.title}</Text>
+                  {item.sub ? (
+                    <Text style={styles.menuSub}>{item.sub}</Text>
+                  ) : null}
+                </View>
+                <View style={[styles.menuIcon, item.iconBg ? { backgroundColor: item.iconBg } : null]}>
                   <Icon size={20} color="#1A3C40" />
                 </View>
               </TouchableOpacity>
@@ -492,10 +513,24 @@ const styles = StyleSheet.create({
     marginBottom: 10,
   },
 
-  menuText: {
+  menuTextBlock: {
     flex: 1,
+    alignItems: "flex-end",
+    paddingHorizontal: 4,
+  },
+
+  menuText: {
     textAlign: "right",
     fontFamily: FONTS.regular,
+    color: "#1A1A1A",
+  },
+
+  menuSub: {
+    textAlign: "right",
+    fontSize: 12,
+    fontFamily: FONTS.regular,
+    color: "#B88A4C",
+    marginTop: 2,
   },
 
   menuIcon: {

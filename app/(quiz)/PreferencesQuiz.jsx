@@ -68,9 +68,12 @@ function parseDDMMYY(str) {
   return date;
 }
 
-// ממיר אובייקט Date ל-"YYYY-MM-DD" (פורמט תקני לשרת)
+// ממיר אובייקט Date ל-"YYYY-MM-DD" לפי שעון מקומי (לא UTC)
 function toIsoDateOnly(date) {
-  return date.toISOString().slice(0, 10);
+  const y = date.getFullYear();
+  const m = (date.getMonth() + 1).toString().padStart(2, "0");
+  const d = date.getDate().toString().padStart(2, "0");
+  return `${y}-${m}-${d}`;
 }
 
 // ── מיפוי מגדר מעברית לאנגלית (לשרת) ──
@@ -146,11 +149,12 @@ function getIsAnswered(question, data) {
       return !!(data[question.id] || "").trim(); // חובה שיהיה טקסט אחרי trim
     }
     case "dates": {
-      // startDate ו-endDate נשמרים כאובייקטי Date מבורר התאריכים
       const start = data.startDate;
+      if (!(start instanceof Date) || isNaN(start)) return false;
+      if (data.oneWay) return true; // כרטיס לכיוון אחד — מספיק תאריך יציאה
       const end = data.endDate;
-      if (!(start instanceof Date) || !(end instanceof Date)) return false;
-      if (end < start) return false; // תאריך חזרה לא יכול להיות לפני יציאה
+      if (!(end instanceof Date) || isNaN(end)) return false;
+      if (end < start) return false;
       return true;
     }
     case "single-select":
@@ -189,6 +193,7 @@ export default function PreferencesQuizScreen() {
     destination: "", // יעד
     startDate: null, // תאריך יציאה (Date מבורר התאריכים)
     endDate: null, // תאריך חזרה (Date מבורר התאריכים)
+    oneWay: false, // כרטיס לכיוון אחד — אין תאריך חזרה
     recommendPeriod: false, // האם להמליץ על תקופה?
     gender: "", // העדפת מגדר
     ageRange: { min: 24, max: 38 }, // העדפת גיל — טווח עם min/max
@@ -332,7 +337,7 @@ export default function PreferencesQuizScreen() {
       CreatedByUserID: u.userID,
       Destination: dest,
       StartDate: toIsoDateOnly(start), // YYYY-MM-DD
-      EndDate: toIsoDateOnly(end),
+      EndDate: end ? toIsoDateOnly(end) : null,
       Status: "Active",
     });
 
@@ -474,57 +479,155 @@ export default function PreferencesQuizScreen() {
       ? `${String(d.getDate()).padStart(2, "0")}/${String(d.getMonth() + 1).padStart(2, "0")}/${d.getFullYear()}`
       : "DD/MM/YYYY";
 
+  // סגנון CSS לשדה תאריך web — טקסט כהה על רקע שקוף
+  const webInputStyle = (hasValue) => ({
+    flex: 1,
+    border: "none",
+    outline: "none",
+    background: "transparent",
+    fontSize: 15,
+    colorScheme: "light",
+    color: hasValue ? "#222" : "#aaa",
+    direction: "rtl",
+    cursor: "pointer",
+    width: "100%",
+    fontFamily: "inherit",
+  });
+
   const renderDates = () => {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
 
+    const toInputVal = (d) =>
+      d instanceof Date && !isNaN(d)
+        ? `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`
+        : "";
+
+    const fromInputVal = (str) => {
+      if (!str) return null;
+      const [y, m, d] = str.split("-").map(Number);
+      return new Date(y, m - 1, d);
+    };
+
+    const todayStr = toInputVal(today);
+
+    // ── גרסת WEB ──────────────────────────────────────────────────────────────
+    if (Platform.OS === "web") {
+      return (
+        <View style={styles.fieldsWrapper}>
+          <View style={styles.dateLabelRow}>
+            <Plane size={18} color="#1A3C40" strokeWidth={1.8} />
+            <Text style={styles.dateLabel}>תאריך יציאה</Text>
+          </View>
+          <View style={styles.dateInputCard}>
+            <input
+              type="date"
+              min={todayStr}
+              value={toInputVal(data.startDate)}
+              onChange={(e) => updateField("startDate", fromInputVal(e.target.value))}
+              style={webInputStyle(!!data.startDate)}
+            />
+          </View>
+
+          {/* checkbox כרטיס לכיוון אחד */}
+          <Pressable
+            style={styles.checkboxRow}
+            onPress={() => {
+              const next = !data.oneWay;
+              updateField("oneWay", next);
+              if (next) updateField("endDate", null);
+            }}
+          >
+            <View style={[styles.checkbox, data.oneWay && styles.checkboxChecked]}>
+              {data.oneWay && <Ionicons name="checkmark" size={16} color="#fff" />}
+            </View>
+            <Text style={styles.checkboxLabel}>כרטיס לכיוון אחד (ללא תאריך חזרה)</Text>
+          </Pressable>
+
+          {!data.oneWay && (
+            <>
+              <View style={styles.dateLabelRow}>
+                <Home size={18} color="#1A3C40" strokeWidth={1.8} />
+                <Text style={styles.dateLabel}>תאריך חזרה</Text>
+              </View>
+              <View style={styles.dateInputCard}>
+                <input
+                  type="date"
+                  min={toInputVal(data.startDate) || todayStr}
+                  value={toInputVal(data.endDate)}
+                  onChange={(e) => updateField("endDate", fromInputVal(e.target.value))}
+                  style={webInputStyle(!!data.endDate)}
+                />
+              </View>
+            </>
+          )}
+
+          <Pressable
+            style={styles.checkboxRow}
+            onPress={() => updateField("recommendPeriod", !data.recommendPeriod)}
+          >
+            <View style={[styles.checkbox, data.recommendPeriod && styles.checkboxChecked]}>
+              {data.recommendPeriod && <Ionicons name="checkmark" size={16} color="#fff" />}
+            </View>
+            <Text style={styles.checkboxLabel}>תמליצי לי על תקופה טובה לטיסה</Text>
+          </Pressable>
+        </View>
+      );
+    }
+
+    // ── גרסת NATIVE (iOS + Android) ───────────────────────────────────────────
     return (
       <View style={styles.fieldsWrapper}>
-        {/* תווית "תאריך יציאה" עם אייקון מטוס */}
         <View style={styles.dateLabelRow}>
           <Plane size={18} color="#1A3C40" strokeWidth={1.8} />
           <Text style={styles.dateLabel}>תאריך יציאה</Text>
         </View>
-        {/* כפתור שפותח לוח שנה — תאריך יציאה */}
         <Pressable
           style={styles.dateInputCard}
           onPress={() => setDatePickerOpen("start")}
         >
           <Calendar size={18} color="#9AABAD" strokeWidth={1.8} />
-          <Text
-            style={[
-              styles.dateTextInput,
-              !data.startDate && styles.dateTextPlaceholder,
-            ]}
-          >
+          <Text style={[styles.dateTextInput, !data.startDate && styles.dateTextPlaceholder]}>
             {formatDate(data.startDate)}
           </Text>
         </Pressable>
 
-        {/* תווית "תאריך חזרה" עם אייקון בית */}
-        <View style={styles.dateLabelRow}>
-          <Home size={18} color="#1A3C40" strokeWidth={1.8} />
-          <Text style={styles.dateLabel}>תאריך חזרה</Text>
-        </View>
-        {/* כפתור שפותח לוח שנה — תאריך חזרה */}
+        {/* checkbox כרטיס לכיוון אחד */}
         <Pressable
-          style={styles.dateInputCard}
-          onPress={() => setDatePickerOpen("end")}
+          style={styles.checkboxRow}
+          onPress={() => {
+            const next = !data.oneWay;
+            updateField("oneWay", next);
+            if (next) {
+              updateField("endDate", null);
+              setDatePickerOpen(null);
+            }
+          }}
         >
-          <Calendar size={18} color="#9AABAD" strokeWidth={1.8} />
-          <Text
-            style={[
-              styles.dateTextInput,
-              !data.endDate && styles.dateTextPlaceholder,
-            ]}
-          >
-            {formatDate(data.endDate)}
-          </Text>
+          <View style={[styles.checkbox, data.oneWay && styles.checkboxChecked]}>
+            {data.oneWay && <Ionicons name="checkmark" size={16} color="#fff" />}
+          </View>
+          <Text style={styles.checkboxLabel}>כרטיס לכיוון אחד (ללא תאריך חזרה)</Text>
         </Pressable>
 
-        {/* בורר תאריכים native — מוצג רק כש-datePickerOpen אינו null.
-          minimumDate משתנה לפי איזה בורר פתוח: יציאה לא יכול להיות בעבר,
-          חזרה לא יכול להיות לפני יציאה. */}
+        {!data.oneWay && (
+          <>
+            <View style={styles.dateLabelRow}>
+              <Home size={18} color="#1A3C40" strokeWidth={1.8} />
+              <Text style={styles.dateLabel}>תאריך חזרה</Text>
+            </View>
+            <Pressable
+              style={styles.dateInputCard}
+              onPress={() => setDatePickerOpen("end")}
+            >
+              <Calendar size={18} color="#9AABAD" strokeWidth={1.8} />
+              <Text style={[styles.dateTextInput, !data.endDate && styles.dateTextPlaceholder]}>
+                {formatDate(data.endDate)}
+              </Text>
+            </Pressable>
+          </>
+        )}
+
         {datePickerOpen && (
           <DateTimePicker
             value={
@@ -538,11 +641,8 @@ export default function PreferencesQuizScreen() {
               datePickerOpen === "start" ? today : data.startDate || today
             }
             onChange={(event, date) => {
-              // ב-Android הבורר נסגר לבד; ב-iOS משאירים פתוח עד שהמשתמש יגלול
               const isIos = Platform.OS === "ios";
-              // datePickerOpen הוא "start"/"end" — ממפים לשם השדה האמיתי ב-data
-              const fieldName =
-                datePickerOpen === "start" ? "startDate" : "endDate";
+              const fieldName = datePickerOpen === "start" ? "startDate" : "endDate";
               if (event.type === "set" && date) {
                 updateField(fieldName, date);
                 if (!isIos) setDatePickerOpen(null);
@@ -552,36 +652,20 @@ export default function PreferencesQuizScreen() {
             }}
           />
         )}
-        {/* ב-iOS הבורר נשאר פתוח — מוסיפים כפתור "סיום" לסגירה ידנית */}
         {datePickerOpen && Platform.OS === "ios" && (
-          <Pressable
-            style={styles.dateDoneBtn}
-            onPress={() => setDatePickerOpen(null)}
-          >
+          <Pressable style={styles.dateDoneBtn} onPress={() => setDatePickerOpen(null)}>
             <Text style={styles.dateDoneText}>סיום</Text>
           </Pressable>
         )}
 
-        {/* checkbox עם טקסט — לחיצה הופכת את המצב הבוליאני */}
         <Pressable
           style={styles.checkboxRow}
           onPress={() => updateField("recommendPeriod", !data.recommendPeriod)}
         >
-          {/* ריבוע ה-checkbox — מקבל סגנון נוסף כשמסומן */}
-          <View
-            style={[
-              styles.checkbox,
-              data.recommendPeriod && styles.checkboxChecked,
-            ]}
-          >
-            {/* סימן וי — מוצג רק כשמסומן */}
-            {data.recommendPeriod && (
-              <Ionicons name="checkmark" size={16} color="#fff" />
-            )}
+          <View style={[styles.checkbox, data.recommendPeriod && styles.checkboxChecked]}>
+            {data.recommendPeriod && <Ionicons name="checkmark" size={16} color="#fff" />}
           </View>
-          <Text style={styles.checkboxLabel}>
-            תמליצי לי על תקופה טובה לטיסה
-          </Text>
+          <Text style={styles.checkboxLabel}>תמליצי לי על תקופה טובה לטיסה</Text>
         </Pressable>
       </View>
     );
