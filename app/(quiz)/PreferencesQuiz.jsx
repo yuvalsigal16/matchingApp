@@ -33,11 +33,17 @@ import { SafeAreaView } from "react-native-safe-area-context";
 // ── שירותי API ──
 import { getAllInterests } from "../src/api/interestService"; // טעינת תחומי עניין
 import {
-  addTripPreferenceInterest, // קישור תחום עניין להעדפה
-  createTrip, // יצירת טיול חדש
-  createTripPreferences, // יצירת אובייקט העדפות
+  addTripPreferenceInterest,
+  createTrip,
+  createTripPreferences,
+  getTripPreferenceInterests,
+  getTripPreferences,
+  removeTripPreferenceInterest,
+  updateTrip,
+  updateTripPreferences,
 } from "../src/api/tripService";
-import { getUser } from "../src/auth/authStore"; // משיכת המשתמש המחובר
+import { BASE_URL } from "../src/api/config";
+import { getToken, getUser } from "../src/auth/authStore";
 import { FONTS } from "../src/theme/fonts";
 
 // ── פונקציות עזר לתאריכים ──
@@ -83,6 +89,11 @@ const GENDER_HE_TO_DB = {
   גבר: "Male",
   אישה: "Female",
   הכל: null,
+};
+
+const GENDER_DB_TO_HE = {
+  Male: "גבר",
+  Female: "אישה",
 };
 
 // ─── הגדרת שאלות השאלון ─────────────────────────────────────────────────────
@@ -183,8 +194,7 @@ function getIsAnswered(question, data) {
 
 export default function PreferencesQuizScreen() {
   const router = useRouter();
-  const { mode } = useLocalSearchParams();
-  // מספר השאלה הנוכחית (אינדקס במערך QUESTIONS)
+  const { mode, tripId } = useLocalSearchParams();
   const [step, setStep] = useState(0);
 
   // כל הנתונים שנאספו מהמשתמש — אובייקט אחד עם כל השדות
@@ -229,7 +239,7 @@ export default function PreferencesQuizScreen() {
   const realQuestions = QUESTIONS.filter((q) => q.type !== "intro");
 
   const currentStepIndex = realQuestions.findIndex((q) => q.id === currentQ.id);
-  const answered = getIsAnswered(currentQ, data); // האם נענתה?
+  const answered = mode === "editTrip" || getIsAnswered(currentQ, data);
 
   // ── טעינת תחומי עניין מהשרת — פעם אחת בעת טעינת הקומפוננטה ──
   useEffect(() => {
@@ -248,11 +258,64 @@ export default function PreferencesQuizScreen() {
         if (!cancelled) setInterestsLoading(false);
       }
     })();
-    // cleanup: נקרא כשהקומפוננטה נסגרת — מונע memory leaks
-    return () => {
-      cancelled = true;
-    };
-  }, []); // [] = מערך תלויות ריק → רץ רק פעם אחת
+    return () => { cancelled = true; };
+  }, []);
+
+  // טעינת נתוני טיול קיים במצב עריכה
+  useEffect(() => {
+    if (mode !== "editTrip" || !tripId) return;
+    (async () => {
+      try {
+        const token = getToken();
+        const headers = token ? { Authorization: `Bearer ${token}` } : {};
+        const [tripRes, prefRes] = await Promise.allSettled([
+          fetch(`${BASE_URL}/Trip/${tripId}`, { headers }),
+          getTripPreferences(tripId),
+        ]);
+
+        const updates = {};
+
+        if (tripRes.status === "fulfilled" && tripRes.value.ok) {
+          const t = await tripRes.value.json();
+          updates.destination = t.destination || "";
+          if (t.startDate) {
+            const m = String(t.startDate).match(/^(\d{4})-(\d{2})-(\d{2})/);
+            if (m) updates.startDate = new Date(+m[1], +m[2] - 1, +m[3]);
+          }
+          if (t.endDate) {
+            const m = String(t.endDate).match(/^(\d{4})-(\d{2})-(\d{2})/);
+            if (m) updates.endDate = new Date(+m[1], +m[2] - 1, +m[3]);
+          }
+        }
+
+        if (prefRes.status === "fulfilled" && prefRes.value) {
+          const p = prefRes.value;
+          updates.gender = GENDER_DB_TO_HE[p.preferredGender] || "הכל";
+          updates.ageRange = {
+            min: p.preferredAgeMin ?? 18,
+            max: p.preferredAgeMax ?? 60,
+          };
+          updates.partnerIsSmoker = p.isSmoker ?? null;
+          updates.partnerKeepsKosher = p.keepsKosher ?? null;
+          updates.partnerKeepsShabbat = p.keepsShabbat ?? null;
+          updates.partnerSpontaneity = p.spontaneityLevel ?? null;
+          updates.partnerLifestyle = p.lifestyleLevel ?? null;
+
+          // טען תחומי עניין קיימים
+          try {
+            const ints = await getTripPreferenceInterests(p.tripPreferenceID);
+            updates.interests = (ints || []).map((i) => i.interestID ?? i.InterestID);
+          } catch {}
+        }
+
+        setData((prev) => ({ ...prev, ...updates }));
+        // קפוץ ישר לשלב הראשון הממשי (דלג על מסך intro)
+        setStep(1);
+      } catch (err) {
+        console.log("[editTrip] load error:", err);
+      }
+    })();
+  }, [mode, tripId]);
 
   // ── אנימציית מעבר בין שאלות (fade-out → fade-in) ──
   // useCallback — הפונקציה נוצרת מחדש רק כשstep משתנה
@@ -335,6 +398,7 @@ export default function PreferencesQuizScreen() {
     // יש לעדכן כאן.
     const tripId = await createTrip({
       CreatedByUserID: u.userID,
+      TripName: (data.tripName || "").trim() || dest,
       Destination: dest,
       StartDate: toIsoDateOnly(start), // YYYY-MM-DD
       EndDate: end ? toIsoDateOnly(end) : null,
@@ -366,6 +430,55 @@ export default function PreferencesQuizScreen() {
     }
   }, [data]);
 
+  // ── עדכון טיול קיים (מצב עריכה) ──
+  const updateFullTrip = useCallback(async () => {
+    const dest = (data.destination || "").trim();
+    const start = data.startDate;
+    const end = data.endDate;
+    if (!start) throw new Error("חובה לבחור תאריך יציאה");
+
+    // עדכן את הטיול עצמו
+    await updateTrip({
+      TripID: Number(tripId),
+      Destination: dest,
+      StartDate: toIsoDateOnly(start),
+      EndDate: end ? toIsoDateOnly(end) : null,
+      Status: "Active",
+    });
+
+    // טען העדפות קיימות כדי לקבל את ה-ID
+    const existingPref = await getTripPreferences(tripId);
+    if (existingPref) {
+      await updateTripPreferences({
+        TripPreferenceID: existingPref.tripPreferenceID,
+        TripID: Number(tripId),
+        PreferredGender: GENDER_HE_TO_DB[data.gender],
+        PreferredAgeMin: data.ageRange?.min,
+        PreferredAgeMax: data.ageRange?.max,
+        IsSmoker: data.partnerIsSmoker,
+        KeepsKosher: data.partnerKeepsKosher,
+        KeepsShabbat: data.partnerKeepsShabbat,
+        SpontaneityLevel: data.partnerSpontaneity,
+        LifestyleLevel: data.partnerLifestyle,
+      });
+
+      // עדכן תחומי עניין — מחק ישנים, הוסף חדשים
+      const prefId = existingPref.tripPreferenceID;
+      const oldInts = await getTripPreferenceInterests(prefId).catch(() => []);
+      const oldIds = (oldInts || []).map((i) => i.interestID ?? i.InterestID);
+      const newIds = data.interests || [];
+
+      await Promise.all([
+        ...oldIds.filter((id) => !newIds.includes(id)).map((id) =>
+          removeTripPreferenceInterest(prefId, id).catch(() => {})
+        ),
+        ...newIds.filter((id) => !oldIds.includes(id)).map((id) =>
+          addTripPreferenceInterest(prefId, id).catch(() => {})
+        ),
+      ]);
+    }
+  }, [data, tripId]);
+
   // ── מטפל בלחיצה על "המשך" ──
   const handleNext = async () => {
     // אם השאלה לא נענתה או בתהליך שליחה — לא עושים כלום
@@ -383,22 +496,13 @@ export default function PreferencesQuizScreen() {
       setSubmitError("");
       setSubmitting(true);
       try {
-        console.log("START submitFullTrip");
-
-        await submitFullTrip();
-
-        console.log("submitFullTrip SUCCESS");
-        console.log("isNewTripFlow =", isNewTripFlow);
-
-        if (isNewTripFlow) {
-          console.log("NAVIGATING TO MYTRIPS");
-          router.replace("/(tabs)/myTrips");
+        if (mode === "editTrip") {
+          await updateFullTrip();
         } else {
-          console.log("NAVIGATING TO HOME");
-          router.replace("/(tabs)/Home");
+          await submitFullTrip();
         }
+        router.replace("/(tabs)/myTrips");
       } catch (err) {
-        console.log("SUBMIT ERROR:", err);
         setSubmitError(err.message);
       } finally {
         setSubmitting(false);
@@ -708,13 +812,10 @@ export default function PreferencesQuizScreen() {
     const AGE_MIN = 18;
     const AGE_MAX = 60;
     const r = data.ageRange || { min: AGE_MIN, max: AGE_MAX };
-
     return (
       <View style={styles.fieldsWrapper}>
         <Text style={styles.ageHint}>טווח גילאים</Text>
 
-        {/* תצוגה מרכזית של הטווח הנבחר — שני pills עם קו מקשר באמצע.
-            ממורכז ויזואלית כדי שלא יזוז בעת גרירה של ה-handles. */}
         <View style={styles.ageRangeDisplay}>
           <View style={styles.ageNumberPill}>
             <Text style={styles.ageNumberText}>{r.min}</Text>
@@ -722,8 +823,7 @@ export default function PreferencesQuizScreen() {
           <View style={styles.ageRangeDash} />
           <View style={styles.ageNumberPill}>
             <Text style={styles.ageNumberText}>
-              {r.max}
-              {r.max >= AGE_MAX ? "+" : ""}
+              {r.max}{r.max >= AGE_MAX ? "+" : ""}
             </Text>
           </View>
         </View>
@@ -740,12 +840,10 @@ export default function PreferencesQuizScreen() {
           trackStyle={styles.ageTrack}
           containerStyle={styles.ageSliderContainer}
           onValueChange={(values) => {
-            // הספרייה מחזירה [min, max] — שומרים כאובייקט נגיש בשאר הקוד
             updateField("ageRange", { min: values[0], max: values[1] });
           }}
         />
 
-        {/* תוויות גבולות הסקלה — מתואמות לכיוון הסליידר */}
         <View style={styles.ageBoundsRow}>
           <Text style={styles.ageBound}>{AGE_MIN}</Text>
           <Text style={styles.ageBound}>+{AGE_MAX}</Text>
@@ -1323,6 +1421,7 @@ const styles = StyleSheet.create({
     textAlign: "right",
     marginBottom: 14,
   },
+
   // תצוגה מרכזית של הטווח: [min] — [max], pills יפים עם קו מקשר באמצע
   ageRangeDisplay: {
     flexDirection: "row",

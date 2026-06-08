@@ -301,6 +301,16 @@ export default function TripDetails() {
 
         {/* ACTIONS */}
         <View style={styles.actions}>
+          <TouchableOpacity
+            style={styles.editBtn}
+            onPress={() => router.push({
+              pathname: "/PreferencesQuiz",
+              params: { mode: "editTrip", tripId: id },
+            })}
+          >
+            <Text style={styles.btnText}>ערוך טיול</Text>
+          </TouchableOpacity>
+
           {trip.status !== "Inactive" && (
             <TouchableOpacity
               style={styles.deactivateBtn}
@@ -433,6 +443,14 @@ const styles = StyleSheet.create({
 
   actions: {
     marginTop: 20,
+    gap: 10,
+  },
+
+  editBtn: {
+    backgroundColor: "#1A3C40",
+    padding: 14,
+    borderRadius: 12,
+    alignItems: "center",
   },
 
   deactivateBtn: {
