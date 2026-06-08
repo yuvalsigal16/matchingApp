@@ -100,7 +100,7 @@ useFocusEffect(
         {/* כותרת ראשית */}
         <View style={styles.row}>
           <Text style={[styles.title, past && styles.textPast]}>
-            {trip.destination || "טיול ללא שם"}
+            {trip.tripName || trip.TripName || trip.destination || "טיול"}
           </Text>
 
           <Ionicons

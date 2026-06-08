@@ -73,7 +73,7 @@ export default function ProfileScreen() {
             fetch(`${BASE_URL}/UserProfile/${userId}`, { headers }),
             fetch(`${BASE_URL}/UserProfile/image/${userId}`, { headers }),
             fetch(`${BASE_URL}/Matches/user/${userId}`, { headers }),
-            fetch(`${BASE_URL}/Trips/user/${userId}`, { headers }),
+            fetch(`${BASE_URL}/Trip/user/${userId}`, { headers }),
           ]);
 
         let firstName = "";
@@ -256,7 +256,6 @@ export default function ProfileScreen() {
   const MENU = [
     {
       title: "גילוי וקהילה",
-      sub: "בקרב המטיילים",
       Icon: Users,
       route: "/discovery",
       iconBg: "#E3EFE5",
@@ -294,22 +293,24 @@ export default function ProfileScreen() {
 
         {/* Avatar — לחיץ לפתיחת בורר תמונה */}
         <View style={styles.avatarContainer}>
-          <Pressable onPress={() => setImagePickerVisible(true)}>
-            {renderAvatar()}
-            {uploading && (
-              <View style={styles.uploadingOverlay}>
-                <ActivityIndicator color="#fff" />
-              </View>
-            )}
-          </Pressable>
+          <View style={styles.avatarWrapper}>
+            <Pressable onPress={() => setImagePickerVisible(true)}>
+              {renderAvatar()}
+              {uploading && (
+                <View style={styles.uploadingOverlay}>
+                  <ActivityIndicator color="#fff" />
+                </View>
+              )}
+            </Pressable>
 
-          <TouchableOpacity
-            style={styles.cameraButton}
-            onPress={() => setImagePickerVisible(true)}
-            disabled={uploading}
-          >
-            <Ionicons name="camera" size={18} color="#fff" />
-          </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.cameraButton}
+              onPress={() => setImagePickerVisible(true)}
+              disabled={uploading}
+            >
+              <Ionicons name="camera" size={18} color="#fff" />
+            </TouchableOpacity>
+          </View>
         </View>
 
         {/* Name + Email */}
@@ -441,6 +442,12 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
 
+  avatarWrapper: {
+    position: "relative",
+    width: 110,
+    height: 110,
+  },
+
   avatar: {
     width: 110,
     height: 110,
@@ -455,8 +462,8 @@ const styles = StyleSheet.create({
 
   cameraButton: {
     position: "absolute",
-    bottom: 0,
-    right: 120,
+    bottom: 2,
+    right: 2,
     backgroundColor: "#000",
     borderRadius: 20,
     padding: 6,
