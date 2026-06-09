@@ -1,9 +1,15 @@
 import React, { useEffect, useState } from "react";
 import {
   ActivityIndicator,
+  Alert,
+  KeyboardAvoidingView,
+  Modal,
+  Platform,
+  Pressable,
   ScrollView,
   StyleSheet,
   Text,
+  TextInput,
   TouchableOpacity,
   View,
 } from "react-native";
@@ -13,58 +19,50 @@ import { Ionicons } from "@expo/vector-icons";
 
 import { BASE_URL } from "../src/api/config";
 import { getToken, getUser } from "../src/auth/authStore";
+import { addRecommendation, getRecommendationsByTrip } from "../src/api/recommendationService";
+import { getUserTrips } from "../src/api/tripService";
 import { FONTS } from "../src/theme/fonts";
 import BottomNav from "../../components/BottomNav";
 
-// מסך המלצות - מציג המלצות שהתקבלו על מקומות בטיולים של המשתמש
 export default function RecommendationsScreen() {
   const router = useRouter();
 
   const [recommendations, setRecommendations] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [modalVisible, setModalVisible] = useState(false);
+
+  // טופס יצירת המלצה
+  const [trips, setTrips] = useState([]);
+  const [selectedTripId, setSelectedTripId] = useState(null);
+  const [placeName, setPlaceName] = useState("");
+  const [description, setDescription] = useState("");
+  const [rating, setRating] = useState(0);
+  const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
     loadRecommendations();
   }, []);
 
-  // טעינת ההמלצות: קודם משיכת הטיולים של המשתמש, ואז המלצות לכל טיול
   const loadRecommendations = async () => {
     setLoading(true);
     try {
       const userId = getUser()?.userID;
       const token = getToken();
-      if (!userId || !token) {
-        setLoading(false);
-        return;
-      }
+      if (!userId || !token) return;
 
       const headers = { Authorization: `Bearer ${token}` };
 
-      // 1. משיכת כל הטיולים של המשתמש
-      const tripsRes = await fetch(`${BASE_URL}/Trips/user/${userId}`, {
-        headers,
-      });
-      if (!tripsRes.ok) {
-        setLoading(false);
-        return;
-      }
-      const trips = await tripsRes.json();
+      const tripsRes = await fetch(`${BASE_URL}/Trips/user/${userId}`, { headers });
+      if (!tripsRes.ok) return;
+      const userTrips = await tripsRes.json();
 
-      // 2. לכל טיול - משיכת ההמלצות שלו (במקביל לכולם)
       const allRecs = await Promise.all(
-        trips.map(async (trip) => {
-          const res = await fetch(
-            `${BASE_URL}/Recommendation/trip/${trip.tripID}`,
-            { headers }
-          );
-          if (!res.ok) return [];
-          const recs = await res.json();
-          // מצרפים את שם הטיול לכל המלצה כדי שנציג אותו
+        userTrips.map(async (trip) => {
+          const recs = await getRecommendationsByTrip(trip.tripID).catch(() => []);
           return recs.map((r) => ({ ...r, tripName: trip.destination }));
         })
       );
 
-      // 3. שטיחה של כל המערכים לרשימה אחת
       setRecommendations(allRecs.flat());
     } catch (err) {
       console.error("loadRecommendations:", err);
@@ -73,7 +71,51 @@ export default function RecommendationsScreen() {
     }
   };
 
-  // הצגת כוכבים לפי דירוג
+  const openModal = async () => {
+    try {
+      const userId = getUser()?.userID;
+      const userTrips = await getUserTrips(userId);
+      setTrips(userTrips || []);
+      setSelectedTripId(userTrips?.[0]?.tripID ?? null);
+    } catch {
+      setTrips([]);
+    }
+    setPlaceName("");
+    setDescription("");
+    setRating(0);
+    setModalVisible(true);
+  };
+
+  const handleSubmit = async () => {
+    if (!placeName.trim()) {
+      Alert.alert("שגיאה", "יש להזין שם מקום");
+      return;
+    }
+    if (!selectedTripId) {
+      Alert.alert("שגיאה", "יש לבחור טיול");
+      return;
+    }
+
+    setSubmitting(true);
+    try {
+      const userId = getUser()?.userID;
+      await addRecommendation({
+        userID: userId,
+        tripID: selectedTripId,
+        placeName: placeName.trim(),
+        description: description.trim() || null,
+        rating: rating || null,
+        isAnonymous: false,
+      });
+      setModalVisible(false);
+      loadRecommendations();
+    } catch (err) {
+      Alert.alert("שגיאה", err.message || "לא ניתן להוסיף המלצה");
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
   const renderStars = (rating) => {
     const r = rating || 0;
     return "⭐".repeat(r) + "☆".repeat(5 - r);
@@ -89,7 +131,7 @@ export default function RecommendationsScreen() {
 
   return (
     <SafeAreaView style={styles.container}>
-      {/* Header עם חץ חזרה */}
+      {/* Header */}
       <View style={styles.headerRow}>
         <TouchableOpacity onPress={() => router.back()}>
           <Ionicons name="arrow-forward" size={26} color="#1A3C40" />
@@ -107,22 +149,19 @@ export default function RecommendationsScreen() {
         ) : (
           recommendations.map((rec) => (
             <View key={rec.recommendationID} style={styles.card}>
-              {/* אייקון */}
               <View style={styles.iconBox}>
                 <Ionicons name="location-outline" size={22} color="#1A3C40" />
               </View>
-
-              {/* פרטי המלצה */}
               <View style={styles.cardText}>
                 <Text style={styles.title}>{rec.placeName}</Text>
                 {rec.tripName && (
                   <Text style={styles.tripName}>בטיול: {rec.tripName}</Text>
                 )}
-                {rec.description && (
+                {rec.description ? (
                   <Text style={styles.subtitle} numberOfLines={2}>
                     {rec.description}
                   </Text>
-                )}
+                ) : null}
                 <Text style={styles.stars}>{renderStars(rec.rating)}</Text>
               </View>
             </View>
@@ -130,13 +169,107 @@ export default function RecommendationsScreen() {
         )}
       </ScrollView>
 
-      {/* כפתור צף להוספת המלצה (יבנה בעתיד) */}
-      <TouchableOpacity
-        style={styles.fab}
-        onPress={() => console.log("Add new recommendation")}
-      >
+      {/* כפתור פלוס */}
+      <TouchableOpacity style={styles.fab} onPress={openModal}>
         <Ionicons name="add" size={28} color="#fff" />
       </TouchableOpacity>
+
+      {/* Modal יצירת המלצה */}
+      <Modal
+        visible={modalVisible}
+        animationType="slide"
+        transparent
+        onRequestClose={() => setModalVisible(false)}
+      >
+        <KeyboardAvoidingView
+          style={styles.modalOverlay}
+          behavior={Platform.OS === "ios" ? "padding" : "height"}
+        >
+          <View style={styles.modalSheet}>
+            {/* כותרת */}
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>המלצה חדשה</Text>
+              <Pressable onPress={() => setModalVisible(false)}>
+                <Ionicons name="close" size={24} color="#1A3C40" />
+              </Pressable>
+            </View>
+
+            <ScrollView showsVerticalScrollIndicator={false}>
+              {/* בחירת טיול */}
+              <Text style={styles.label}>טיול</Text>
+              {trips.length === 0 ? (
+                <Text style={styles.noTrips}>אין טיולים פעילים</Text>
+              ) : (
+                <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.tripPicker}>
+                  {trips.map((t) => (
+                    <Pressable
+                      key={t.tripID}
+                      style={[styles.tripChip, selectedTripId === t.tripID && styles.tripChipActive]}
+                      onPress={() => setSelectedTripId(t.tripID)}
+                    >
+                      <Text style={[styles.tripChipText, selectedTripId === t.tripID && styles.tripChipTextActive]}>
+                        {t.destination}
+                      </Text>
+                    </Pressable>
+                  ))}
+                </ScrollView>
+              )}
+
+              {/* שם המקום */}
+              <Text style={styles.label}>שם המקום *</Text>
+              <TextInput
+                style={styles.input}
+                placeholder="למשל: מסעדת פייר בפריז"
+                placeholderTextColor="#aaa"
+                value={placeName}
+                onChangeText={setPlaceName}
+                textAlign="right"
+              />
+
+              {/* תיאור */}
+              <Text style={styles.label}>תיאור (אופציונלי)</Text>
+              <TextInput
+                style={[styles.input, styles.inputMulti]}
+                placeholder="למה כדאי ללכת..."
+                placeholderTextColor="#aaa"
+                value={description}
+                onChangeText={setDescription}
+                multiline
+                numberOfLines={3}
+                textAlign="right"
+                textAlignVertical="top"
+              />
+
+              {/* דירוג */}
+              <Text style={styles.label}>דירוג</Text>
+              <View style={styles.starsRow}>
+                {[1, 2, 3, 4, 5].map((s) => (
+                  <Pressable key={s} onPress={() => setRating(s)}>
+                    <Ionicons
+                      name={s <= rating ? "star" : "star-outline"}
+                      size={32}
+                      color="#F4C77B"
+                    />
+                  </Pressable>
+                ))}
+              </View>
+
+              {/* כפתור שמירה */}
+              <Pressable
+                style={[styles.submitBtn, submitting && styles.submitBtnDisabled]}
+                onPress={handleSubmit}
+                disabled={submitting}
+              >
+                {submitting ? (
+                  <ActivityIndicator color="#fff" />
+                ) : (
+                  <Text style={styles.submitBtnText}>הוסיפי המלצה</Text>
+                )}
+              </Pressable>
+            </ScrollView>
+          </View>
+        </KeyboardAvoidingView>
+      </Modal>
 
       <BottomNav active="discovery" />
     </SafeAreaView>
@@ -145,12 +278,7 @@ export default function RecommendationsScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: "#F0F2F5" },
-  center: {
-    flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-    backgroundColor: "#F0F2F5",
-  },
+  center: { flex: 1, justifyContent: "center", alignItems: "center", backgroundColor: "#F0F2F5" },
 
   headerRow: {
     flexDirection: "row-reverse",
@@ -160,17 +288,9 @@ const styles = StyleSheet.create({
     paddingTop: 20,
     paddingBottom: 10,
   },
+  header: { fontSize: 20, fontFamily: FONTS.bold, color: "#1A3C40" },
 
-  header: {
-    fontSize: 20,
-    fontFamily: FONTS.bold,
-    color: "#1A3C40",
-  },
-
-  content: {
-    paddingHorizontal: 20,
-    paddingBottom: 100,
-  },
+  content: { paddingHorizontal: 20, paddingBottom: 120 },
 
   card: {
     flexDirection: "row-reverse",
@@ -184,70 +304,103 @@ const styles = StyleSheet.create({
     shadowRadius: 6,
     elevation: 2,
   },
-
   iconBox: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
+    width: 48, height: 48, borderRadius: 24,
     backgroundColor: "#E7F3FF",
-    justifyContent: "center",
-    alignItems: "center",
+    justifyContent: "center", alignItems: "center",
   },
+  cardText: { flex: 1, marginHorizontal: 12, alignItems: "flex-end" },
+  title: { fontSize: 16, fontFamily: FONTS.bold, color: "#1A3C40" },
+  tripName: { fontSize: 12, fontFamily: FONTS.regular, color: "#1877F2", marginTop: 2 },
+  subtitle: { fontSize: 13, fontFamily: FONTS.regular, color: "#666", marginTop: 4, textAlign: "right" },
+  stars: { fontSize: 13, marginTop: 6 },
 
-  cardText: {
-    flex: 1,
-    marginHorizontal: 12,
-    alignItems: "flex-end",
-  },
-
-  title: {
-    fontSize: 16,
-    fontFamily: FONTS.bold,
-    color: "#1A3C40",
-  },
-
-  tripName: {
-    fontSize: 12,
-    fontFamily: FONTS.regular,
-    color: "#1877F2",
-    marginTop: 2,
-  },
-
-  subtitle: {
-    fontSize: 13,
-    fontFamily: FONTS.regular,
-    color: "#666",
-    marginTop: 4,
-    textAlign: "right",
-  },
-
-  stars: {
-    fontSize: 13,
-    marginTop: 6,
-  },
-
-  emptyBox: {
-    marginTop: 80,
-    alignItems: "center",
-  },
-
-  emptyText: {
-    marginTop: 10,
-    fontSize: 16,
-    color: "#888",
-    fontFamily: FONTS.regular,
-  },
+  emptyBox: { marginTop: 80, alignItems: "center" },
+  emptyText: { marginTop: 10, fontSize: 16, color: "#888", fontFamily: FONTS.regular },
 
   fab: {
     position: "absolute",
     bottom: 90,
     alignSelf: "center",
     backgroundColor: "#1A3C40",
-    width: 60,
-    height: 60,
-    borderRadius: 30,
-    justifyContent: "center",
-    alignItems: "center",
+    width: 60, height: 60, borderRadius: 30,
+    justifyContent: "center", alignItems: "center",
     elevation: 5,
   },
+
+  // ── Modal ──
+  modalOverlay: {
+    flex: 1,
+    justifyContent: "flex-end",
+    backgroundColor: "rgba(0,0,0,0.4)",
+  },
+  modalSheet: {
+    backgroundColor: "#fff",
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    paddingHorizontal: 20,
+    paddingTop: 20,
+    paddingBottom: 40,
+    maxHeight: "85%",
+  },
+  modalHeader: {
+    flexDirection: "row-reverse",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 20,
+  },
+  modalTitle: { fontSize: 18, fontFamily: FONTS.bold, color: "#1A3C40" },
+
+  label: {
+    fontSize: 14,
+    fontFamily: FONTS.bold,
+    color: "#1A3C40",
+    textAlign: "right",
+    marginBottom: 8,
+    marginTop: 14,
+  },
+  noTrips: { fontSize: 13, color: "#999", fontFamily: FONTS.regular, textAlign: "right" },
+
+  tripPicker: { marginBottom: 4 },
+  tripChip: {
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 20,
+    backgroundColor: "#F0F2F5",
+    marginLeft: 8,
+    borderWidth: 1,
+    borderColor: "#ddd",
+  },
+  tripChipActive: { backgroundColor: "#1A3C40", borderColor: "#1A3C40" },
+  tripChipText: { fontSize: 13, fontFamily: FONTS.regular, color: "#444" },
+  tripChipTextActive: { color: "#fff" },
+
+  input: {
+    backgroundColor: "#F7F8FA",
+    borderRadius: 12,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    fontSize: 14,
+    fontFamily: FONTS.regular,
+    color: "#1A3C40",
+    borderWidth: 1,
+    borderColor: "#E5E7EB",
+  },
+  inputMulti: { height: 80 },
+
+  starsRow: {
+    flexDirection: "row-reverse",
+    gap: 6,
+    marginBottom: 4,
+  },
+
+  submitBtn: {
+    backgroundColor: "#1A3C40",
+    borderRadius: 30,
+    paddingVertical: 16,
+    alignItems: "center",
+    marginTop: 24,
+  },
+  submitBtnDisabled: { opacity: 0.6 },
+  submitBtnText: { color: "#fff", fontSize: 16, fontFamily: FONTS.bold },
 });
