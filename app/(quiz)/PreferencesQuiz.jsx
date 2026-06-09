@@ -1085,7 +1085,14 @@ export default function PreferencesQuizScreen() {
             })}
           </View>
         ) : (
-          <View style={styles.progressSpacer} />
+          <View style={styles.progressSpacer}>
+            <Pressable
+              onPress={() => router.back()}
+              style={({ pressed }) => [styles.introBackBtn, pressed && { opacity: 0.5 }]}
+            >
+              <Ionicons name="chevron-forward" size={26} color="#1A3C40" />
+            </Pressable>
+          </View>
         )}
         {/* Animated content */}
         <Animated.View
@@ -1182,6 +1189,22 @@ const styles = StyleSheet.create({
     width: "100%",
     paddingTop: 18,
     paddingBottom: 6,
+    flexDirection: "row",
+    justifyContent: "flex-end",
+    paddingHorizontal: 16,
+  },
+  introBackBtn: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    backgroundColor: "#fff",
+    justifyContent: "center",
+    alignItems: "center",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08,
+    shadowRadius: 6,
+    elevation: 3,
   },
 
   // ── Stepper ──
