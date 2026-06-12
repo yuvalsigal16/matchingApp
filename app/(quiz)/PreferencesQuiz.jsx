@@ -96,6 +96,11 @@ const GENDER_DB_TO_HE = {
   Female: "אישה",
 };
 
+const MONTHS_HE = [
+  "", "ינואר", "פברואר", "מרץ", "אפריל", "מאי", "יוני",
+  "יולי", "אוגוסט", "ספטמבר", "אוקטובר", "נובמבר", "דצמבר",
+];
+
 // ─── הגדרת שאלות השאלון ─────────────────────────────────────────────────────
 // כל שאלה מכילה: id (מפתח לשמירה), type (סוג השאלה), title (כותרת), progress (אחוז התקדמות)
 // סדר המערך = סדר הצגת השאלות
@@ -228,6 +233,10 @@ export default function PreferencesQuizScreen() {
   // ── מצב שליחה לשרת ──
   const [submitting, setSubmitting] = useState(false); // האם בתהליך שליחה?
   const [submitError, setSubmitError] = useState(""); // שגיאת שליחה
+
+  // ── המלצת תקופת טיסה ──
+  const [recLoading, setRecLoading] = useState(false);
+  const [recInfo, setRecInfo] = useState(null); // { placeName, bestMonths } | { error } | null
 
   // ── ערכי אנימציה (useRef שומר ערך בין renders ללא הפעלה מחדש) ──
 
@@ -577,6 +586,65 @@ export default function PreferencesQuizScreen() {
   );
 
   // ── שאלת תאריכים: יציאה + חזרה + checkbox המלצה ──
+  // ── שליפת המלצת תקופה מ-Claude AI דרך השרת ──
+  const handleRecommendToggle = async () => {
+    const next = !data.recommendPeriod;
+    updateField("recommendPeriod", next);
+    if (!next) { setRecInfo(null); return; }
+
+    const dest = (data.destination || "").trim();
+    if (!dest) { setRecInfo({ error: "יש להזין יעד טיול כדי לקבל המלצה" }); return; }
+
+    setRecLoading(true);
+    setRecInfo(null);
+    try {
+      const token = getToken();
+      const res = await fetch(
+        `${BASE_URL}/Trip/recommend-period?destination=${encodeURIComponent(dest)}`,
+        { headers: token ? { Authorization: `Bearer ${token}` } : {} }
+      );
+      if (!res.ok) throw new Error("שגיאה בקבלת המלצה מהשרת");
+      const json = await res.json();
+      setRecInfo({ placeName: dest, bestMonths: json.months, reason: json.reason });
+    } catch (e) {
+      setRecInfo({ error: e.message || "שגיאה בטעינת המלצה" });
+    } finally {
+      setRecLoading(false);
+    }
+  };
+
+  // ── כרטיסיית המלצה — מוצגת מתחת לצ'קבוקס בשני גרסאות (web + native) ──
+  const renderRecCard = () => {
+    if (!data.recommendPeriod) return null;
+    if (recLoading) return (
+      <View style={styles.recCard}>
+        <ActivityIndicator size="small" color="#1A3C40" />
+        <Text style={styles.recLoadingText}>טוענת המלצה מהבינה המלאכותית...</Text>
+      </View>
+    );
+    if (!recInfo) return null;
+    if (recInfo.error) return (
+      <View style={[styles.recCard, styles.recCardError]}>
+        <Text style={styles.recErrorText}>{recInfo.error}</Text>
+      </View>
+    );
+    return (
+      <View style={styles.recCard}>
+        <Text style={styles.recTitle}>{recInfo.placeName}</Text>
+        <View style={styles.recMonthsRow}>
+          {recInfo.bestMonths.map((m) => (
+            <View key={m} style={styles.recMonthBadge}>
+              <Text style={styles.recMonthText}>{MONTHS_HE[m]}</Text>
+            </View>
+          ))}
+        </View>
+        {recInfo.reason && (
+          <Text style={styles.recReason}>{recInfo.reason}</Text>
+        )}
+      </View>
+    );
+  };
+
   // formatDate ממיר Date → "DD/MM/YYYY" להצגה למשתמש (שאר ה-app עובד עם אובייקט Date)
   const formatDate = (d) =>
     d
@@ -668,13 +736,14 @@ export default function PreferencesQuizScreen() {
 
           <Pressable
             style={styles.checkboxRow}
-            onPress={() => updateField("recommendPeriod", !data.recommendPeriod)}
+            onPress={handleRecommendToggle}
           >
             <View style={[styles.checkbox, data.recommendPeriod && styles.checkboxChecked]}>
               {data.recommendPeriod && <Ionicons name="checkmark" size={16} color="#fff" />}
             </View>
             <Text style={styles.checkboxLabel}>תמליצי לי על תקופה טובה לטיסה</Text>
           </Pressable>
+          {renderRecCard()}
         </View>
       );
     }
@@ -764,13 +833,14 @@ export default function PreferencesQuizScreen() {
 
         <Pressable
           style={styles.checkboxRow}
-          onPress={() => updateField("recommendPeriod", !data.recommendPeriod)}
+          onPress={handleRecommendToggle}
         >
           <View style={[styles.checkbox, data.recommendPeriod && styles.checkboxChecked]}>
             {data.recommendPeriod && <Ionicons name="checkmark" size={16} color="#fff" />}
           </View>
           <Text style={styles.checkboxLabel}>תמליצי לי על תקופה טובה לטיסה</Text>
         </Pressable>
+        {renderRecCard()}
       </View>
     );
   };
@@ -1408,6 +1478,69 @@ const styles = StyleSheet.create({
     fontFamily: FONTS.regular,
     color: "#333",
     flexShrink: 1,
+    textAlign: "right",
+  },
+
+  // ── Recommendation card ──
+  recCard: {
+    backgroundColor: "#EAF4F4",
+    borderRadius: 14,
+    padding: 16,
+    marginTop: 14,
+    width: "100%",
+    flexDirection: "column",
+    gap: 8,
+    borderWidth: 1,
+    borderColor: "#C5DFE0",
+  },
+  recCardError: {
+    backgroundColor: "#FFF0F0",
+    borderColor: "#F5C0C0",
+  },
+  recTitle: {
+    fontSize: 14,
+    fontFamily: FONTS.bold,
+    color: "#1A3C40",
+    textAlign: "right",
+  },
+  recMonthsRow: {
+    flexDirection: "row-reverse",
+    flexWrap: "wrap",
+    gap: 8,
+    marginTop: 4,
+  },
+  recMonthBadge: {
+    backgroundColor: "#1A3C40",
+    borderRadius: 20,
+    paddingVertical: 5,
+    paddingHorizontal: 12,
+    flexDirection: "row-reverse",
+    alignItems: "center",
+    gap: 4,
+  },
+  recMonthText: {
+    fontSize: 13,
+    fontFamily: FONTS.bold,
+    color: "#fff",
+  },
+  recLoadingText: {
+    fontSize: 13,
+    fontFamily: FONTS.regular,
+    color: "#1A3C40",
+    textAlign: "right",
+    marginTop: 6,
+  },
+  recReason: {
+    fontSize: 13,
+    fontFamily: FONTS.regular,
+    color: "#2C6B6E",
+    textAlign: "right",
+    marginTop: 4,
+  },
+  recErrorText: {
+    fontSize: 13,
+    fontFamily: FONTS.regular,
+    color: "#C0392B",
     textAlign: "right",
   },
 
