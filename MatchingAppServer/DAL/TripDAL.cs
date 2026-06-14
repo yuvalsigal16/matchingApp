@@ -212,9 +212,6 @@ namespace MatchingAppServer.DAL
         }
 
 
-        public List<Trip> GetAllTrips()
-{
-    // SELECT * FROM Trips
-}
+
     }
 }

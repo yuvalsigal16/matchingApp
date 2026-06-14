@@ -203,11 +203,11 @@ export default function ProfileScreen() {
   // מנתק את המשתמש: מציג Alert לאישור, מנקה את ה-token ואת פרטי המשתמש מהזיכרון,
   // ומחזיר אותו למסך ההתחברות. משתמשים ב-replace כדי שלא יהיה אפשר לחזור אחורה
   // למסך הפרופיל אחרי ההתנתקות.
-  const handleLogout = () => {
+  const handleLogout = async () => {
     if (Platform.OS === "web") {
       // ב-web אין Alert נייטיב — משתמשים ב-confirm של הדפדפן
       if (window.confirm("האם להתנתק מהחשבון?")) {
-        clearAuth();
+        await clearAuth();
         router.replace("/Login");
       }
       return;
@@ -220,8 +220,8 @@ export default function ProfileScreen() {
         {
           text: "התנתק",
           style: "destructive",
-          onPress: () => {
-            clearAuth();
+          onPress: async () => {
+            await clearAuth();
             router.replace("/Login");
           },
         },

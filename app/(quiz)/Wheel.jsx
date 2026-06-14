@@ -11,7 +11,6 @@ import {
   getUserTrips,
   getTripPreferences,
   getTripPreferenceInterests,
-  getDestinations,
   createTrip,
 } from "../src/api/tripService";
 
@@ -60,18 +59,6 @@ function sectorPath(startDeg, endDeg) {
   return `M ${CX} ${CY} L ${x1} ${y1} A ${R} ${R} 0 ${large} 1 ${x2} ${y2} Z`;
 }
 
-// יעדים קבועים לגיבוי — מוצגים אם ה-API לא מחזיר נתונים
-const FALLBACK_DESTINATIONS = [
-  { destinationId: 1, name: "פריז", info: "רומנטיקה וקולינריה" },
-  { destinationId: 2, name: "אתונה", info: "היסטוריה ואיים" },
-  { destinationId: 3, name: "קפריסין", info: "חופים ואקלים נעים" },
-  { destinationId: 4, name: "ניו יורק", info: "עיר שלא ישנה" },
-  { destinationId: 5, name: "אמסטרדם", info: "תעלות ואמנות" },
-  { destinationId: 6, name: "ברצלונה", info: "ארכיטקטורה ואנרגיה" },
-  { destinationId: 7, name: "תאילנד", info: "חופים ותרבות" },
-  { destinationId: 8, name: "רומא", info: "תרבות ואוכל" },
-  { destinationId: 9, name: "טוקיו", info: "טכנולוגיה ותרבות" },
-];
 
 // ── פלטת הצבעים של מקטעי הגלגל ──
 const COLORS = [
@@ -140,7 +127,7 @@ const enrichUser = async (basicUser) => {
 // מסך זה מוצג כאשר המשתמש מדלג על בחירת יעד בשאלון ההעדפות
 export default function WheelScreen() {
   const router = useRouter();
-  const [destinations, setDestinations] = useState(FALLBACK_DESTINATIONS);
+  const [destinations, setDestinations] = useState([]);
   const [users, setUsers] = useState([]);
 const [currentUser, setCurrentUser] = useState(null);
 const [bestMatch, setBestMatch] = useState(null);
@@ -223,21 +210,8 @@ const payload = {
 };
 
 useEffect(() => {
-  loadDestinations();
   loadUsers();
 }, []);
-
-async function loadDestinations() {
-  try {
-    const data = await getDestinations();
-    const mapped = (data || [])
-      .map((d) => ({ destinationId: d.destinationID, name: d.destinationName?.trim(), info: d.description }))
-      .filter((d) => d.name); // מסנן יעדים ללא שם
-    setDestinations(mapped.length > 0 ? mapped : FALLBACK_DESTINATIONS);
-  } catch {
-    setDestinations(FALLBACK_DESTINATIONS);
-  }
-}
 
 async function loadUsers() {
   try {
@@ -360,33 +334,23 @@ topMatches.forEach((user, index) => {
   });
 });
 
-const uniqueDestinations = [
-  ...new Map(
-    destinationsFromTrips.map((d) => [
-      d.name,
-      d,
-    ])
-  ).values(),
-];
+// destinationsFromTrips נבנה לפי topMatches שכבר ממוין מהציון הגבוה לנמוך,
+// לכן ההופעה הראשונה של כל יעד = ההתאמה הכי טובה. שומרים אותה (לא את האחרונה).
+const uniqueDestinations = [];
+const seenNames = new Set();
 
-console.log(
-  "unique destinations:",
-  uniqueDestinations
-);
+for (const d of destinationsFromTrips) {
+  if (d.name && !seenNames.has(d.name)) {
+    seenNames.add(d.name);
+    uniqueDestinations.push(d);
+  }
+}
 
-console.log(
-  "destinationsFromTrips:",
-  JSON.stringify(destinationsFromTrips, null, 2)
-);
-console.log("uniqueDestinations (not overriding wheel):", uniqueDestinations);
+console.log("uniqueDestinations (real trips):", uniqueDestinations);
 
-
-
-
-
-
-
-    setUsers(usersWithScore);
+// מחבר את הגלגל ליעדים האמיתיים (עם הפרטנר האמיתי). בלי נתונים פיקטיביים.
+setDestinations(uniqueDestinations);
+setUsers(usersWithScore);
   } catch (err) {
     console.log(err);
   }
@@ -570,6 +534,11 @@ setResult({
 
       {/* ── אזור הגלגל עצמו ── */}
       <View style={styles.wheelArea}>
+        {destinations.length === 0 ? (
+          <Text style={styles.emptyWheelText}>
+            אין עדיין יעדים מטיולים של משתמשים מתאימים
+          </Text>
+        ) : (
         <View style={styles.wheelWrapper}>
           {/* הסמן/החץ למעלה (משולש) — מצביע על המקטע הזוכה */}
           <View style={styles.pointer} />
@@ -632,6 +601,7 @@ setResult({
             <View style={styles.centerDot} />
           </View>
         </View>
+        )}
       </View>
 
       {/* ── כרטיס התוצאה ── */}
@@ -795,6 +765,14 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     marginTop: 14,
+  },
+  // טקסט מצב ריק — כשאין יעדים אמיתיים מטיולים של משתמשים מתאימים
+  emptyWheelText: {
+    textAlign: "center",
+    color: "#1A3C40",
+    fontSize: 15,
+    paddingVertical: 40,
+    paddingHorizontal: 24,
   },
   // העטיפה של הגלגל — מאפשרת מיקום הסמן והעיגול המרכזי
   wheelWrapper: {
