@@ -276,32 +276,6 @@ export async function addTripPreferenceInterest(tripPreferenceId, interestId) {
 }
 
 
-export async function getDestinations() {
-  const url = `${BASE_URL}/Trip/destinations`;
-
-  const token = getToken();
-
-  console.log("GET", url);
-
-  const res = await fetch(url, {
-    headers: {
-      Authorization: `Bearer ${token}`,
-    },
-  });
-
-  console.log("status:", res.status);
-
-  const text = await res.text();
-
-  console.log("body:", text);
-
-  if (!res.ok) {
-    throw new Error(`Failed to load destinations (${res.status})`);
-  }
-
-  return JSON.parse(text);
-}
-
 export async function saveWheelSelection(
   userId,
   destinationId,

@@ -45,22 +45,5 @@ namespace MatchingAppServer.BL
         {
             return tripDal.DeleteTrip(id);
         }
-
-
-
-
-
-
-
-        public List<string> GetDestinations()
-{
-    List<Trip> trips = tripDal.GetAllTrips();
-
-    return trips
-        .Select(t => t.Destination)
-        .Where(d => !string.IsNullOrEmpty(d))
-        .Distinct()
-        .ToList();
-}
     }
 }
