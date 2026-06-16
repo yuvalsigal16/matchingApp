@@ -1,8 +1,10 @@
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import {
   ActivityIndicator,
+  Alert,
   KeyboardAvoidingView,
   Platform,
   ScrollView,
@@ -27,6 +29,31 @@ export default function LoginScreen() {
   //שומר מה שהמשתמש מקליד באימייל ובסיסמה, וגם מצבים של הצגת סיסמה, שגיאות, וטעינה
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [savedCreds, setSavedCreds] = useState({ email: "", password: "" });
+  const [autoLogging, setAutoLogging] = useState(false);
+
+  useEffect(() => {
+    AsyncStorage.multiGet(["saved_email", "saved_password"]).then(async (pairs) => {
+      const se = pairs[0][1];
+      const sp = pairs[1][1];
+      if (se) { setEmail(se); setSavedCreds({ email: se, password: sp || "" }); }
+      if (sp) setPassword(sp);
+
+      // אם יש פרטים שמורים — התחבר אוטומטית
+      if (se && sp && isValidEmail(se) && isValidPassword(sp)) {
+        setAutoLogging(true);
+        try {
+          const { token, user } = await apiLogin(se, sp);
+          setAuth(token, user);
+          registerForPushNotifications(user.userID);
+          const profile = await getUserProfile(user.userID);
+          router.replace(profile ? "/Home" : "/QuizStartScreen");
+        } catch {
+          setAutoLogging(false);
+        }
+      }
+    });
+  }, []);
   const [showPassword, setShowPassword] = useState(false);
   const [emailError, setEmailError] = useState("");
   const [passwordError, setPasswordError] = useState("");
@@ -63,14 +90,16 @@ export default function LoginScreen() {
       const { token, user } = await apiLogin(email, password);
       setAuth(token, user);
 
-      // רישום למנגנון Push Notifications - לא חוסם את ההתחברות אם נכשל
       registerForPushNotifications(user.userID);
 
-      // ניתוב חכם: אם יש פרופיל — Home. אם לא — להמשיך את ההרשמה דרך השאלון.
-      // replace במקום navigate כדי שהמסך הזה יוסר מהמחסנית ו-back לא יחזיר לכאן.
-
-      //שליחת בקשה לשרת על מנת לבדוק האם יש למשתמש פרופיל
       const profile = await getUserProfile(user.userID);
+
+      // שמור פרטים אוטומטית לכניסה מהירה בפעם הבאה
+      await AsyncStorage.multiSet([
+        ["saved_email", email.trim()],
+        ["saved_password", password],
+      ]).catch(() => {});
+
       if (profile) {
         router.replace("/Home");
       } else {
@@ -84,6 +113,14 @@ export default function LoginScreen() {
   };
 
   const handleForgotPassword = () => console.log("Forgot password");
+
+  if (autoLogging) {
+    return (
+      <SafeAreaView style={[styles.safe, styles.center]}>
+        <ActivityIndicator size="large" color="#1A3C40" />
+      </SafeAreaView>
+    );
+  }
 
   return (
     <SafeAreaView style={styles.safe}>
@@ -121,6 +158,28 @@ export default function LoginScreen() {
             {emailError ? (
               <Text style={styles.errorText}>{emailError}</Text>
             ) : null}
+
+            {/* ── הצעת השלמה אוטומטית ── */}
+            {savedCreds.email &&
+              email.length > 0 &&
+              savedCreds.email.toLowerCase().startsWith(email.toLowerCase()) &&
+              email.toLowerCase() !== savedCreds.email.toLowerCase() && (
+                <TouchableOpacity
+                  style={styles.suggestion}
+                  onPress={() => {
+                    setEmail(savedCreds.email);
+                    if (savedCreds.password) setPassword(savedCreds.password);
+                    setEmailError("");
+                  }}
+                  activeOpacity={0.7}
+                >
+                  <Ionicons name="person-circle-outline" size={18} color="#1A3C40" />
+                  <Text style={styles.suggestionEmail} numberOfLines={1}>
+                    {savedCreds.email}
+                  </Text>
+                  <Text style={styles.suggestionHint}>+ סיסמה</Text>
+                </TouchableOpacity>
+              )}
 
             {/* ── שדה סיסמה עם כפתור הצגה/הסתרה ── */}
             {/* חיצוני מדמה את גבול השדה, כולל את הקלט ואת אייקון העין */}
@@ -220,6 +279,11 @@ const styles = StyleSheet.create({
   safe: {
     flex: 1,
     backgroundColor: "#F0F2F5",
+  },
+
+  center: {
+    justifyContent: "center",
+    alignItems: "center",
   },
 
   // עיצוב תוכן ה-ScrollView - ממרכז את הטופס אנכית במסך
@@ -380,6 +444,33 @@ const styles = StyleSheet.create({
     fontSize: 15,
     color: "#222",
     fontFamily: FONTS.bold,
+  },
+
+  suggestion: {
+    flexDirection: "row-reverse",
+    alignItems: "center",
+    gap: 8,
+    backgroundColor: "#EEF6F6",
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: "#1A3C40",
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    marginBottom: 8,
+  },
+
+  suggestionEmail: {
+    flex: 1,
+    fontSize: 14,
+    fontFamily: FONTS.regular,
+    color: "#1A3C40",
+    textAlign: "right",
+  },
+
+  suggestionHint: {
+    fontSize: 12,
+    fontFamily: FONTS.regular,
+    color: "#7A8B8E",
   },
 
 });

@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
+  Platform,
   ScrollView,
   Text,
   TouchableOpacity,
@@ -17,6 +18,7 @@ import { getMatchesByTrip } from "../../src/api/chatService";
 import {
   getTripSuggestions,
 } from "../../src/api/chatService";
+import { getUserProfile } from "../../src/api/userProfileService";
 
 import { StyleSheet } from "react-native";
 export default function TripDetails() {
@@ -25,6 +27,7 @@ export default function TripDetails() {
 
   const [trip, setTrip] = useState(null);
   const [participants, setParticipants] = useState([]);
+  const [creator, setCreator] = useState(null);
   const [matches, setMatches] = useState([]);
   const [chats, setChats] = useState([]);
   const [places, setPlaces] = useState([]);
@@ -34,10 +37,10 @@ const [rating, setRating] = useState(0);
 
   const formatDate = (dateStr) => {
     if (!dateStr) return "";
+    const m = String(dateStr).match(/^(\d{4})-(\d{2})-(\d{2})/);
+    if (m) return `${m[3]}/${m[2]}/${m[1]}`;
     const d = new Date(dateStr);
-    return `${d.getDate().toString().padStart(2, "0")}/${(d.getMonth() + 1)
-      .toString()
-      .padStart(2, "0")}/${d.getFullYear()}`;
+    return `${d.getDate().toString().padStart(2, "0")}/${(d.getMonth() + 1).toString().padStart(2, "0")}/${d.getFullYear()}`;
   };
 
   const isPast = trip?.endDate && new Date(trip.endDate) < new Date();
@@ -64,27 +67,21 @@ const [rating, setRating] = useState(0);
      LOAD DATA
   ========================= */
 
+  const showAlert = (title, msg) => {
+    if (Platform.OS === "web") window.alert(`${title}\n${msg}`);
+    else Alert.alert(title, msg);
+  };
+
   useEffect(() => {
     const loadData = async () => {
       try {
         const token = getToken();
         const headers = token ? { Authorization: `Bearer ${token}` } : {};
 
-        // Trip + Participants
-        const [tripRes, participantsRes] = await Promise.all([
-  fetch(`${BASE_URL}/Trip/${id}`, { headers }),
-  fetch(`${BASE_URL}/Trips/${id}/participants`, { headers }),
-]);
-
+        const tripRes = await fetch(`${BASE_URL}/Trip/${id}`, { headers });
         if (!tripRes.ok) throw new Error("Trip load failed");
-
-        if (!participantsRes.ok) throw new Error("Participants load failed");
-
         const tripData = await tripRes.json();
-        const participantsData = await participantsRes.json();
-
         setTrip(tripData);
-        setParticipants(participantsData || []);
 
         // המלצות לטיולים שיוצאים לדרך
 if (
@@ -122,19 +119,34 @@ err
 
         // 🔥 MATCHES מהשירות (לא fetch ישיר)
         const matchesData = await getMatchesByTrip(id);
+        // טעינת פרטי יוצר הטיול
+        const creatorId = tripData.createdByUserID ?? tripData.CreatedByUserID;
+        if (creatorId) {
+          try {
+            const profile = await getUserProfile(creatorId);
+            if (profile) setCreator(profile);
+          } catch { /* לא נורא אם נכשל */ }
+        }
 
-        setMatches(matchesData || []);
+        // משתתפים — כשלון לא קורס את המסך
+        try {
+          const participantsRes = await fetch(`${BASE_URL}/Trip/${id}/participants`, { headers });
+          if (participantsRes.ok) setParticipants(await participantsRes.json() || []);
+        } catch { /* אין משתתפים — לא נורא */ }
 
-        // 🔥 Chats זמני (עד שיהיה endpoint אמיתי)
-        setChats(
-          (matchesData || []).map((m) => ({
+        // התאמות
+        try {
+          const matchesData = await getMatchesByTrip(id);
+          setMatches(matchesData || []);
+          setChats((matchesData || []).map((m) => ({
             matchID: m.matchID,
             name: m.name || `משתמש ${m.userId}`,
-          })),
-        );
+          })));
+        } catch { /* אין התאמות — לא נורא */ }
+
       } catch (err) {
         console.log(err);
-        Alert.alert("שגיאה", "טעינת הטיול נכשלה");
+        showAlert("שגיאה", "טעינת הטיול נכשלה");
       } finally {
         setLoading(false);
       }
@@ -147,33 +159,58 @@ err
      DELETE TRIP
   ========================= */
 
+  const confirmAndRun = (title, msg, action) => {
+    if (Platform.OS === "web") {
+      if (window.confirm(`${title}\n${msg}`)) action();
+    } else {
+      Alert.alert(title, msg, [
+        { text: "ביטול", style: "cancel" },
+        { text: "אישור", style: "destructive", onPress: action },
+      ]);
+    }
+  };
+
   const handleDeleteTrip = () => {
-    Alert.alert("מחיקת טיול", "האם אתה בטוח שברצונך למחוק את הטיול?", [
-      { text: "ביטול", style: "cancel" },
-      {
-        text: "מחק",
-        style: "destructive",
-        onPress: async () => {
-          try {
-            setDeleting(true);
-            const token = getToken();
+    confirmAndRun("מחיקת טיול", "האם למחוק את הטיול לצמיתות?", async () => {
+      try {
+        setDeleting(true);
+        const token = getToken();
+        const res = await fetch(`${BASE_URL}/Trip/${id}`, {
+          method: "DELETE",
+          headers: token ? { Authorization: `Bearer ${token}` } : {},
+        });
+        if (!res.ok) throw new Error("מחיקה נכשלה");
+        router.back();
+      } catch (err) {
+        showAlert("שגיאה", err.message);
+      } finally {
+        setDeleting(false);
+      }
+    });
+  };
 
-            const res = await fetch(`${BASE_URL}/Trip/${id}`, {
-              method: "DELETE",
-              headers: token ? { Authorization: `Bearer ${token}` } : {},
-            });
-
-            if (!res.ok) throw new Error("מחיקה נכשלה");
-
-            router.back();
-          } catch (err) {
-            Alert.alert("שגיאה", err.message);
-          } finally {
-            setDeleting(false);
-          }
-        },
-      },
-    ]);
+  const handleDeactivate = () => {
+    confirmAndRun("השבתת טיול", "הטיול יסומן כלא פעיל. ניתן להפעיל מחדש בעתיד.", async () => {
+      try {
+        setDeleting(true);
+        const token = getToken();
+        const res = await fetch(`${BASE_URL}/Trip/${id}`, {
+          method: "PUT",
+          headers: {
+            "Content-Type": "application/json",
+            ...(token ? { Authorization: `Bearer ${token}` } : {}),
+          },
+          body: JSON.stringify({ ...trip, status: "Inactive" }),
+        });
+        if (!res.ok) throw new Error("השבתה נכשלה");
+        setTrip((prev) => ({ ...prev, status: "Inactive" }));
+        showAlert("בוצע", "הטיול הושבת בהצלחה");
+      } catch (err) {
+        showAlert("שגיאה", err.message);
+      } finally {
+        setDeleting(false);
+      }
+    });
   };
 
   /* =========================
@@ -215,10 +252,8 @@ err
       <ScrollView contentContainerStyle={styles.content}>
         {/* TRIP CARD */}
         <View style={[styles.card, isPast && styles.cardPast]}>
-          <Text style={styles.title}>{trip.Destination}</Text>
-
           <Text style={styles.label}>יעד</Text>
-          <Text style={styles.value}>{trip.Destination}</Text>
+          <Text style={styles.value}>{trip.destination ?? trip.Destination}</Text>
 
           <Text style={styles.label}>תאריכים</Text>
           <Text style={styles.value}>
@@ -233,17 +268,33 @@ err
         <Text style={styles.sectionTitle}>משתתפים</Text>
 
         <View style={styles.card}>
-          {participants.length === 0 ? (
-            <Text style={styles.value}>אין משתתפים</Text>
-          ) : (
-            participants.map((p, i) => (
+          {/* יוצר הטיול תמיד ראשון */}
+          {creator && (
+            <View style={styles.participant}>
+              <Ionicons name="person-circle" size={22} color="#1A3C40" />
+              <View style={{ flex: 1, alignItems: "flex-end" }}>
+                <Text style={[styles.value, { fontWeight: "bold" }]}>
+                  {creator.firstName} {creator.lastName}
+                </Text>
+                <Text style={styles.label}>יוצר הטיול</Text>
+              </View>
+            </View>
+          )}
+          {participants
+            .filter((p) => {
+              const creatorId = trip?.createdByUserID ?? trip?.CreatedByUserID;
+              return p.userID !== creatorId && p.userId !== creatorId;
+            })
+            .map((p, i) => (
               <View key={i} style={styles.participant}>
-                <Ionicons name="person-circle-outline" size={22} />
+                <Ionicons name="person-circle-outline" size={22} color="#555" />
                 <Text style={styles.value}>
                   {p.firstName} {p.lastName}
                 </Text>
               </View>
-            ))
+            ))}
+          {!creator && participants.length === 0 && (
+            <Text style={styles.value}>אין משתתפים</Text>
           )}
         </View>
 
@@ -251,7 +302,9 @@ err
         <Text style={styles.sectionTitle}>התאמות עבורך</Text>
 
         {matches.length === 0 ? (
-          <Text style={styles.value}>אין התאמות</Text>
+          <View style={styles.card}>
+            <Text style={styles.value}>אין התאמות</Text>
+          </View>
         ) : (
           <ScrollView horizontal showsHorizontalScrollIndicator={false}>
             {matches.map((m) => (
@@ -457,7 +510,29 @@ color={
 
 
         {/* DELETE */}
+        {/* ACTIONS */}
         <View style={styles.actions}>
+          <TouchableOpacity
+            style={styles.editBtn}
+            onPress={() => router.push({
+              pathname: "/PreferencesQuiz",
+              params: { mode: "editTrip", tripId: id },
+            })}
+          >
+            <Text style={styles.btnText}>ערוך טיול</Text>
+          </TouchableOpacity>
+
+          {trip.status !== "Inactive" && (
+            <TouchableOpacity
+              style={styles.deactivateBtn}
+              onPress={handleDeactivate}
+              disabled={deleting}
+            >
+              <Text style={styles.btnText}>
+                {deleting ? "מעבד..." : "השבת טיול"}
+              </Text>
+            </TouchableOpacity>
+          )}
           <TouchableOpacity
             style={styles.deleteBtn}
             onPress={handleDeleteTrip}
@@ -579,8 +654,23 @@ const styles = StyleSheet.create({
 
   actions: {
     marginTop: 20,
+    gap: 10,
   },
 
+  editBtn: {
+    backgroundColor: "#1A3C40",
+    padding: 14,
+    borderRadius: 12,
+    alignItems: "center",
+  },
+
+  deactivateBtn: {
+    backgroundColor: "#6B7280",
+    padding: 14,
+    borderRadius: 12,
+    alignItems: "center",
+    marginBottom: 10,
+  },
   deleteBtn: {
     backgroundColor: "#D9534F",
     padding: 14,

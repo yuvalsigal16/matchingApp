@@ -1,6 +1,6 @@
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useFocusEffect } from "@react-navigation/native";
 import {
   ActivityIndicator,
@@ -58,6 +58,12 @@ export default function MyTripsScreen() {
   }
 };
 
+// טעינה ראשונית — עובד גם ב-web שבו useFocusEffect לא תמיד נורה
+useEffect(() => {
+  loadTrips();
+}, []);
+
+// טעינה מחדש בכל פעם שהמסך חוזר לפוקוס (ניווט חזרה)
 useFocusEffect(
   useCallback(() => {
     loadTrips();
@@ -66,10 +72,10 @@ useFocusEffect(
 
   const formatDate = (dateStr) => {
     if (!dateStr) return "";
+    const m = String(dateStr).match(/^(\d{4})-(\d{2})-(\d{2})/);
+    if (m) return `${m[3]}/${m[2]}/${m[1]}`;
     const d = new Date(dateStr);
-    return `${d.getDate().toString().padStart(2, "0")}/${(d.getMonth() + 1)
-      .toString()
-      .padStart(2, "0")}/${d.getFullYear()}`;
+    return `${d.getDate().toString().padStart(2, "0")}/${(d.getMonth() + 1).toString().padStart(2, "0")}/${d.getFullYear()}`;
   };
 
   const isPastTrip = (endDate) => {
@@ -113,7 +119,7 @@ useFocusEffect(
         {/* כותרת ראשית */}
         <View style={styles.row}>
           <Text style={[styles.title, past && styles.textPast]}>
-            {trip.destination || "טיול ללא שם"}
+            {trip.tripName || trip.TripName || trip.destination || "טיול"}
           </Text>
 
           <Ionicons

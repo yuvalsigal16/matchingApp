@@ -1,6 +1,7 @@
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import { Ionicons } from "@expo/vector-icons";
-import { useRouter } from "expo-router";
-import { useEffect, useMemo, useState } from "react";
+import { useFocusEffect, useRouter } from "expo-router";
+import { useCallback, useEffect, useMemo, useState } from "react";
 
 import { BASE_URL } from "../src/api/config";
 import { getUserInterests } from "../src/api/interestService";
@@ -72,6 +73,7 @@ export default function MatchesScreen() {
   const [requests, setRequests] = useState([]);
 
   const [loading, setLoading] = useState(true);
+  const [dismissed, setDismissed] = useState(new Set());
 
   // =========================
   // LOAD USERS FROM DB
@@ -80,6 +82,16 @@ export default function MatchesScreen() {
   useEffect(() => {
     loadUsers();
   }, []);
+
+  useFocusEffect(
+    useCallback(() => {
+      AsyncStorage.getItem("dismissed_matches").then((raw) => {
+        if (raw) {
+          try { setDismissed(new Set(JSON.parse(raw))); } catch {}
+        }
+      });
+    }, [])
+  );
 
   // ממיר משתמש שהגיע מועשר מ-/User (SP) לפורמט שהאלגוריתם משתמש בו.
   // השרת מחזיר את כל השדות ישירות - אין צורך בקריאות נוספות.
@@ -178,8 +190,8 @@ export default function MatchesScreen() {
 
     return (
       users
-        // מציגים רק משתמשים שיש להם פרופיל (שם) — לא מציגים רשומות חלקיות
         .filter((user) => user.name && user.name.trim().length > 0)
+        .filter((user) => !dismissed.has(user.userID))
         .map((user) => {
           let score = 0;
 
@@ -251,7 +263,7 @@ export default function MatchesScreen() {
         })
         .sort((a, b) => b.matchScore - a.matchScore)
     );
-  }, [users, currentUser]);
+  }, [users, currentUser, dismissed]);
 
 
 

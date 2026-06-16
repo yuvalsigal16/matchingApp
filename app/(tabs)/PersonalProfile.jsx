@@ -1,13 +1,14 @@
 import { Ionicons } from "@expo/vector-icons";
 import * as ImagePicker from "expo-image-picker";
 import { useRouter } from "expo-router";
-import { ChevronLeft, FileText, Heart, LogOut, Settings } from "lucide-react-native";
+import { ChevronLeft, FileText, Heart, LogOut, Settings, Users } from "lucide-react-native";
 import React, { useEffect, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
   Image,
   Modal,
+  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -72,7 +73,7 @@ export default function ProfileScreen() {
             fetch(`${BASE_URL}/UserProfile/${userId}`, { headers }),
             fetch(`${BASE_URL}/UserProfile/image/${userId}`, { headers }),
             fetch(`${BASE_URL}/Matches/user/${userId}`, { headers }),
-            fetch(`${BASE_URL}/Trips/user/${userId}`, { headers }),
+            fetch(`${BASE_URL}/Trip/user/${userId}`, { headers }),
           ]);
 
         let firstName = "";
@@ -202,7 +203,15 @@ export default function ProfileScreen() {
   // מנתק את המשתמש: מציג Alert לאישור, מנקה את ה-token ואת פרטי המשתמש מהזיכרון,
   // ומחזיר אותו למסך ההתחברות. משתמשים ב-replace כדי שלא יהיה אפשר לחזור אחורה
   // למסך הפרופיל אחרי ההתנתקות.
-  const handleLogout = () => {
+  const handleLogout = async () => {
+    if (Platform.OS === "web") {
+      // ב-web אין Alert נייטיב — משתמשים ב-confirm של הדפדפן
+      if (window.confirm("האם להתנתק מהחשבון?")) {
+        await clearAuth();
+        router.replace("/Login");
+      }
+      return;
+    }
     Alert.alert(
       "התנתקות",
       "האם להתנתק מהחשבון?",
@@ -211,8 +220,8 @@ export default function ProfileScreen() {
         {
           text: "התנתק",
           style: "destructive",
-          onPress: () => {
-            clearAuth();
+          onPress: async () => {
+            await clearAuth();
             router.replace("/Login");
           },
         },
@@ -246,6 +255,12 @@ export default function ProfileScreen() {
   // route = ה-path אליו הכפתור מנווט (null = לא לחיץ עדיין)
   const MENU = [
     {
+      title: "גילוי וקהילה",
+      Icon: Users,
+      route: "/discovery",
+      iconBg: "#E3EFE5",
+    },
+    {
       title: "הגדרות",
       Icon: Settings,
       route: "/Settings",
@@ -258,7 +273,7 @@ export default function ProfileScreen() {
     {
       title: "עדכון העדפות טיול",
       Icon: Heart,
-      route: null, // יבוא בעתיד — מסך עדכון העדפות הוסר זמנית
+      route: "/UpdateTravelPreferences",
     },
   ];
 
@@ -278,22 +293,24 @@ export default function ProfileScreen() {
 
         {/* Avatar — לחיץ לפתיחת בורר תמונה */}
         <View style={styles.avatarContainer}>
-          <Pressable onPress={() => setImagePickerVisible(true)}>
-            {renderAvatar()}
-            {uploading && (
-              <View style={styles.uploadingOverlay}>
-                <ActivityIndicator color="#fff" />
-              </View>
-            )}
-          </Pressable>
+          <View style={styles.avatarWrapper}>
+            <Pressable onPress={() => setImagePickerVisible(true)}>
+              {renderAvatar()}
+              {uploading && (
+                <View style={styles.uploadingOverlay}>
+                  <ActivityIndicator color="#fff" />
+                </View>
+              )}
+            </Pressable>
 
-          <TouchableOpacity
-            style={styles.cameraButton}
-            onPress={() => setImagePickerVisible(true)}
-            disabled={uploading}
-          >
-            <Ionicons name="camera" size={18} color="#fff" />
-          </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.cameraButton}
+              onPress={() => setImagePickerVisible(true)}
+              disabled={uploading}
+            >
+              <Ionicons name="camera" size={18} color="#fff" />
+            </TouchableOpacity>
+          </View>
         </View>
 
         {/* Name + Email */}
@@ -332,8 +349,13 @@ export default function ProfileScreen() {
                 onPress={() => item.route && router.push(item.route)}
               >
                 <ChevronLeft size={20} color="#999" />
-                <Text style={styles.menuText}>{item.title}</Text>
-                <View style={styles.menuIcon}>
+                <View style={styles.menuTextBlock}>
+                  <Text style={styles.menuText}>{item.title}</Text>
+                  {item.sub ? (
+                    <Text style={styles.menuSub}>{item.sub}</Text>
+                  ) : null}
+                </View>
+                <View style={[styles.menuIcon, item.iconBg ? { backgroundColor: item.iconBg } : null]}>
                   <Icon size={20} color="#1A3C40" />
                 </View>
               </TouchableOpacity>
@@ -420,6 +442,12 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
 
+  avatarWrapper: {
+    position: "relative",
+    width: 110,
+    height: 110,
+  },
+
   avatar: {
     width: 110,
     height: 110,
@@ -434,8 +462,8 @@ const styles = StyleSheet.create({
 
   cameraButton: {
     position: "absolute",
-    bottom: 0,
-    right: 120,
+    bottom: 2,
+    right: 2,
     backgroundColor: "#000",
     borderRadius: 20,
     padding: 6,
@@ -492,10 +520,24 @@ const styles = StyleSheet.create({
     marginBottom: 10,
   },
 
-  menuText: {
+  menuTextBlock: {
     flex: 1,
+    alignItems: "flex-end",
+    paddingHorizontal: 4,
+  },
+
+  menuText: {
     textAlign: "right",
     fontFamily: FONTS.regular,
+    color: "#1A1A1A",
+  },
+
+  menuSub: {
+    textAlign: "right",
+    fontSize: 12,
+    fontFamily: FONTS.regular,
+    color: "#B88A4C",
+    marginTop: 2,
   },
 
   menuIcon: {

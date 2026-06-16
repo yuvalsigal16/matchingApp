@@ -35,6 +35,11 @@ function formatDate(d) {
   return `${String(d.getDate()).padStart(2, "0")}/${String(d.getMonth() + 1).padStart(2, "0")}/${d.getFullYear()}`;
 }
 
+// פורמט "YYYY-MM-DD" לשליחה לשרת — בלי המרת timezone (toISOString זז יום אחורה ב-UTC+)
+function toLocalISODate(d) {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
+
 export default function UpdateIntroQuizScreen() {
   const router = useRouter();
   const userId = getUser()?.userID;
@@ -133,7 +138,7 @@ export default function UpdateIntroQuizScreen() {
         UserID: userId,
         FirstName: firstName.trim(),
         LastName: lastName.trim(),
-        BirthDate: birthDate.toISOString(),
+        BirthDate: toLocalISODate(birthDate),
         Gender: gender || null,
         City: city.trim() || null,
         ProfileImage: profileMeta.ProfileImage,

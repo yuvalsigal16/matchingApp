@@ -4,6 +4,7 @@
 // השמירה בזיכרון (let _token, let _user) נשמרת כדי שקריאות סינכרוניות
 // כמו getToken()/getUser() ימשיכו לעבוד מיד בלי await.
 
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import * as SecureStore from "expo-secure-store";
 
 const TOKEN_KEY = "auth_token";
@@ -53,6 +54,8 @@ export async function clearAuth() {
   try {
     await SecureStore.deleteItemAsync(TOKEN_KEY);
     await SecureStore.deleteItemAsync(USER_KEY);
+    // מנקים גם את הפרטים השמורים, אחרת ה-auto-login במסך הכניסה יחבר מחדש
+    await AsyncStorage.multiRemove(["saved_email", "saved_password"]);
   } catch (err) {
     console.warn("[auth] מחיקת אימות נכשלה:", err.message);
   }

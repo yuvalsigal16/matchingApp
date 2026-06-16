@@ -252,6 +252,11 @@ const QUESTIONS = [
   },
 ];
 
+// פורמט "YYYY-MM-DD" לשליחה לשרת — בלי המרת timezone (toISOString זז יום אחורה ב-UTC+)
+function toLocalISODate(d) {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
+
 // ─── Validation ───────────────────────────────────────────────────────────────
 
 //פונקציה שבודקת האם המשתמש מילא את השאלה כמו שצריך
@@ -568,9 +573,8 @@ export default function QuizScreen() {
     }
 
     // תאריך הלידה נשמר כאובייקט Date מבורר התאריכים.
-    // toISOString() ממיר אותו למחרוזת בפורמט תאריך תקני שהשרת מצפה לקבל,
-    // לדוגמה: "1995-04-27T00:00:00.000Z"
-    const birthDate = answers.birthDate.toISOString();
+    // שולחים בפורמט "YYYY-MM-DD" לפי הזמן המקומי כדי שלא יזוז יום אחורה ב-UTC.
+    const birthDate = toLocalISODate(answers.birthDate);
 
     const profile = {
       UserID: u.userID,
@@ -969,6 +973,43 @@ export default function QuizScreen() {
       today.getMonth(),
       today.getDate(),
     );
+
+    // ב-Web אין תמיכה ב-DateTimePicker הנייטיב — משתמשים ב-<input type="date"> של HTML
+    if (Platform.OS === "web") {
+      const maxDate = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}-${String(today.getDate()).padStart(2, "0")}`;
+      const webValue = selected
+        ? `${selected.getFullYear()}-${String(selected.getMonth() + 1).padStart(2, "0")}-${String(selected.getDate()).padStart(2, "0")}`
+        : "";
+
+      return (
+        <View key="birthDate" style={styles.dateInputBtn}>
+          <input
+            type="date"
+            max={maxDate}
+            value={webValue}
+            onChange={(e) => {
+              if (e.target.value) {
+                const [y, m, d] = e.target.value.split("-").map(Number);
+                updateAnswer("birthDate", new Date(y, m - 1, d));
+              }
+            }}
+            style={{
+              flex: 1,
+              border: "none",
+              outline: "none",
+              background: "transparent",
+              fontSize: 16,
+              colorScheme: "light",
+              color: selected ? "#222" : "#aaa",
+              direction: "rtl",
+              cursor: "pointer",
+              marginRight: 8,
+              width: "100%",
+            }}
+          />
+        </View>
+      );
+    }
 
     return (
       <View key="birthDate">

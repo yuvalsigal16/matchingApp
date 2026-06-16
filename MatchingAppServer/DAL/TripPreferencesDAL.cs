@@ -111,18 +111,20 @@ namespace MatchingAppServer.DAL
 
                 if (reader.Read())
                 {
+                    // SpontaneityLevel/LifestyleLevel הם TINYINT ב-DB (=byte ב-.NET).
+                    // 'as int?' על byte boxed מחזיר תמיד null, לכן ממירים ידנית עם בדיקת DBNull.
                     return new TripPreferences
                     {
                         TripPreferenceID = Convert.ToInt32(reader["TripPreferenceID"]),
                         TripID = Convert.ToInt32(reader["TripID"]),
-                        PreferredGender = reader["PreferredGender"].ToString(),
+                        PreferredGender = reader["PreferredGender"] is DBNull ? null : reader["PreferredGender"].ToString(),
                         PreferredAgeMin = reader["PreferredAgeMin"] as int?,
                         PreferredAgeMax = reader["PreferredAgeMax"] as int?,
                         IsSmoker = reader["IsSmoker"] as bool?,
                         KeepsKosher = reader["KeepsKosher"] as bool?,
                         KeepsShabbat = reader["KeepsShabbat"] as bool?,
-                        SpontaneityLevel = reader["SpontaneityLevel"] as int?,
-                        LifestyleLevel = reader["LifestyleLevel"] as int?
+                        SpontaneityLevel = reader["SpontaneityLevel"] is DBNull ? null : Convert.ToInt32(reader["SpontaneityLevel"]),
+                        LifestyleLevel = reader["LifestyleLevel"] is DBNull ? null : Convert.ToInt32(reader["LifestyleLevel"])
                     };
                 }
 

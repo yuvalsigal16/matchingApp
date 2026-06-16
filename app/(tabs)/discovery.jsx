@@ -1,57 +1,82 @@
 import React from "react";
-import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
-import { Ionicons } from "@expo/vector-icons";
+import { ChevronRight, Users, Star } from "lucide-react-native";
 
 import { FONTS } from "../src/theme/fonts";
+import { getUser } from "../src/auth/authStore";
 import BottomNav from "../../components/BottomNav";
 
-// מסך גילוי וקהילה - מציג שני כפתורים: קהילות והמלצות
 export default function DiscoveryScreen() {
   const router = useRouter();
+  const user = getUser();
+  const initials =
+    `${user?.firstName?.[0] || ""}${user?.lastName?.[0] || ""}`.toUpperCase();
 
-  // הגדרת הפריטים בתפריט
   const items = [
     {
-      title: "קהילות לפי תחומי עניין",
-      icon: "people-outline",
+      title: "יצירת קהילה / הצטרפות",
+      sub: "לפי תחומי עניין",
+      Icon: Users,
+      iconBg: "#EDE9FE",
+      iconColor: "#7C3AED",
       route: "/community",
     },
     {
-      title: "המלצות על מקומות ואטרקציות",
-      icon: "star-outline",
+      title: "המלצות של אחרים",
+      sub: "על מקומות ואטרקציות",
+      Icon: Star,
+      iconBg: "#FEF3C7",
+      iconColor: "#D97706",
       route: "/recommendations",
     },
   ];
 
   return (
     <SafeAreaView style={styles.container}>
-      {/* Header עם חץ חזרה למסך הראשי */}
-      <View style={styles.headerRow}>
-        <TouchableOpacity onPress={() => router.back()}>
-          <Ionicons name="arrow-forward" size={26} color="#1A3C40" />
-        </TouchableOpacity>
-        <Text style={styles.header}>גילוי וקהילה</Text>
-        <View style={{ width: 26 }} />
-      </View>
-
-      <ScrollView contentContainerStyle={styles.content}>
-        {items.map((item, index) => (
-          <TouchableOpacity
-            key={index}
-            style={styles.card}
-            activeOpacity={0.85}
-            onPress={() => router.push(item.route)}
-          >
-            <Ionicons name="chevron-back" size={20} color="#1A3C40" />
-            <Text style={styles.cardText}>{item.title}</Text>
-            <View style={styles.iconBox}>
-              <Ionicons name={item.icon} size={22} color="#1A3C40" />
-            </View>
+      <View style={styles.inner}>
+        {/* Header */}
+        <View style={styles.headerRow}>
+          <TouchableOpacity style={styles.backBtn} onPress={() => router.back()}>
+            <ChevronRight size={22} color="#1A3C40" />
           </TouchableOpacity>
-        ))}
-      </ScrollView>
+          <Text style={styles.title}>גילוי וקהילה</Text>
+          {initials ? (
+            <View style={styles.initialsBox}>
+              <Text style={styles.initialsText}>{initials}</Text>
+            </View>
+          ) : (
+            <View style={{ width: 36 }} />
+          )}
+        </View>
+
+        <Text style={styles.subtitle}>התחבר/י לאנשים עם אהבה לטיולים</Text>
+
+        {/* כרטיסים */}
+        <View style={styles.list}>
+          {items.map((item, i) => {
+            const Icon = item.Icon;
+            return (
+              <TouchableOpacity
+                key={i}
+                style={styles.card}
+                activeOpacity={0.85}
+                onPress={() => router.push(item.route)}
+              >
+                <ChevronRight size={20} color="#999" />
+                <View style={styles.cardText}>
+                  <Text style={styles.cardTitle}>{item.title}</Text>
+                  <Text style={styles.cardSub}>{item.sub}</Text>
+                </View>
+                <View style={[styles.iconBox, { backgroundColor: item.iconBg }]}>
+                  <Icon size={22} color={item.iconColor} strokeWidth={2} />
+                </View>
+              </TouchableOpacity>
+            );
+          })}
+        </View>
+      </View>
 
       <BottomNav active="discovery" />
     </SafeAreaView>
@@ -60,31 +85,72 @@ export default function DiscoveryScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: "#F0F2F5" },
-  content: { paddingHorizontal: 20, paddingTop: 10, paddingBottom: 40 },
+
+  inner: { flex: 1 },
 
   headerRow: {
     flexDirection: "row-reverse",
     justifyContent: "space-between",
     alignItems: "center",
     paddingHorizontal: 20,
-    paddingTop: 20,
-    paddingBottom: 10,
+    paddingTop: 16,
+    paddingBottom: 12,
   },
 
-  header: {
-    fontSize: 20,
+  backBtn: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: "#fff",
+    justifyContent: "center",
+    alignItems: "center",
+    shadowColor: "#000",
+    shadowOpacity: 0.08,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+
+  initialsBox: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: "#E3EFE5",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+
+  initialsText: {
+    fontSize: 13,
     fontFamily: FONTS.bold,
     color: "#1A3C40",
   },
 
+  title: {
+    fontSize: 20,
+    fontFamily: FONTS.extraBold,
+    color: "#1A1A1A",
+  },
+
+  subtitle: {
+    fontSize: 14,
+    fontFamily: FONTS.regular,
+    color: "#888",
+    textAlign: "center",
+    marginBottom: 20,
+  },
+
+  list: {
+    paddingHorizontal: 20,
+    gap: 12,
+  },
+
   card: {
-    flexDirection: "row-reverse",
+    flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
     backgroundColor: "#fff",
-    padding: 16,
-    borderRadius: 16,
-    marginBottom: 12,
+    padding: 18,
+    borderRadius: 18,
     shadowColor: "#000",
     shadowOpacity: 0.05,
     shadowRadius: 6,
@@ -93,18 +159,29 @@ const styles = StyleSheet.create({
 
   cardText: {
     flex: 1,
+    alignItems: "flex-end",
+    paddingHorizontal: 14,
+  },
+
+  cardTitle: {
     fontSize: 16,
     fontFamily: FONTS.bold,
-    color: "#1A3C40",
+    color: "#1A1A1A",
     textAlign: "right",
-    marginHorizontal: 12,
+    marginBottom: 4,
+  },
+
+  cardSub: {
+    fontSize: 13,
+    fontFamily: FONTS.regular,
+    color: "#999",
+    textAlign: "right",
   },
 
   iconBox: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: "#D1FAE5",
+    width: 48,
+    height: 48,
+    borderRadius: 14,
     justifyContent: "center",
     alignItems: "center",
   },

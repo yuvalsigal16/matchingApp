@@ -1,13 +1,14 @@
 import { Ionicons } from "@expo/vector-icons";
+import DateTimePicker from "@react-native-community/datetimepicker";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import React, { useEffect, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
+  Platform,
   ScrollView,
   StyleSheet,
   Text,
-  TextInput,
   TouchableOpacity,
   View,
 } from "react-native";
@@ -17,6 +18,20 @@ import { BASE_URL } from "../../src/api/config";
 import { getToken } from "../../src/auth/authStore";
 import { FONTS } from "../../src/theme/fonts";
 
+function toIsoDateOnly(date) {
+  const y = date.getFullYear();
+  const m = (date.getMonth() + 1).toString().padStart(2, "0");
+  const d = date.getDate().toString().padStart(2, "0");
+  return `${y}-${m}-${d}`;
+}
+
+function parseServerDate(str) {
+  if (!str) return null;
+  const match = String(str).match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if (match) return new Date(Number(match[1]), Number(match[2]) - 1, Number(match[3]));
+  return null;
+}
+
 export default function EditTrip() {
   const router = useRouter();
   const { id } = useLocalSearchParams();
@@ -25,27 +40,26 @@ export default function EditTrip() {
   const [saving, setSaving] = useState(false);
 
   const [destination, setDestination] = useState("");
-  const [startDate, setStartDate] = useState("");
-  const [endDate, setEndDate] = useState("");
+  const [startDate, setStartDate] = useState(null);
+  const [endDate, setEndDate] = useState(null);
   const [status, setStatus] = useState("Active");
+
+  const [showStartPicker, setShowStartPicker] = useState(false);
+  const [showEndPicker, setShowEndPicker] = useState(false);
 
   useEffect(() => {
     const loadTrip = async () => {
       try {
         const token = getToken();
-
-        const res = await fetch(`${BASE_URL}/Trips/${id}`, {
+        const res = await fetch(`${BASE_URL}/Trip/${id}`, {
           headers: token ? { Authorization: `Bearer ${token}` } : {},
         });
-
         const text = await res.text();
-        const data = text ? JSON.parse(text) : null;
-
         if (!res.ok) throw new Error("שגיאה בטעינת טיול");
-
+        const data = text ? JSON.parse(text) : null;
         setDestination(data.destination || "");
-        setStartDate(data.startDate || "");
-        setEndDate(data.endDate || "");
+        setStartDate(parseServerDate(data.startDate));
+        setEndDate(parseServerDate(data.endDate));
         setStatus(data.status || "Active");
       } catch (err) {
         Alert.alert("שגיאה", err.message);
@@ -53,7 +67,6 @@ export default function EditTrip() {
         setLoading(false);
       }
     };
-
     if (id) loadTrip();
   }, [id]);
 
@@ -62,13 +75,14 @@ export default function EditTrip() {
       Alert.alert("שגיאה", "חובה להזין יעד");
       return;
     }
-
+    if (!startDate) {
+      Alert.alert("שגיאה", "חובה לבחור תאריך התחלה");
+      return;
+    }
     setSaving(true);
-
     try {
       const token = getToken();
-
-      const res = await fetch(`${BASE_URL}/Trips/${id}`, {
+      const res = await fetch(`${BASE_URL}/Trip`, {
         method: "PUT",
         headers: {
           "Content-Type": "application/json",
@@ -77,22 +91,77 @@ export default function EditTrip() {
         body: JSON.stringify({
           TripID: Number(id),
           Destination: destination,
-          StartDate: startDate,
-          EndDate: endDate,
+          StartDate: toIsoDateOnly(startDate),
+          EndDate: endDate ? toIsoDateOnly(endDate) : null,
           Status: status,
         }),
       });
-
       if (!res.ok) throw new Error("עדכון טיול נכשל");
-
-      Alert.alert("עודכן", "הטיול עודכן בהצלחה", [
-        { text: "אישור", onPress: () => router.back() },
-      ]);
+      if (Platform.OS === "web") {
+        window.alert("הטיול עודכן בהצלחה");
+        router.back();
+      } else {
+        Alert.alert("עודכן", "הטיול עודכן בהצלחה", [
+          { text: "אישור", onPress: () => router.back() },
+        ]);
+      }
     } catch (err) {
       Alert.alert("שגיאה", err.message);
     } finally {
       setSaving(false);
     }
+  };
+
+  const formatDisplay = (date) => {
+    if (!date) return "לא נבחר";
+    return `${date.getDate().toString().padStart(2, "0")}/${(date.getMonth() + 1).toString().padStart(2, "0")}/${date.getFullYear()}`;
+  };
+
+  const renderDateField = (label, date, setDate, showPicker, setShowPicker) => {
+    if (Platform.OS === "web") {
+      const val = date ? toIsoDateOnly(date) : "";
+      return (
+        <View style={styles.fieldGroup}>
+          <Text style={styles.label}>{label}</Text>
+          <input
+            type="date"
+            value={val}
+            onChange={(e) => {
+              if (!e.target.value) { setDate(null); return; }
+              const [y, m, d] = e.target.value.split("-").map(Number);
+              setDate(new Date(y, m - 1, d));
+            }}
+            style={{
+              width: "100%", padding: 14, borderRadius: 12, border: "none",
+              backgroundColor: "#fff", fontSize: 15, textAlign: "right",
+              fontFamily: "inherit", direction: "ltr", cursor: "pointer",
+              boxSizing: "border-box",
+            }}
+          />
+        </View>
+      );
+    }
+
+    return (
+      <View style={styles.fieldGroup}>
+        <Text style={styles.label}>{label}</Text>
+        <TouchableOpacity style={styles.dateBtn} onPress={() => setShowPicker(true)}>
+          <Text style={styles.dateBtnText}>{formatDisplay(date)}</Text>
+          <Ionicons name="calendar-outline" size={18} color="#1A3C40" />
+        </TouchableOpacity>
+        {showPicker && (
+          <DateTimePicker
+            value={date || new Date()}
+            mode="date"
+            display="default"
+            onChange={(_, selected) => {
+              setShowPicker(false);
+              if (selected) setDate(selected);
+            }}
+          />
+        )}
+      </View>
+    );
   };
 
   if (loading) {
@@ -105,49 +174,31 @@ export default function EditTrip() {
 
   return (
     <SafeAreaView style={styles.container}>
-      {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity onPress={() => router.back()}>
           <Ionicons name="arrow-forward" size={26} color="#1A3C40" />
         </TouchableOpacity>
-
         <Text style={styles.title}>עריכת טיול</Text>
-
         <View style={{ width: 26 }} />
       </View>
 
       <ScrollView contentContainerStyle={styles.content}>
-        <Text style={styles.label}>יעד</Text>
-        <TextInput
-          style={styles.input}
-          value={destination}
-          onChangeText={setDestination}
-          textAlign="right"
-        />
+        <View style={styles.fieldGroup}>
+          <Text style={styles.label}>יעד</Text>
+          <input
+            value={destination}
+            onChange={(e) => setDestination(e.target.value)}
+            style={{
+              width: "100%", padding: 14, borderRadius: 12, border: "none",
+              backgroundColor: "#fff", fontSize: 15, textAlign: "right",
+              fontFamily: "inherit", boxSizing: "border-box",
+            }}
+            placeholder="יעד הטיול"
+          />
+        </View>
 
-        <Text style={styles.label}>תאריך התחלה</Text>
-        <TextInput
-          style={styles.input}
-          value={startDate}
-          onChangeText={setStartDate}
-          textAlign="right"
-        />
-
-        <Text style={styles.label}>תאריך סיום</Text>
-        <TextInput
-          style={styles.input}
-          value={endDate}
-          onChangeText={setEndDate}
-          textAlign="right"
-        />
-
-        <Text style={styles.label}>סטטוס</Text>
-        <TextInput
-          style={styles.input}
-          value={status}
-          onChangeText={setStatus}
-          textAlign="right"
-        />
+        {renderDateField("תאריך יציאה", startDate, setStartDate, showStartPicker, setShowStartPicker)}
+        {renderDateField("תאריך חזרה", endDate, setEndDate, showEndPicker, setShowEndPicker)}
 
         <TouchableOpacity
           style={styles.saveBtn}
@@ -165,22 +216,14 @@ export default function EditTrip() {
   );
 }
 
-
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: "#F0F2F5",
-  },
-
-  center: {
-    flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-  },
+  container: { flex: 1, backgroundColor: "#F0F2F5" },
+  center: { flex: 1, justifyContent: "center", alignItems: "center" },
 
   header: {
     flexDirection: "row-reverse",
     justifyContent: "space-between",
+    alignItems: "center",
     padding: 20,
   },
 
@@ -190,35 +233,44 @@ const styles = StyleSheet.create({
     color: "#1A3C40",
   },
 
-  content: {
-    padding: 20,
-  },
+  content: { padding: 20, paddingBottom: 60 },
+
+  fieldGroup: { marginBottom: 16 },
 
   label: {
     textAlign: "right",
-    marginTop: 10,
-    marginBottom: 5,
+    marginBottom: 6,
     color: "#777",
-    fontSize: 12,
+    fontSize: 13,
+    fontFamily: FONTS.regular,
   },
 
-  input: {
+  dateBtn: {
+    flexDirection: "row-reverse",
+    alignItems: "center",
+    justifyContent: "space-between",
     backgroundColor: "#fff",
     padding: 14,
     borderRadius: 12,
-    marginBottom: 10,
+  },
+
+  dateBtnText: {
+    fontSize: 15,
+    fontFamily: FONTS.regular,
+    color: "#222",
   },
 
   saveBtn: {
     backgroundColor: "#1A3C40",
     padding: 16,
     borderRadius: 12,
-    marginTop: 20,
+    marginTop: 10,
     alignItems: "center",
   },
 
   saveText: {
     color: "#fff",
     fontFamily: FONTS.bold,
+    fontSize: 16,
   },
 });
