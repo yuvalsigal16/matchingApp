@@ -3,12 +3,12 @@ import { Ionicons } from "@expo/vector-icons"; // אייקונים מוכרים 
 import { Slider } from "@miblanchard/react-native-slider";
 import DateTimePicker from "@react-native-community/datetimepicker";
 import { useLocalSearchParams, useRouter } from "expo-router";
-// אייקונים מותאמים אישית — Globe2 לכותרת ה-intro, Plane/Home לתאריכים, Calendar למועדים
+import LottieView from "lottie-react-native"; // אנימציית פתיחה
+// אייקונים מותאמים אישית — Plane/Home לתאריכים, Calendar למועדים
 import {
   Calendar,
   Cigarette,
   Gem,
-  Globe2,
   Home,
   MoonStar,
   Plane,
@@ -19,6 +19,7 @@ import React, { useCallback, useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator, // אינדיקטור טעינה (ספינר עגול)
   Animated, // לאנימציות מעבר בין שאלות
+  Dimensions, // למדידת רוחב המסך (גודל אנימציית הפתיחה)
   KeyboardAvoidingView, // מזיז את התוכן כשהמקלדת עולה
   Platform, // מאפשר לבדוק אם זה iOS או Android
   Pressable, // כפתור עם פידבק לחיצה
@@ -103,13 +104,16 @@ const MONTHS_HE = [
 
 // ─── הגדרת שאלות השאלון ─────────────────────────────────────────────────────
 // כל שאלה מכילה: id (מפתח לשמירה), type (סוג השאלה), title (כותרת), progress (אחוז התקדמות)
+// רוחב המסך — לחישוב גודל אנימציית הפתיחה
+const { width: SCREEN_W } = Dimensions.get("window");
+
 // סדר המערך = סדר הצגת השאלות
 const QUESTIONS = [
   {
     id: "intro", // מסך פתיחה (לא שאלה אמיתית)
     type: "intro",
     title: "שאלון העדפות טיול",
-    subtitle: "בואי נתכנן יחד את הטיול המושלם שלך",
+    subtitle: "כל מסע מתחיל בחלום — בואי נגשים אותו יחד",
   },
   {
     id: "tripName", // שם הטיול — שדה טקסט חופשי
@@ -489,6 +493,13 @@ export default function PreferencesQuizScreen() {
   }, [data, tripId]);
 
   // ── מטפל בלחיצה על "המשך" ──
+  // ── מעבר אוטומטי ממסך הפתיחה לשאלה הראשונה (בלי לחיצה), אחרי כמה שניות ──
+  useEffect(() => {
+    if (currentQ.type !== "intro") return;
+    const timer = setTimeout(() => animateTransition(step + 1), 3500);
+    return () => clearTimeout(timer);
+  }, [currentQ.type, step, animateTransition]);
+
   const handleNext = async () => {
     // אם השאלה לא נענתה או בתהליך שליחה — לא עושים כלום
     if (!answered || submitting) return;
@@ -557,9 +568,12 @@ export default function PreferencesQuizScreen() {
   // ── מסך הפתיחה — אייקון גדול + כותרת משנה ──
   const renderIntro = () => (
     <View style={styles.introWrapper}>
-      <View style={styles.introIconCircle}>
-        <Globe2 size={76} color="#1A3C40" strokeWidth={1.6} />
-      </View>
+      <LottieView
+        source={require("../../assets/lottie/globev3.json")}
+        autoPlay
+        loop
+        style={styles.introLottie}
+      />
       <Text style={styles.introSubtitle}>{currentQ.subtitle}</Text>
     </View>
   );
@@ -603,7 +617,10 @@ export default function PreferencesQuizScreen() {
         `${BASE_URL}/Trip/recommend-period?destination=${encodeURIComponent(dest)}`,
         { headers: token ? { Authorization: `Bearer ${token}` } : {} }
       );
-      if (!res.ok) throw new Error("שגיאה בקבלת המלצה מהשרת");
+      if (!res.ok) {
+        const serverMsg = await res.text().catch(() => "");
+        throw new Error(serverMsg || `שגיאה בקבלת המלצה מהשרת (${res.status})`);
+      }
       const json = await res.json();
       setRecInfo({ placeName: dest, bestMonths: json.months, reason: json.reason });
     } catch (e) {
@@ -1188,6 +1205,7 @@ export default function PreferencesQuizScreen() {
           {submitError ? (
             <Text style={styles.submitErrorText}>{submitError}</Text>
           ) : null}
+          {currentQ.type !== "intro" && (
           <Animated.View
             style={[
               styles.nextBtnWrapper,
@@ -1222,6 +1240,7 @@ export default function PreferencesQuizScreen() {
               )}
             </Pressable>
           </Animated.View>
+          )}
 
           {step > 0 && !submitting ? (
             <Pressable
@@ -1355,6 +1374,11 @@ const styles = StyleSheet.create({
     width: "100%",
     alignItems: "center",
     paddingTop: 10,
+  },
+  introLottie: {
+    width: SCREEN_W * 0.9,
+    height: SCREEN_W * 0.9,
+    marginBottom: 8,
   },
   introIconCircle: {
     width: 160,

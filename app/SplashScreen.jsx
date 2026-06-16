@@ -1,10 +1,7 @@
-import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useRouter } from "expo-router";
 import { useEffect, useRef } from "react";
 import { Animated, Image, StyleSheet, Text, View } from "react-native";
-import { apiLogin } from "./src/api/authService";
-import { getUserProfile } from "./src/api/userProfileService";
-import { getUser, setAuth } from "./src/auth/authStore";
+import { getUser } from "./src/auth/authStore";
 import { FONTS } from "./src/theme/fonts";
 
 export default function SplashScreen() {
@@ -18,28 +15,10 @@ export default function SplashScreen() {
       useNativeDriver: true,
     }).start();
 
-    const navigate = async () => {
-      // אם כבר יש token בזיכרון (SecureStore נטען ב-_layout) — ישר ל-Home
-      if (getUser()) {
-        router.replace("/Home");
-        return;
-      }
-
-      // fallback ל-web / רענון: נסה auto-login עם credentials שמורים
-      try {
-        const pairs = await AsyncStorage.multiGet(["saved_email", "saved_password"]);
-        const se = pairs[0][1];
-        const sp = pairs[1][1];
-        if (se && sp) {
-          const { token, user } = await apiLogin(se, sp);
-          setAuth(token, user);
-          const profile = await getUserProfile(user.userID);
-          router.replace(profile ? "/Home" : "/QuizStartScreen");
-          return;
-        }
-      } catch {}
-
-      router.replace("/Login");
+    const navigate = () => {
+      // אם יש משתמש בזיכרון (הטוקן נטען מ-SecureStore ב-_layout) — ישר ל-Home,
+      // אחרת — למסך ההתחברות. אין auto-login מסיסמה (לא שומרים סיסמה במכשיר).
+      router.replace(getUser() ? "/Home" : "/Login");
     };
 
     const timer = setTimeout(navigate, 2800);

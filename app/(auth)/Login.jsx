@@ -29,28 +29,14 @@ export default function LoginScreen() {
   //שומר מה שהמשתמש מקליד באימייל ובסיסמה, וגם מצבים של הצגת סיסמה, שגיאות, וטעינה
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [savedCreds, setSavedCreds] = useState({ email: "", password: "" });
-  const [autoLogging, setAutoLogging] = useState(false);
+  const [savedCreds, setSavedCreds] = useState({ email: "" });
 
+  // טוענים רק את האימייל השמור לנוחות (לא שומרים סיסמה במכשיר)
   useEffect(() => {
-    AsyncStorage.multiGet(["saved_email", "saved_password"]).then(async (pairs) => {
-      const se = pairs[0][1];
-      const sp = pairs[1][1];
-      if (se) { setEmail(se); setSavedCreds({ email: se, password: sp || "" }); }
-      if (sp) setPassword(sp);
-
-      // אם יש פרטים שמורים — התחבר אוטומטית
-      if (se && sp && isValidEmail(se) && isValidPassword(sp)) {
-        setAutoLogging(true);
-        try {
-          const { token, user } = await apiLogin(se, sp);
-          setAuth(token, user);
-          registerForPushNotifications(user.userID);
-          const profile = await getUserProfile(user.userID);
-          router.replace(profile ? "/Home" : "/QuizStartScreen");
-        } catch {
-          setAutoLogging(false);
-        }
+    AsyncStorage.getItem("saved_email").then((se) => {
+      if (se) {
+        setEmail(se);
+        setSavedCreds({ email: se });
       }
     });
   }, []);
@@ -94,11 +80,8 @@ export default function LoginScreen() {
 
       const profile = await getUserProfile(user.userID);
 
-      // שמור פרטים אוטומטית לכניסה מהירה בפעם הבאה
-      await AsyncStorage.multiSet([
-        ["saved_email", email.trim()],
-        ["saved_password", password],
-      ]).catch(() => {});
+      // שומרים רק את האימייל לנוחות בכניסה הבאה (לא שומרים סיסמה במכשיר)
+      await AsyncStorage.setItem("saved_email", email.trim()).catch(() => {});
 
       if (profile) {
         router.replace("/Home");
@@ -113,14 +96,6 @@ export default function LoginScreen() {
   };
 
   const handleForgotPassword = () => console.log("Forgot password");
-
-  if (autoLogging) {
-    return (
-      <SafeAreaView style={[styles.safe, styles.center]}>
-        <ActivityIndicator size="large" color="#1A3C40" />
-      </SafeAreaView>
-    );
-  }
 
   return (
     <SafeAreaView style={styles.safe}>
@@ -168,7 +143,6 @@ export default function LoginScreen() {
                   style={styles.suggestion}
                   onPress={() => {
                     setEmail(savedCreds.email);
-                    if (savedCreds.password) setPassword(savedCreds.password);
                     setEmailError("");
                   }}
                   activeOpacity={0.7}
@@ -177,7 +151,6 @@ export default function LoginScreen() {
                   <Text style={styles.suggestionEmail} numberOfLines={1}>
                     {savedCreds.email}
                   </Text>
-                  <Text style={styles.suggestionHint}>+ סיסמה</Text>
                 </TouchableOpacity>
               )}
 

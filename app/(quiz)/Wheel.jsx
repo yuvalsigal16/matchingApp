@@ -19,8 +19,10 @@ import { useEffect, useRef, useState } from "react";
 
 // ייבוא רכיבי UI מ-React Native
 import {
+  ActivityIndicator, // אינדיקטור טעינה
   Animated, // מאפשר אנימציות (סיבוב הגלגל)
   Easing, // פונקציות שולטות במהירות האנימציה (האם מאיץ? מאט?)
+  PanResponder, // זיהוי מחוות סוויפ על הגלגל
   Platform,
   Pressable, // כפתור עם פידבק שינוי צבע בלחיצה
   StyleSheet, // הגדרת עיצובים
@@ -96,6 +98,7 @@ const buildEnrichedUser = (basicUser, profile, interests, quest) => ({
     .join(" ")
     .trim(),
   age: computeAge(profile?.birthDate),
+  city: profile?.city ?? null,
   profileImage: profile?.profileImage ?? basicUser.profileImage ?? null,
   interests: (interests || []).map((i) => i?.interestName).filter(Boolean),
   isSmoker: quest?.isSmoker ?? null,
@@ -227,7 +230,7 @@ async function loadUsers() {
       myInterestsRes,
       myQuestRes,
     ] = await Promise.allSettled([
-      getAllUsers(),
+      getAllUsers(myId),
       getUserProfile(myId),
       getUserInterests(myId),
       getQuestionnaire(myId),
@@ -291,41 +294,29 @@ async function loadUsers() {
   };
 });
 
-const topMatches = usersWithScore
-  .sort((a, b) => b.matchScore - a.matchScore)
-  .slice(0, 5);
+const rankedUsers = usersWithScore.sort(
+  (a, b) => b.matchScore - a.matchScore
+);
 
 
 
 
 
   const tripsArrays = await Promise.all(
-  topMatches.map((u) =>
-    getUserTrips(u.userID)
-  )
+  rankedUsers.map((u) => getUserTrips(u.userID).catch(() => []))
 );
-console.log(
-  "topMatches:",
-  topMatches.map(u => ({
-    id: u.userID,
-    name: u.name
-  }))
-);
-
 console.log(
   "tripsArrays:",
   JSON.stringify(tripsArrays, null, 2)
 );
-console.log("tripsArrays:", JSON.stringify(tripsArrays, null, 2));
 
 const destinationsFromTrips = [];
 
-topMatches.forEach((user, index) => {
-  const trips = tripsArrays[index];
+rankedUsers.forEach((user, index) => {
+  const trips = tripsArrays[index] || [];
 
   trips.forEach((trip) => {
     destinationsFromTrips.push({
-  destinationId: trip.destinationID,
   tripId: trip.tripID,
   name: trip.destination,
   info: "יעד מטיול של משתמש בעל התאמה גבוהה",
@@ -334,7 +325,7 @@ topMatches.forEach((user, index) => {
   });
 });
 
-// destinationsFromTrips נבנה לפי topMatches שכבר ממוין מהציון הגבוה לנמוך,
+// destinationsFromTrips נבנה לפי rankedUsers שכבר ממוין מהציון הגבוה לנמוך,
 // לכן ההופעה הראשונה של כל יעד = ההתאמה הכי טובה. שומרים אותה (לא את האחרונה).
 const uniqueDestinations = [];
 const seenNames = new Set();
@@ -353,6 +344,8 @@ setDestinations(uniqueDestinations);
 setUsers(usersWithScore);
   } catch (err) {
     console.log(err);
+  } finally {
+    setLoadingDestinations(false);
   }
 }
 
@@ -373,6 +366,9 @@ setUsers(usersWithScore);
 
   // המעלה הנוכחית של הגלגל — נשמר כדי להמשיך מהמיקום האחרון בסיבוב הבא
   const [currentDeg, setCurrentDeg] = useState(0);
+
+  // האם עדיין טוענים יעדים מהשרת — להצגת ספינר במקום מסך ריק / טקסט מטעה
+  const [loadingDestinations, setLoadingDestinations] = useState(true);
 
   // ── חישוב מספרי המקטעים והזווית של כל מקטע ──
   // const numberOfSectors = DESTINATIONS_POOL.length; // 8 מקטעים
@@ -504,6 +500,24 @@ setResult({
     }).start();
   };
 
+  // ── סוויפ על הגלגל מסובב אותו (חלופה ללחיצה על הכפתור) ──
+  // spinRef מתעדכן בכל render כדי שה-PanResponder תמיד יקרא לגרסה העדכנית של spinWheel
+  const spinRef = useRef(() => {});
+  spinRef.current = spinWheel;
+  const panResponder = useRef(
+    PanResponder.create({
+      onStartShouldSetPanResponder: () => true,
+      onMoveShouldSetPanResponder: (_, g) =>
+        Math.abs(g.dx) > 8 || Math.abs(g.dy) > 8,
+      onPanResponderRelease: (_, g) => {
+        const distance = Math.hypot(g.dx, g.dy);
+        const speed = Math.hypot(g.vx, g.vy);
+        // סוויפ מספיק ארוך או מהיר → מסובב
+        if (distance > 25 || speed > 0.25) spinRef.current();
+      },
+    })
+  ).current;
+
   return (
     <SafeAreaView style={styles.container}>
       {/* ── אזור הכותרת העליונה ── */}
@@ -534,12 +548,17 @@ setResult({
 
       {/* ── אזור הגלגל עצמו ── */}
       <View style={styles.wheelArea}>
-        {destinations.length === 0 ? (
+        {loadingDestinations ? (
+          <View style={styles.wheelLoading}>
+            <ActivityIndicator size="large" color="#1A3C40" />
+            <Text style={styles.emptyWheelText}>מחפשת יעדים מתאימים...</Text>
+          </View>
+        ) : destinations.length === 0 ? (
           <Text style={styles.emptyWheelText}>
             אין עדיין יעדים מטיולים של משתמשים מתאימים
           </Text>
         ) : (
-        <View style={styles.wheelWrapper}>
+        <View style={styles.wheelWrapper} {...panResponder.panHandlers}>
           {/* הסמן/החץ למעלה (משולש) — מצביע על המקטע הזוכה */}
           <View style={styles.pointer} />
           <View style={styles.pointerShadow} />
@@ -621,12 +640,40 @@ setResult({
             <View style={styles.bubblePartnerRow}>
               <User size={16} color="#1A3C40" strokeWidth={1.8} />
               <Text style={styles.bubblePartner}>{result.partner}</Text>
-              {bestMatch && (
-  <Text style={styles.bubbleInfo}>
-    התאמה של {bestMatch.matchScore}% · גיל {bestMatch.age}
-  </Text>
-)}
             </View>
+
+            {bestMatch && (
+              <View style={styles.partnerDetails}>
+                <Text style={styles.bubbleInfo}>
+                  התאמה של {bestMatch.matchScore}% · גיל {bestMatch.age}
+                  {bestMatch.city ? ` · ${bestMatch.city}` : ""}
+                </Text>
+
+                {bestMatch.interests?.length > 0 && (
+                  <View style={styles.partnerTagsRow}>
+                    {bestMatch.interests.slice(0, 6).map((it) => (
+                      <View key={it} style={styles.partnerTag}>
+                        <Text style={styles.partnerTagText}>{it}</Text>
+                      </View>
+                    ))}
+                  </View>
+                )}
+
+                {(() => {
+                  const lifestyle = [
+                    bestMatch.isSmoker != null &&
+                      (bestMatch.isSmoker ? "מעשן/ת" : "לא מעשן/ת"),
+                    bestMatch.keepsKosher != null &&
+                      (bestMatch.keepsKosher ? "כשר/ה" : "לא שומר/ת כשרות"),
+                    bestMatch.keepsShabbat != null &&
+                      (bestMatch.keepsShabbat ? "שומר/ת שבת" : "לא שומר/ת שבת"),
+                  ].filter(Boolean);
+                  return lifestyle.length > 0 ? (
+                    <Text style={styles.bubbleInfo}>{lifestyle.join(" · ")}</Text>
+                  ) : null;
+                })()}
+              </View>
+            )}
           </View>
         ) : (
           // אם אין תוצאה — מציג טקסט מנחה
@@ -640,32 +687,27 @@ setResult({
 
       {/* ── אזור הכפתורים בתחתית ── */}
       <View style={styles.footer}>
-        {/* כפתור הסיבוב הראשי — עם אנימציית גודל בלחיצה */}
-        <Animated.View
-          style={[
-            styles.spinBtnWrapper,
-            { transform: [{ scale: spinBtnScale }] },
-          ]}
+        {/* רמז סוויפ — במקום כפתור. מלמד את המשתמשת שאפשר להחליק את הגלגל.
+            עדיין ניתן ללחיצה כגיבוי. */}
+        <Pressable
+          style={styles.swipeHint}
+          onPress={spinWheel}
+          disabled={isSpinning}
         >
-          <Pressable
-            style={[styles.spinBtn, isSpinning && styles.spinBtnDisabled]}
-            onPress={spinWheel}
-            onPressIn={onSpinPressIn}
-            onPressOut={onSpinPressOut}
-            disabled={isSpinning} // נחסם בזמן סיבוב
-          >
-            <RotateCw
-              size={18}
-              color="#fff"
-              strokeWidth={2.2}
-              style={isSpinning && { opacity: 0.7 }}
-            />
-            {/* טקסט דינמי לפי המצב הנוכחי */}
-            <Text style={styles.spinBtnText}>
-              {isSpinning ? "מסתובב..." : result ? "סובב שוב" : "סובב את הגלגל"}
-            </Text>
-          </Pressable>
-        </Animated.View>
+          <RotateCw
+            size={18}
+            color="#1A3C40"
+            strokeWidth={2.2}
+            style={isSpinning && { opacity: 0.6 }}
+          />
+          <Text style={styles.swipeHintText}>
+            {isSpinning
+              ? "מסתובב..."
+              : result
+                ? "החליקי שוב לסיבוב נוסף"
+                : "החליקי את הגלגל כדי לסובב"}
+          </Text>
+        </Pressable>
 
         {/* כפתור אישור — מוצג רק אחרי שיש תוצאה */}
         {result && !isSpinning ? (
@@ -765,6 +807,13 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     marginTop: 14,
+  },
+  // מצב טעינה — ספינר + טקסט בזמן שליפת היעדים
+  wheelLoading: {
+    alignItems: "center",
+    justifyContent: "center",
+    paddingVertical: 40,
+    gap: 12,
   },
   // טקסט מצב ריק — כשאין יעדים אמיתיים מטיולים של משתמשים מתאימים
   emptyWheelText: {
@@ -909,6 +958,43 @@ const styles = StyleSheet.create({
     textAlign: "right",
     color: "#5F6F72",
     lineHeight: 20,
+  },
+  // ── פרטי הפרטנר המורחבים ──
+  partnerDetails: {
+    marginTop: 6,
+    gap: 6,
+  },
+  partnerTagsRow: {
+    flexDirection: "row-reverse",
+    flexWrap: "wrap",
+    gap: 6,
+  },
+  partnerTag: {
+    backgroundColor: "#EEF6F6",
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: "#1A3C40",
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+  },
+  partnerTagText: {
+    fontSize: 12,
+    fontFamily: FONTS.regular,
+    color: "#1A3C40",
+  },
+  // ── רמז הסוויפ (במקום כפתור הסיבוב) ──
+  swipeHint: {
+    flexDirection: "row-reverse",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+    paddingVertical: 14,
+    width: "100%",
+  },
+  swipeHintText: {
+    color: "#1A3C40",
+    fontSize: 15,
+    fontFamily: FONTS.bold,
   },
   // הכרטיס הריק (לפני סיבוב)
   placeholderBubble: {
