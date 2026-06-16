@@ -1,10 +1,12 @@
-import React from "react";
+import React, { useEffect, useState } from "react";
 
 import {
   View,
   Text,
   StyleSheet,
   TouchableOpacity,
+  ActivityIndicator,
+  ScrollView,
 } from "react-native";
 
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -16,149 +18,367 @@ import {
   useRouter,
 } from "expo-router";
 
+import {
+  getMatchById,
+  getTripSuggestions,
+} from "../src/api/chatService";
+
 import { FONTS } from "../src/theme/fonts";
 
 export default function MatchingSuccess() {
-
   const router = useRouter();
 
   const { matchId } =
     useLocalSearchParams();
 
+  const [loading, setLoading] =
+    useState(true);
+
+  const [match, setMatch] =
+    useState(null);
+
+  const [places, setPlaces] =
+    useState([]);
+
+  useEffect(() => {
+    loadData();
+  }, []);
+
+  const loadData = async () => {
+    try {
+      const data =
+        await getMatchById(
+          matchId
+        );
+
+      setMatch(data);
+
+      if (data?.tripName) {
+        const suggestions =
+          await getTripSuggestions(
+            data.tripName,
+            data.interests || ""
+          );
+
+        setPlaces(
+          suggestions || []
+        );
+      }
+
+    } catch (err) {
+      console.log(err);
+
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const formatDate = (date) => {
+    if (!date) return "-";
+
+    return new Date(
+      date
+    ).toLocaleDateString(
+      "he-IL"
+    );
+  };
+
+  if (loading) {
+    return (
+      <SafeAreaView style={styles.center}>
+        <ActivityIndicator
+          size="large"
+          color="#1A3C40"
+        />
+      </SafeAreaView>
+    );
+  }
+
   return (
     <SafeAreaView style={styles.container}>
 
-      {/* אייקון */}
-      <View style={styles.iconContainer}>
-        <Ionicons
-          name="heart"
-          size={90}
-          color="#fff"
-        />
-      </View>
-
-      {/* כותרת */}
-      <Text style={styles.title}>
-        🎉 It's a Match!
-      </Text>
-
-      {/* תיאור */}
-      <Text style={styles.subtitle}>
-        החיבור ביניכם אושר בהצלחה
-      </Text>
-
-      <Text style={styles.description}>
-        עכשיו אפשר להתחיל לתכנן
-        את הטיול המשותף ✈️
-      </Text>
-
-      {/* כפתור מעבר */}
-      <TouchableOpacity
-        style={styles.primaryBtn}
-        onPress={() =>
-          router.push({
-            pathname:
-              "/sharedTrip/[matchId]",
-            params: { matchId },
-          })
-        }
+      <ScrollView
+        showsVerticalScrollIndicator={false}
       >
-        <Text style={styles.primaryText}>
-          מעבר לטיול המשותף
-        </Text>
-      </TouchableOpacity>
 
-      {/* חזרה לצ'אט */}
-      <TouchableOpacity
-        style={styles.secondaryBtn}
-        onPress={() =>
-          router.replace(
-            `/chat/${matchId}`
+        {/* הצלחה */}
+        <View style={styles.iconContainer}>
+          <Ionicons
+            name="heart"
+            size={90}
+            color="#fff"
+          />
+        </View>
+
+        <Text style={styles.title}>
+          🎉 It's a Match!
+        </Text>
+
+        <Text style={styles.subtitle}>
+          החיבור ביניכם אושר
+        </Text>
+
+        <Text style={styles.description}>
+          עכשיו אפשר להתחיל
+          לתכנן את הטיול יחד ✈️
+        </Text>
+
+        {/* פרטי טיול */}
+        <View style={styles.infoCard}>
+
+          <View style={styles.row}>
+            <Text style={styles.value}>
+              {
+                match?.otherUserName
+                || "לא ידוע"
+              }
+            </Text>
+
+            <Text style={styles.label}>
+              פרטנר
+            </Text>
+          </View>
+
+          <View style={styles.row}>
+            <Text style={styles.value}>
+              {
+                match?.tripName
+                || "-"
+              }
+            </Text>
+
+            <Text style={styles.label}>
+              יעד
+            </Text>
+          </View>
+
+          <View style={styles.row}>
+            <Text style={styles.value}>
+              {
+                formatDate(
+                  match?.tripStartDate
+                )
+              }
+            </Text>
+
+            <Text style={styles.label}>
+              יציאה
+            </Text>
+          </View>
+
+          <View style={styles.row}>
+            <Text style={styles.value}>
+              {
+                formatDate(
+                  match?.tripEndDate
+                )
+              }
+            </Text>
+
+            <Text style={styles.label}>
+              חזרה
+            </Text>
+          </View>
+
+        </View>
+
+        {/* המלצות */}
+        <Text style={styles.sectionTitle}>
+          ✨ המלצות בשבילכם
+        </Text>
+
+        {
+          places.length === 0
+
+          ?
+
+          <Text style={styles.empty}>
+            עוד אין המלצות
+          </Text>
+
+          :
+
+          places.map(
+            (p, i) => (
+
+              <View
+                key={i}
+                style={styles.placeCard}
+              >
+
+                <Text style={styles.placeName}>
+                  📍 {p.name}
+                </Text>
+
+                <Text>
+                  ⭐ {p.rating}
+                </Text>
+
+                <Text>
+                  {p.address}
+                </Text>
+
+              </View>
+
+            )
           )
         }
-      >
-        <Text style={styles.secondaryText}>
-          חזרה לצ׳אט
-        </Text>
-      </TouchableOpacity>
+
+        {/* בית */}
+        <TouchableOpacity
+          style={styles.primaryBtn}
+          onPress={() =>
+            router.replace(
+              "/Home"
+            )
+          }
+        >
+          <Text style={styles.primaryText}>
+            חזרה למסך הבית
+          </Text>
+        </TouchableOpacity>
+
+        {/* צאט */}
+        <TouchableOpacity
+          style={styles.secondaryBtn}
+          onPress={() =>
+            router.replace({
+              pathname:
+                "/chat/[matchId]",
+              params: {
+                matchId,
+              },
+            })
+          }
+        >
+          <Text style={styles.secondaryText}>
+            חזרה לצ׳אט
+          </Text>
+        </TouchableOpacity>
+
+      </ScrollView>
 
     </SafeAreaView>
   );
 }
 
-const styles = StyleSheet.create({
+const styles =
+StyleSheet.create({
 
-  container: {
-    flex: 1,
-    backgroundColor: "#F0F2F5",
-    justifyContent: "center",
-    alignItems: "center",
-    padding: 30,
-  },
+container:{
+flex:1,
+backgroundColor:"#F5F0E8",
+padding:24,
+},
 
-  iconContainer: {
-    width: 140,
-    height: 140,
-    borderRadius: 70,
-    backgroundColor: "#2E8B57",
-    justifyContent: "center",
-    alignItems: "center",
-    marginBottom: 30,
-  },
+center:{
+flex:1,
+justifyContent:"center",
+alignItems:"center",
+},
 
-  title: {
-    fontSize: 34,
-    fontFamily: FONTS.bold,
-    color: "#1A3C40",
-    marginBottom: 14,
-    textAlign: "center",
-  },
+iconContainer:{
+alignSelf:"center",
+width:150,
+height:150,
+borderRadius:75,
+backgroundColor:"#2E8B57",
+justifyContent:"center",
+alignItems:"center",
+marginBottom:24,
+},
 
-  subtitle: {
-    fontSize: 18,
-    fontFamily: FONTS.bold,
-    color: "#2E8B57",
-    marginBottom: 10,
-    textAlign: "center",
-  },
+title:{
+fontSize:34,
+textAlign:"center",
+fontFamily:FONTS.bold,
+color:"#1A3C40",
+},
 
-  description: {
-    fontSize: 16,
-    color: "#555",
-    textAlign: "center",
-    lineHeight: 26,
-    marginBottom: 40,
-    fontFamily: FONTS.regular,
-  },
+subtitle:{
+fontSize:18,
+textAlign:"center",
+color:"#2E8B57",
+marginTop:8,
+fontFamily:FONTS.bold,
+},
 
-  primaryBtn: {
-    width: "100%",
-    backgroundColor: "#1A3C40",
-    paddingVertical: 16,
-    borderRadius: 16,
-    alignItems: "center",
-    marginBottom: 14,
-  },
+description:{
+textAlign:"center",
+marginTop:12,
+marginBottom:30,
+fontFamily:FONTS.regular,
+},
 
-  primaryText: {
-    color: "#fff",
-    fontSize: 16,
-    fontFamily: FONTS.bold,
-  },
+infoCard:{
+backgroundColor:"#fff",
+padding:20,
+borderRadius:18,
+marginBottom:20,
+},
 
-  secondaryBtn: {
-    width: "100%",
-    borderWidth: 1.5,
-    borderColor: "#1A3C40",
-    paddingVertical: 16,
-    borderRadius: 16,
-    alignItems: "center",
-  },
+row:{
+flexDirection:"row-reverse",
+justifyContent:"space-between",
+marginBottom:14,
+},
 
-  secondaryText: {
-    color: "#1A3C40",
-    fontSize: 15,
-    fontFamily: FONTS.bold,
-  },
+label:{
+color:"#777",
+},
+
+value:{
+fontFamily:FONTS.bold,
+},
+
+sectionTitle:{
+fontSize:18,
+fontFamily:FONTS.bold,
+marginBottom:16,
+textAlign:"right",
+},
+
+placeCard:{
+backgroundColor:"#fff",
+padding:14,
+borderRadius:16,
+marginBottom:10,
+},
+
+placeName:{
+fontFamily:FONTS.bold,
+marginBottom:6,
+},
+
+empty:{
+textAlign:"center",
+marginBottom:20,
+},
+
+primaryBtn:{
+backgroundColor:"#1A3C40",
+padding:18,
+borderRadius:18,
+marginTop:20,
+},
+
+primaryText:{
+color:"#fff",
+textAlign:"center",
+fontFamily:FONTS.bold,
+},
+
+secondaryBtn:{
+marginTop:12,
+padding:18,
+borderWidth:1,
+borderColor:"#1A3C40",
+borderRadius:18,
+},
+
+secondaryText:{
+textAlign:"center",
+fontFamily:FONTS.bold,
+},
 
 });
