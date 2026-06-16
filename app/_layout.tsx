@@ -10,6 +10,7 @@ import { useEffect, useState } from "react";
 import { I18nManager, View } from "react-native";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import { loadAuth } from "./src/auth/authStore";
+import { installFetchInterceptor } from "./src/api/installFetchInterceptor";
 
 // מבטלים RTL ברמת המערכת. הקוד משתמש ב-"row-reverse" ידני להשגת תצוגת RTL,
 // ולכן ה-isRTL של React Native חייב להישאר false (אחרת זה מתהפך).
@@ -28,6 +29,7 @@ export default function RootLayout() {
   // עד שהטעינה תסתיים מציגים מסך טעינה זהה לזה של fontsLoaded.
   const [authLoaded, setAuthLoaded] = useState(false);
   useEffect(() => {
+    installFetchInterceptor(); // טיפול אחיד ב-401 בכל קריאות הרשת
     loadAuth().finally(() => setAuthLoaded(true));
   }, []);
 

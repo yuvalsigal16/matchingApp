@@ -5,7 +5,6 @@ import { getToken } from "../auth/authStore";
 // פונקציית עזר לשליחת מידע לשרת בפורמט JSON והמתנה לתשובה
 async function postJson(path, body) {
   const url = `${BASE_URL}${path}`;
-  console.log(`[authService] → POST ${url}`, body);
 
   let res;
   // ביצוע שליחת המידע לשרת בשיטת POST והמרת האובייקט לטקסט JSON
@@ -22,18 +21,15 @@ async function postJson(path, body) {
     );
   }
 
-  console.log(`[authService] ← ${res.status} ${res.statusText} from ${url}`);
-
   // קבלת התשובה מהשרת והפיכתה מטקסט חזרה לאובייקט JavaScript
   const text = await res.text();
-  console.log(`[authService]   raw body:`, text);
 
   let data = null;
   if (text) {
     try {
       data = JSON.parse(text);
-    } catch (parseErr) {
-      console.warn(`[authService]   body is not JSON:`, parseErr.message);
+    } catch {
+      // גוף שאינו JSON — נטופל למטה לפי res.ok
     }
   }
 
