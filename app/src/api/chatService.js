@@ -110,3 +110,37 @@ export const sendChatMessage = async (
 
   return res.json();
 };
+
+
+export const getTripSuggestions = async (
+  destination,
+  interests
+) => {
+  const token = getToken();
+
+  const interestsParam =
+    Array.isArray(interests)
+      ? interests.join(",")
+      : interests;
+
+  const res = await fetch(
+    `${BASE_URL}/TripSuggestions?destination=${encodeURIComponent(
+      destination
+    )}&interests=${encodeURIComponent(
+      interestsParam
+    )}`,
+    {
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    }
+  );
+
+  if (!res.ok) {
+    throw new Error(
+      "Failed to fetch trip suggestions"
+    );
+  }
+
+  return res.json();
+};

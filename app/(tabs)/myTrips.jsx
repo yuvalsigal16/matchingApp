@@ -82,6 +82,25 @@ useFocusEffect(
     return new Date(endDate) < new Date();
   };
 
+  const getStatusText = (status) => {
+  switch (status?.toLowerCase()) {
+    case "active":
+      return "פעיל";
+
+    case "matched":
+      return "יוצא לדרך";
+
+    case "completed":
+      return "הושלם";
+
+    case "closed":
+      return "נסגר";
+
+    default:
+      return status || "פעיל";
+  }
+};
+
   const renderTripCard = (trip) => {
     const past = isPastTrip(trip.endDate);
 
@@ -128,9 +147,11 @@ useFocusEffect(
               past ? styles.statusPast : styles.statusActive,
             ]}
           >
-            <Text style={styles.statusText}>
-              {past ? "הסתיים" : trip.status || "פעיל"}
-            </Text>
+           <Text style={styles.statusText}>
+  {past
+    ? "הסתיים"
+    : getStatusText(trip.status)}
+</Text>
           </View>
         </View>
       </TouchableOpacity>

@@ -15,6 +15,9 @@ import { BASE_URL } from "../../src/api/config";
 import { getToken } from "../../src/auth/authStore";
 
 import { getMatchesByTrip } from "../../src/api/chatService";
+import {
+  getTripSuggestions,
+} from "../../src/api/chatService";
 import { getUserProfile } from "../../src/api/userProfileService";
 
 import { StyleSheet } from "react-native";
@@ -27,6 +30,8 @@ export default function TripDetails() {
   const [creator, setCreator] = useState(null);
   const [matches, setMatches] = useState([]);
   const [chats, setChats] = useState([]);
+  const [places, setPlaces] = useState([]);
+const [rating, setRating] = useState(0);
   const [loading, setLoading] = useState(true);
   const [deleting, setDeleting] = useState(false);
 
@@ -78,6 +83,42 @@ export default function TripDetails() {
         const tripData = await tripRes.json();
         setTrip(tripData);
 
+        // המלצות לטיולים שיוצאים לדרך
+if (
+tripData.status?.toLowerCase() === "matched"
+) {
+try {
+
+const interests =
+tripData.interests
+?.map(
+(i)=>i.interestName
+)
+.join(",");
+
+const suggestions =
+await getTripSuggestions(
+tripData.destination,
+interests
+);
+
+setPlaces(
+suggestions || []
+);
+
+}
+catch(err){
+
+console.log(
+"Suggestions error",
+err
+);
+
+}
+}
+
+        // 🔥 MATCHES מהשירות (לא fetch ישיר)
+        const matchesData = await getMatchesByTrip(id);
         // טעינת פרטי יוצר הטיול
         const creatorId = tripData.createdByUserID ?? tripData.CreatedByUserID;
         if (creatorId) {
@@ -299,6 +340,176 @@ export default function TripDetails() {
           )}
         </View>
 
+{
+trip.status
+?.toLowerCase()
+===
+"matched"
+&&
+places.length
+>
+0
+&&(
+
+<>
+
+<Text
+style={
+styles.sectionTitle
+}
+>
+
+✨ המלצות בשבילכם
+
+</Text>
+
+<View
+style={
+styles.card
+}
+>
+
+{
+
+places.map(
+(
+p,
+i
+)=>(
+
+<View
+key={i}
+style={{
+marginBottom:16
+}}
+>
+
+<Text
+style={
+styles.placeTitle
+}
+>
+
+📍 {p.name}
+
+</Text>
+
+<Text>
+
+⭐ {p.rating}
+
+</Text>
+
+<Text>
+
+{p.address}
+
+</Text>
+
+</View>
+
+)
+
+)
+
+}
+
+</View>
+
+</>
+
+)
+}
+
+{
+isPast
+&&(
+
+<>
+
+<Text
+style={
+styles.sectionTitle
+}
+>
+
+⭐ דרגו את ההתאמה
+
+</Text>
+
+<View
+style={
+styles.card
+}
+>
+
+<View
+style={{
+flexDirection:
+"row"
+}}
+>
+
+{
+
+[
+1,
+2,
+3,
+4,
+5
+]
+.map(
+(
+star
+)=>(
+
+<TouchableOpacity
+key={star}
+onPress={()=>
+setRating(
+star
+)
+}
+>
+
+<Ionicons
+name={
+rating
+>=
+star
+?
+"star"
+:
+"star-outline"
+}
+size={
+34
+}
+color={
+"#F4B400"
+}
+/>
+
+</TouchableOpacity>
+
+)
+
+)
+
+}
+
+</View>
+
+</View>
+
+</>
+
+)
+}
+
+
+        {/* DELETE */}
         {/* ACTIONS */}
         <View style={styles.actions}>
           <TouchableOpacity
@@ -471,4 +682,11 @@ const styles = StyleSheet.create({
     color: "#fff",
     fontWeight: "bold",
   },
+
+  placeTitle:{
+fontSize:16,
+fontWeight:"bold",
+marginBottom:4,
+textAlign:"right",
+},
 });
