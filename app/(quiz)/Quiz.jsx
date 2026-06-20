@@ -43,7 +43,7 @@ import {
   uploadProfileImage,
 } from "../src/api/userProfileService";
 import { getUser } from "../src/auth/authStore";
-import { FONTS } from "../src/theme/fonts";
+import { COLORS, FONTS } from "../src/theme";
 
 const GENDER_OPTIONS = [
   { label: "זכר", value: "Male" },
@@ -770,10 +770,10 @@ export default function QuizScreen() {
         {profileImageUri ? (
           <Image source={{ uri: profileImageUri }} style={styles.avatarImage} />
         ) : (
-          <Ionicons name="person" size={48} color="#9AABAD" />
+          <Ionicons name="person" size={48} color={COLORS.textMuted} />
         )}
         <View style={styles.cameraBadge}>
-          <Ionicons name="camera" size={16} color="#fff" />
+          <Ionicons name="camera" size={16} color={COLORS.onBrand} />
         </View>
       </Pressable>
       <Text style={styles.imagePickerHint}>
@@ -797,12 +797,12 @@ export default function QuizScreen() {
           <Text style={styles.modalTitle}>בחירת תמונת פרופיל</Text>
 
           <Pressable style={styles.modalBtn} onPress={takePhoto}>
-            <Ionicons name="camera" size={22} color="#1A3C40" />
+            <Ionicons name="camera" size={22} color={COLORS.brand} />
             <Text style={styles.modalBtnText}>צילום במצלמה</Text>
           </Pressable>
 
           <Pressable style={styles.modalBtn} onPress={pickFromGallery}>
-            <Ionicons name="images" size={22} color="#1A3C40" />
+            <Ionicons name="images" size={22} color={COLORS.brand} />
             <Text style={styles.modalBtnText}>בחירה מהגלריה</Text>
           </Pressable>
 
@@ -857,7 +857,7 @@ export default function QuizScreen() {
           <TextInput
             style={styles.cityTextInput}
             placeholder="מקום מגורים"
-            placeholderTextColor="#aaa"
+            placeholderTextColor={COLORS.textMuted}
             textAlign="right"
             value={cityInputText}
             onChangeText={(val) => {
@@ -876,7 +876,7 @@ export default function QuizScreen() {
           {cityLoading && (
             <ActivityIndicator
               size="small"
-              color="#aaa"
+              color={COLORS.textMuted}
               style={styles.citySpinner}
             />
           )}
@@ -887,7 +887,7 @@ export default function QuizScreen() {
           <View style={styles.suggestionsDropdown}>
             {cityLoading ? (
               <View style={styles.dropdownStateRow}>
-                <ActivityIndicator size="small" color="#1A3C40" />
+                <ActivityIndicator size="small" color={COLORS.brand} />
               </View>
             ) : citySuggestions.length > 0 ? (
               citySuggestions.map((suggestion, idx) => (
@@ -941,7 +941,7 @@ export default function QuizScreen() {
             key={f.key}
             style={styles.input}
             placeholder={f.label}
-            placeholderTextColor="#aaa"
+            placeholderTextColor={COLORS.textMuted}
             textAlign="right"
             onChangeText={(val) => updateAnswer(f.key, val)}
             value={answers[f.key] || ""}
@@ -1017,7 +1017,7 @@ export default function QuizScreen() {
           style={styles.dateInputBtn}
           onPress={() => setBirthDatePickerVisible(true)}
         >
-          <Ionicons name="calendar-outline" size={20} color="#9AABAD" />
+          <Ionicons name="calendar-outline" size={20} color={COLORS.textMuted} />
           <Text
             style={[
               styles.dateInputText,
@@ -1057,7 +1057,7 @@ export default function QuizScreen() {
     if (isInterests && interestsLoading) {
       return (
         <View style={styles.optionsContainer}>
-          <ActivityIndicator color="#1A3C40" />
+          <ActivityIndicator color={COLORS.brand} />
         </View>
       );
     }
@@ -1114,7 +1114,7 @@ export default function QuizScreen() {
                 {Icon ? (
                   <Icon
                     size={20}
-                    color={isSelected ? "#fff" : "#1A3C40"}
+                    color={isSelected ? COLORS.onBrand : COLORS.brand}
                     strokeWidth={2}
                   />
                 ) : null}
@@ -1138,7 +1138,7 @@ export default function QuizScreen() {
       return (
         <View key={item.key} style={styles.yesNoContainer}>
           <View style={styles.yesNoLabelRow}>
-            {Icon ? <Icon size={20} color="#1A3C40" strokeWidth={2} /> : null}
+            {Icon ? <Icon size={20} color={COLORS.brand} strokeWidth={2} /> : null}
             <Text style={styles.yesNoLabel}>{item.label}</Text>
           </View>
           <View style={styles.yesNoButtonsRow}>
@@ -1209,7 +1209,7 @@ export default function QuizScreen() {
         <TextInput
           style={styles.socialInput}
           placeholder="שם משתמש באינסטגרם"
-          placeholderTextColor="#aaa"
+          placeholderTextColor={COLORS.textMuted}
           onChangeText={(val) => updateAnswer("instagram", val)}
           value={answers.instagram || ""}
         />
@@ -1217,11 +1217,11 @@ export default function QuizScreen() {
 
       {/* Facebook */}
       <View style={styles.socialInputRow}>
-        <Ionicons name="logo-facebook" size={22} color="#1877F2" />
+        <Ionicons name="logo-facebook" size={22} color={COLORS.primary} />
         <TextInput
           style={styles.socialInput}
           placeholder="שם משתמש בפייסבוק"
-          placeholderTextColor="#aaa"
+          placeholderTextColor={COLORS.textMuted}
           onChangeText={(val) => updateAnswer("facebook", val)}
           value={answers.facebook || ""}
         />
@@ -1316,7 +1316,7 @@ export default function QuizScreen() {
               disabled={!answered || submitting}
             >
               {submitting ? (
-                <ActivityIndicator color="#fff" />
+                <ActivityIndicator color={COLORS.onBrand} />
               ) : (
                 <Text
                   style={[
@@ -1353,7 +1353,7 @@ const SHADOW = {
 };
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#F0F2F5" },
+  container: { flex: 1, backgroundColor: COLORS.background },
   flex: { flex: 1, alignItems: "center" },
 
   stepsWrapper: {
@@ -1369,11 +1369,11 @@ const styles = StyleSheet.create({
     width: 12,
     height: 12,
     borderRadius: 6,
-    backgroundColor: "#C8D0D2",
+    backgroundColor: COLORS.divider,
   },
 
   stepDotActive: {
-    backgroundColor: "#1A3C40",
+    backgroundColor: COLORS.brand,
     width: 26,
   },
 
@@ -1390,7 +1390,7 @@ const styles = StyleSheet.create({
     marginBottom: 28,
     textAlign: "center",
     paddingHorizontal: 24,
-    color: "#1A1A1A",
+    color: COLORS.text,
   },
   scrollView: { width: "100%" },
   scrollArea: {
@@ -1409,7 +1409,7 @@ const styles = StyleSheet.create({
     width: 110,
     height: 110,
     borderRadius: 55,
-    backgroundColor: "#fff",
+    backgroundColor: COLORS.surface,
     justifyContent: "center",
     alignItems: "center",
     overflow: "visible",
@@ -1427,17 +1427,17 @@ const styles = StyleSheet.create({
     width: 30,
     height: 30,
     borderRadius: 15,
-    backgroundColor: "#1A3C40",
+    backgroundColor: COLORS.brand,
     justifyContent: "center",
     alignItems: "center",
     borderWidth: 2,
-    borderColor: "#F0F2F5",
+    borderColor: COLORS.background,
   },
   imagePickerHint: {
     marginTop: 10,
     fontSize: 13,
     fontFamily: FONTS.regular,
-    color: "#666",
+    color: COLORS.textSecondary,
   },
 
   // ── Image picker modal ──
@@ -1450,7 +1450,7 @@ const styles = StyleSheet.create({
   },
   modalCard: {
     width: "100%",
-    backgroundColor: "#fff",
+    backgroundColor: COLORS.surface,
     borderRadius: 18,
     paddingVertical: 18,
     paddingHorizontal: 14,
@@ -1459,7 +1459,7 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontFamily: FONTS.bold,
     textAlign: "center",
-    color: "#1A1A1A",
+    color: COLORS.text,
     marginBottom: 14,
   },
   modalBtn: {
@@ -1469,13 +1469,13 @@ const styles = StyleSheet.create({
     gap: 10,
     paddingVertical: 14,
     borderRadius: 12,
-    backgroundColor: "#F4F6F7",
+    backgroundColor: COLORS.background,
     marginBottom: 10,
   },
   modalBtnText: {
     fontSize: 16,
     fontFamily: FONTS.bold,
-    color: "#1A3C40",
+    color: COLORS.brand,
   },
   modalBtnCancel: {
     backgroundColor: "transparent",
@@ -1485,12 +1485,12 @@ const styles = StyleSheet.create({
   modalBtnCancelText: {
     fontSize: 15,
     fontFamily: FONTS.regular,
-    color: "#888",
+    color: COLORS.textMuted,
   },
 
   // ── Submit error (footer) ──
   submitErrorText: {
-    color: "#e74c3c",
+    color: COLORS.danger,
     fontSize: 13,
     fontFamily: FONTS.regular,
     textAlign: "center",
@@ -1500,7 +1500,7 @@ const styles = StyleSheet.create({
 
   // ── Standard text input ──
   input: {
-    backgroundColor: "#fff",
+    backgroundColor: COLORS.surface,
     width: "100%",
     paddingVertical: 16,
     paddingHorizontal: 18,
@@ -1509,7 +1509,7 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontFamily: FONTS.regular,
     textAlign: "right",
-    color: "#222",
+    color: COLORS.text,
     ...SHADOW,
   },
 
@@ -1517,7 +1517,7 @@ const styles = StyleSheet.create({
   dateInputBtn: {
     flexDirection: "row-reverse",
     alignItems: "center",
-    backgroundColor: "#fff",
+    backgroundColor: COLORS.surface,
     width: "100%",
     paddingVertical: 16,
     paddingHorizontal: 18,
@@ -1531,16 +1531,16 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontFamily: FONTS.regular,
     textAlign: "right",
-    color: "#222",
+    color: COLORS.text,
   },
   dateInputPlaceholder: {
-    color: "#aaa",
+    color: COLORS.textMuted,
   },
 
   // ── Gender segmented control ──
   genderCard: {
     width: "100%",
-    backgroundColor: "#fff",
+    backgroundColor: COLORS.surface,
     borderRadius: 14,
     paddingVertical: 14,
     paddingHorizontal: 14,
@@ -1550,14 +1550,14 @@ const styles = StyleSheet.create({
   genderLabel: {
     fontSize: 11,
     fontFamily: FONTS.bold,
-    color: "#bbb",
+    color: COLORS.textMuted,
     textAlign: "right",
     marginBottom: 10,
     letterSpacing: 0.6,
   },
   segmentedControl: {
     flexDirection: "row",
-    backgroundColor: "#F0F2F5",
+    backgroundColor: COLORS.background,
     borderRadius: 10,
     padding: 3,
   },
@@ -1568,7 +1568,7 @@ const styles = StyleSheet.create({
     borderRadius: 8,
   },
   segmentActive: {
-    backgroundColor: "#fff",
+    backgroundColor: COLORS.surface,
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.1,
@@ -1578,10 +1578,10 @@ const styles = StyleSheet.create({
   segmentText: {
     fontSize: 15,
     fontFamily: FONTS.regular,
-    color: "#999",
+    color: COLORS.textMuted,
   },
   segmentTextActive: {
-    color: "#1A3C40",
+    color: COLORS.brand,
     fontFamily: FONTS.bold,
   },
 
@@ -1594,7 +1594,7 @@ const styles = StyleSheet.create({
   cityInputCard: {
     flexDirection: "row-reverse",
     alignItems: "center",
-    backgroundColor: "#fff",
+    backgroundColor: COLORS.surface,
     borderRadius: 14,
     paddingHorizontal: 18,
     ...SHADOW,
@@ -1605,14 +1605,14 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontFamily: FONTS.regular,
     textAlign: "right",
-    color: "#222",
+    color: COLORS.text,
   },
   citySpinner: {
     marginLeft: 8,
   },
   suggestionsDropdown: {
     width: "100%",
-    backgroundColor: "#fff",
+    backgroundColor: COLORS.surface,
     borderRadius: 14,
     marginTop: 5,
     overflow: "hidden",
@@ -1628,32 +1628,32 @@ const styles = StyleSheet.create({
     paddingVertical: 13,
     paddingHorizontal: 18,
     borderBottomWidth: 1,
-    borderBottomColor: "#F0F2F3",
+    borderBottomColor: COLORS.divider,
   },
   suggestionText: {
     fontSize: 15,
     fontFamily: FONTS.regular,
-    color: "#333",
+    color: COLORS.text,
     textAlign: "right",
   },
   suggestionSubText: {
     fontSize: 12,
     fontFamily: FONTS.regular,
-    color: "#aaa",
+    color: COLORS.textMuted,
     textAlign: "right",
     marginTop: 2,
   },
   emptyStateText: {
     fontSize: 14,
     fontFamily: FONTS.regular,
-    color: "#bbb",
+    color: COLORS.textMuted,
     textAlign: "center",
   },
 
   // ── Select options ──
   optionsContainer: { width: "100%", alignItems: "center" },
   optionBtn: {
-    backgroundColor: "#fff",
+    backgroundColor: COLORS.surface,
     width: "100%",
     paddingVertical: 17,
     paddingHorizontal: 20,
@@ -1664,8 +1664,8 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     ...SHADOW,
   },
-  pressedBtn: { backgroundColor: "#F0F4F5" },
-  selectedBtn: { backgroundColor: "#1A3C40", shadowOpacity: 0.18 },
+  pressedBtn: { backgroundColor: COLORS.background },
+  selectedBtn: { backgroundColor: COLORS.brand, shadowOpacity: 0.18 },
   // עוטף Icon + Text כך שהשניים צמודים זה לזה (RTL: אייקון מימין, טקסט אחריו)
   optionLabelRow: {
     flexDirection: "row-reverse",
@@ -1673,10 +1673,10 @@ const styles = StyleSheet.create({
     gap: 10,
     flexShrink: 1,
   },
-  optionText: { fontSize: 17, fontFamily: FONTS.regular, color: "#333" },
-  selectedText: { color: "#fff", fontFamily: FONTS.bold },
+  optionText: { fontSize: 17, fontFamily: FONTS.regular, color: COLORS.text },
+  selectedText: { color: COLORS.onBrand, fontFamily: FONTS.bold },
   checkmark: {
-    color: "#fff",
+    color: COLORS.onBrand,
     fontSize: 16,
     fontFamily: FONTS.bold,
     marginLeft: 6,
@@ -1685,7 +1685,7 @@ const styles = StyleSheet.create({
   // ── Yes / No list ──
   yesNoContainer: {
     width: "100%",
-    backgroundColor: "#fff",
+    backgroundColor: COLORS.surface,
     borderRadius: 14,
     paddingVertical: 14,
     paddingHorizontal: 16,
@@ -1705,7 +1705,7 @@ const styles = StyleSheet.create({
   yesNoLabel: {
     fontSize: 17,
     fontFamily: FONTS.regular,
-    color: "#333",
+    color: COLORS.text,
     flexShrink: 1,
     textAlign: "right",
   },
@@ -1714,9 +1714,9 @@ const styles = StyleSheet.create({
     paddingVertical: 9,
     paddingHorizontal: 18,
     borderRadius: 10,
-    backgroundColor: "#F4F6F7",
+    backgroundColor: COLORS.background,
   },
-  smallOptionText: { fontSize: 16, fontFamily: FONTS.regular, color: "#333" },
+  smallOptionText: { fontSize: 16, fontFamily: FONTS.regular, color: COLORS.text },
 
   // ── Rating ──
   ratingWrapper: { alignItems: "center", width: "100%", marginTop: 24 },
@@ -1725,35 +1725,35 @@ const styles = StyleSheet.create({
     width: 58,
     height: 58,
     borderRadius: 29,
-    backgroundColor: "#fff",
+    backgroundColor: COLORS.surface,
     justifyContent: "center",
     alignItems: "center",
     ...SHADOW,
   },
-  selectedRate: { backgroundColor: "#1A3C40", shadowOpacity: 0.2 },
-  rateText: { fontSize: 18, fontFamily: FONTS.regular, color: "#333" },
-  selectedRateText: { color: "#fff", fontFamily: FONTS.bold },
+  selectedRate: { backgroundColor: COLORS.brand, shadowOpacity: 0.2 },
+  rateText: { fontSize: 18, fontFamily: FONTS.regular, color: COLORS.text },
+  selectedRateText: { color: COLORS.onBrand, fontFamily: FONTS.bold },
   labelRow: {
     flexDirection: "row",
     justifyContent: "space-between",
     width: "90%",
     marginTop: 16,
   },
-  subText: { fontSize: 13, color: "#777", fontFamily: FONTS.bold },
+  subText: { fontSize: 13, color: COLORS.textSecondary, fontFamily: FONTS.bold },
 
   // ── Social links ──
   socialContainer: { width: "100%", alignItems: "center" },
   socialInputRow: {
     flexDirection: "row-reverse",
     width: "100%",
-    backgroundColor: "#fff",
+    backgroundColor: COLORS.surface,
     borderRadius: 16,
     marginBottom: 14,
     alignItems: "center",
     paddingHorizontal: 16,
     height: 60,
     borderWidth: 1,
-    borderColor: "#E4E9EB",
+    borderColor: COLORS.border,
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.05,
@@ -1767,12 +1767,12 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontFamily: FONTS.regular,
     textAlign: "right",
-    color: "#333",
+    color: COLORS.text,
   },
   disclaimerText: {
     fontSize: 12,
     fontFamily: FONTS.regular,
-    color: "#999",
+    color: COLORS.textMuted,
     textAlign: "center",
     marginTop: 8,
     paddingHorizontal: 20,
@@ -1785,11 +1785,11 @@ const styles = StyleSheet.create({
     alignItems: "center",
     paddingTop: 12,
     paddingBottom: 20,
-    backgroundColor: "#F0F2F5",
+    backgroundColor: COLORS.background,
   },
   nextBtnWrapper: { width: "72%", marginBottom: 12 },
   nextBtn: {
-    backgroundColor: "#1A3C40",
+    backgroundColor: COLORS.brand,
     paddingVertical: 16,
     borderRadius: 30,
     alignItems: "center",
@@ -1797,16 +1797,16 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.2,
   },
   nextBtnDisabled: {
-    backgroundColor: "#C8D0D2",
+    backgroundColor: COLORS.divider,
     shadowOpacity: 0,
     elevation: 0,
   },
-  nextBtnText: { fontFamily: FONTS.bold, fontSize: 18, color: "#fff" },
-  nextBtnTextDisabled: { color: "#9AABAD" },
+  nextBtnText: { fontFamily: FONTS.bold, fontSize: 18, color: COLORS.onBrand },
+  nextBtnTextDisabled: { color: COLORS.textMuted },
   backBtn: { paddingVertical: 6, paddingHorizontal: 10 },
   backLink: {
     textDecorationLine: "underline",
-    color: "#888",
+    color: COLORS.textMuted,
     fontSize: 15,
     fontFamily: FONTS.regular,
   },

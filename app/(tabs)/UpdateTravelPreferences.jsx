@@ -24,6 +24,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { getAllInterests } from "../src/api/interestService";
 import {
   addTripPreferenceInterest,
+  createTripPreferences,
   getTripPreferenceInterests,
   getTripPreferences,
   getUserTrips,
@@ -31,7 +32,7 @@ import {
   updateTripPreferences,
 } from "../src/api/tripService";
 import { getUser } from "../src/auth/authStore";
-import { FONTS } from "../src/theme/fonts";
+import { COLORS, FONTS } from "../src/theme";
 
 // "הכל" = אין העדפה → נשלח כ-NULL. ה-CHECK constraint ב-DB מתיר רק Male/Female/Other/NULL.
 const GENDER_OPTIONS = [
@@ -156,16 +157,15 @@ export default function UpdateTravelPreferencesScreen() {
   }, [selectedTripId]);
 
   const handleSave = async () => {
-    if (!tripPreferenceId) {
-      Alert.alert("שגיאה", "לא קיימות העדפות לטיול זה. צרי אותן דרך יצירת טיול חדש.");
+    if (!selectedTripId) {
+      Alert.alert("שגיאה", "לא נבחר טיול לעדכון");
       return;
     }
 
     setSaving(true);
     try {
-      // 1) עדכון רשומת TripPreferences
-      await updateTripPreferences({
-        TripPreferenceID: tripPreferenceId,
+      // השדות המשותפים ל-CREATE ול-UPDATE.
+      const prefPayload = {
         TripID: selectedTripId,
         PreferredGender: preferredGender,
         PreferredAgeMin: ageRange.min,
@@ -175,14 +175,24 @@ export default function UpdateTravelPreferencesScreen() {
         KeepsShabbat: partnerKeepsShabbat,
         SpontaneityLevel: partnerSpontaneity,
         LifestyleLevel: partnerLifestyle,
-      });
+      };
 
-      // 2) diff על תחומי עניין
+      // 1) אם כבר קיימת רשומת העדפות — מעדכנים. אחרת — יוצרים חדשה (upsert).
+      //    טיולים שנוצרו דרך גלגל המזל מגיעים בלי רשומת העדפות, ולכן חייבים ליצור.
+      let prefId = tripPreferenceId;
+      if (prefId) {
+        await updateTripPreferences({ TripPreferenceID: prefId, ...prefPayload });
+      } else {
+        prefId = await createTripPreferences(prefPayload);
+        setTripPreferenceId(prefId);
+      }
+
+      // 2) diff על תחומי עניין. ביצירה חדשה originalInterestIds ריק → כל הנבחרים יתווספו.
       const toAdd = selectedInterestIds.filter((id) => !originalInterestIds.includes(id));
       const toRemove = originalInterestIds.filter((id) => !selectedInterestIds.includes(id));
       await Promise.all([
-        ...toAdd.map((id) => addTripPreferenceInterest(tripPreferenceId, id)),
-        ...toRemove.map((id) => removeTripPreferenceInterest(tripPreferenceId, id)),
+        ...toAdd.map((id) => addTripPreferenceInterest(prefId, id)),
+        ...toRemove.map((id) => removeTripPreferenceInterest(prefId, id)),
       ]);
 
       setOriginalInterestIds(selectedInterestIds);
@@ -247,7 +257,7 @@ export default function UpdateTravelPreferencesScreen() {
   const renderLifestyleCard = (Icon, label, content) => (
     <View style={styles.lifestyleCard}>
       <View style={styles.lifestyleCardHeader}>
-        <Icon size={20} color="#1A3C40" strokeWidth={2} />
+        <Icon size={20} color={COLORS.brand} strokeWidth={2} />
         <Text style={styles.lifestyleCardLabel}>{label}</Text>
       </View>
       {content}
@@ -260,13 +270,13 @@ export default function UpdateTravelPreferencesScreen() {
       <SafeAreaView style={styles.container}>
         <View style={styles.header}>
           <TouchableOpacity onPress={() => router.back()}>
-            <Ionicons name="arrow-forward" size={26} color="#1A3C40" />
+            <Ionicons name="arrow-forward" size={26} color={COLORS.brand} />
           </TouchableOpacity>
           <Text style={styles.headerTitle}>עדכון העדפות טיול</Text>
           <View style={{ width: 26 }} />
         </View>
         <View style={[styles.center, { flex: 1, paddingHorizontal: 30 }]}>
-          <Ionicons name="airplane-outline" size={72} color="#9AABAD" />
+          <Ionicons name="airplane-outline" size={72} color={COLORS.textMuted} />
           <Text style={styles.emptyTitle}>אין לך עדיין טיולים</Text>
           <Text style={styles.emptyText}>
             צרי טיול חדש כדי שתוכלי להגדיר ולעדכן עבורו את העדפות הפרטנר/ית.
@@ -280,7 +290,7 @@ export default function UpdateTravelPreferencesScreen() {
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
         <TouchableOpacity onPress={() => router.back()}>
-          <Ionicons name="arrow-forward" size={26} color="#1A3C40" />
+          <Ionicons name="arrow-forward" size={26} color={COLORS.brand} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>עדכון העדפות טיול</Text>
         <View style={{ width: 26 }} />
@@ -319,7 +329,7 @@ export default function UpdateTravelPreferencesScreen() {
 
         {loading ? (
           <View style={[styles.center, { paddingVertical: 60 }]}>
-            <ActivityIndicator size="large" color="#1A3C40" />
+            <ActivityIndicator size="large" color={COLORS.brand} />
           </View>
         ) : (
           <>
@@ -361,9 +371,9 @@ export default function UpdateTravelPreferencesScreen() {
               minimumValue={AGE_MIN}
               maximumValue={AGE_MAX}
               step={1}
-              minimumTrackTintColor="#1A3C40"
-              maximumTrackTintColor="#D8E0E1"
-              thumbTintColor="#fff"
+              minimumTrackTintColor={COLORS.brand}
+              maximumTrackTintColor={COLORS.border}
+              thumbTintColor={COLORS.onBrand}
               thumbStyle={styles.ageThumb}
               trackStyle={styles.ageTrack}
               containerStyle={styles.ageSliderContainer}
@@ -456,7 +466,7 @@ export default function UpdateTravelPreferencesScreen() {
             activeOpacity={0.85}
           >
             {saving ? (
-              <ActivityIndicator color="#fff" />
+              <ActivityIndicator color={COLORS.onBrand} />
             ) : (
               <Text style={styles.saveBtnText}>שמירת השינויים</Text>
             )}
@@ -468,7 +478,7 @@ export default function UpdateTravelPreferencesScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#F0F2F5" },
+  container: { flex: 1, backgroundColor: COLORS.background },
   center: { justifyContent: "center", alignItems: "center" },
 
   header: {
@@ -482,7 +492,7 @@ const styles = StyleSheet.create({
   headerTitle: {
     fontSize: 18,
     fontFamily: FONTS.bold,
-    color: "#1A3C40",
+    color: COLORS.brand,
   },
 
   scrollContent: { paddingHorizontal: 20, paddingBottom: 40 },
@@ -490,7 +500,7 @@ const styles = StyleSheet.create({
   section: {
     fontSize: 17,
     fontFamily: FONTS.bold,
-    color: "#1A3C40",
+    color: COLORS.brand,
     textAlign: "right",
     marginTop: 16,
     marginBottom: 12,
@@ -506,18 +516,18 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     paddingHorizontal: 16,
     borderRadius: 20,
-    backgroundColor: "#fff",
+    backgroundColor: COLORS.surface,
     borderWidth: 1.5,
-    borderColor: "#DADDE1",
+    borderColor: COLORS.border,
   },
-  tripChipActive: { backgroundColor: "#1A3C40", borderColor: "#1A3C40" },
-  tripChipText: { fontSize: 14, fontFamily: FONTS.regular, color: "#1A3C40" },
-  tripChipTextActive: { color: "#fff", fontFamily: FONTS.bold },
+  tripChipActive: { backgroundColor: COLORS.brand, borderColor: COLORS.brand },
+  tripChipText: { fontSize: 14, fontFamily: FONTS.regular, color: COLORS.brand },
+  tripChipTextActive: { color: COLORS.surface, fontFamily: FONTS.bold },
 
   // ── העדפת מגדר ──
   segmented: {
     flexDirection: "row-reverse",
-    backgroundColor: "#fff",
+    backgroundColor: COLORS.surface,
     borderRadius: 12,
     padding: 4,
   },
@@ -527,9 +537,9 @@ const styles = StyleSheet.create({
     alignItems: "center",
     borderRadius: 9,
   },
-  segmentActive: { backgroundColor: "#1A3C40" },
-  segmentText: { fontSize: 15, fontFamily: FONTS.regular, color: "#1A3C40" },
-  segmentTextActive: { color: "#fff", fontFamily: FONTS.bold },
+  segmentActive: { backgroundColor: COLORS.brand },
+  segmentText: { fontSize: 15, fontFamily: FONTS.regular, color: COLORS.brand },
+  segmentTextActive: { color: COLORS.surface, fontFamily: FONTS.bold },
 
   // ── טווח גילאים ──
   ageRangeDisplay: {
@@ -544,20 +554,20 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     paddingHorizontal: 18,
     borderRadius: 14,
-    backgroundColor: "#1A3C40",
+    backgroundColor: COLORS.brand,
     alignItems: "center",
   },
   ageNumberText: {
     fontSize: 20,
     fontFamily: FONTS.bold,
-    color: "#fff",
+    color: COLORS.surface,
     letterSpacing: 0.5,
   },
   ageRangeDash: {
     width: 14,
     height: 2,
     borderRadius: 1,
-    backgroundColor: "#1A3C40",
+    backgroundColor: COLORS.brand,
     opacity: 0.45,
   },
   ageSliderContainer: { height: 40, width: "100%" },
@@ -566,9 +576,9 @@ const styles = StyleSheet.create({
     width: 26,
     height: 26,
     borderRadius: 13,
-    backgroundColor: "#fff",
+    backgroundColor: COLORS.surface,
     borderWidth: 3,
-    borderColor: "#1A3C40",
+    borderColor: COLORS.brand,
   },
   ageBoundsRow: {
     flexDirection: "row",
@@ -576,7 +586,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 4,
     marginTop: 2,
   },
-  ageBound: { fontSize: 13, fontFamily: FONTS.regular, color: "#9AABAD" },
+  ageBound: { fontSize: 13, fontFamily: FONTS.regular, color: COLORS.textMuted },
 
   // ── תחומי עניין ──
   tagsGrid: {
@@ -588,25 +598,25 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     paddingHorizontal: 16,
     borderRadius: 20,
-    backgroundColor: "#fff",
+    backgroundColor: COLORS.surface,
     borderWidth: 1.5,
-    borderColor: "#DADDE1",
+    borderColor: COLORS.border,
   },
-  tagActive: { backgroundColor: "#1A3C40", borderColor: "#1A3C40" },
-  tagText: { fontSize: 14, fontFamily: FONTS.regular, color: "#1A3C40" },
-  tagTextActive: { color: "#fff", fontFamily: FONTS.bold },
+  tagActive: { backgroundColor: COLORS.brand, borderColor: COLORS.brand },
+  tagText: { fontSize: 14, fontFamily: FONTS.regular, color: COLORS.brand },
+  tagTextActive: { color: COLORS.surface, fontFamily: FONTS.bold },
 
   // ── Lifestyle section (5 partner preferences) ──
   lifestyleIntro: {
     fontSize: 13,
     fontFamily: FONTS.regular,
-    color: "#7A8B8E",
+    color: COLORS.textMuted,
     textAlign: "right",
     marginBottom: 12,
     lineHeight: 18,
   },
   lifestyleCard: {
-    backgroundColor: "#fff",
+    backgroundColor: COLORS.surface,
     padding: 14,
     borderRadius: 14,
     marginBottom: 10,
@@ -620,14 +630,14 @@ const styles = StyleSheet.create({
   lifestyleCardLabel: {
     fontSize: 15,
     fontFamily: FONTS.bold,
-    color: "#1A3C40",
+    color: COLORS.brand,
     flex: 1,
     textAlign: "right",
   },
   lifestyleHelp: {
     fontSize: 12,
     fontFamily: FONTS.regular,
-    color: "#9A9A9A",
+    color: COLORS.textMuted,
     textAlign: "right",
     marginBottom: 10,
   },
@@ -641,23 +651,23 @@ const styles = StyleSheet.create({
     flex: 1,
     paddingVertical: 10,
     borderRadius: 10,
-    backgroundColor: "#F4F6F7",
+    backgroundColor: COLORS.background,
     alignItems: "center",
   },
   triBtnWide: {
     flex: 1.4,
     paddingVertical: 10,
     borderRadius: 10,
-    backgroundColor: "#F4F6F7",
+    backgroundColor: COLORS.background,
     alignItems: "center",
   },
-  triBtnActive: { backgroundColor: "#1A3C40" },
+  triBtnActive: { backgroundColor: COLORS.brand },
   triBtnText: {
     fontSize: 13,
     fontFamily: FONTS.regular,
-    color: "#1A3C40",
+    color: COLORS.brand,
   },
-  triBtnTextActive: { color: "#fff", fontFamily: FONTS.bold },
+  triBtnTextActive: { color: COLORS.surface, fontFamily: FONTS.bold },
 
   // ── Rating 1-5 with "no preference" option ──
   ratingRow: {
@@ -670,44 +680,44 @@ const styles = StyleSheet.create({
     aspectRatio: 1,
     maxWidth: 48,
     borderRadius: 10,
-    backgroundColor: "#F4F6F7",
+    backgroundColor: COLORS.background,
     alignItems: "center",
     justifyContent: "center",
   },
-  ratingDotActive: { backgroundColor: "#1A3C40" },
+  ratingDotActive: { backgroundColor: COLORS.brand },
   ratingNum: {
     fontSize: 15,
     fontFamily: FONTS.bold,
-    color: "#1A3C40",
+    color: COLORS.brand,
   },
-  ratingNumActive: { color: "#fff" },
+  ratingNumActive: { color: COLORS.surface },
   noPrefBtn: {
     alignSelf: "center",
     paddingVertical: 7,
     paddingHorizontal: 18,
     borderRadius: 14,
-    backgroundColor: "#F4F6F7",
+    backgroundColor: COLORS.background,
   },
-  noPrefBtnActive: { backgroundColor: "#1A3C40" },
+  noPrefBtnActive: { backgroundColor: COLORS.brand },
   noPrefText: {
     fontSize: 12,
     fontFamily: FONTS.regular,
-    color: "#1A3C40",
+    color: COLORS.brand,
   },
-  noPrefTextActive: { color: "#fff", fontFamily: FONTS.bold },
+  noPrefTextActive: { color: COLORS.surface, fontFamily: FONTS.bold },
 
   // ── מסך ריק ──
   emptyTitle: {
     fontSize: 18,
     fontFamily: FONTS.bold,
-    color: "#1A3C40",
+    color: COLORS.brand,
     marginTop: 16,
     textAlign: "center",
   },
   emptyText: {
     fontSize: 14,
     fontFamily: FONTS.regular,
-    color: "#7A7A7A",
+    color: COLORS.textMuted,
     marginTop: 8,
     textAlign: "center",
     lineHeight: 22,
@@ -717,16 +727,16 @@ const styles = StyleSheet.create({
   saveBar: {
     paddingHorizontal: 20,
     paddingVertical: 14,
-    backgroundColor: "#F0F2F5",
+    backgroundColor: COLORS.background,
     borderTopWidth: 1,
-    borderTopColor: "#DADDE1",
+    borderTopColor: COLORS.border,
   },
   saveBtn: {
-    backgroundColor: "#1A3C40",
+    backgroundColor: COLORS.brand,
     paddingVertical: 16,
     borderRadius: 14,
     alignItems: "center",
   },
   saveBtnDisabled: { opacity: 0.6 },
-  saveBtnText: { color: "#fff", fontSize: 16, fontFamily: FONTS.bold },
+  saveBtnText: { color: COLORS.surface, fontSize: 16, fontFamily: FONTS.bold },
 });

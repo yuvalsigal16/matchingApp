@@ -16,6 +16,7 @@ import { getAllUsers } from "../src/api/userService";
 import { getUser } from "../src/auth/authStore";
 
 import {
+  ActivityIndicator,
   Image,
   ScrollView,
   StyleSheet,
@@ -25,7 +26,7 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import BottomNav from "../../components/BottomNav";
-import { FONTS } from "../../theme/fonts";
+import { COLORS, FONTS } from "../src/theme";
 
 // חישוב גיל מתאריך לידה (ISO string או Date)
 function computeAge(birthDate) {
@@ -266,9 +267,6 @@ export default function MatchesScreen() {
   }, [users, currentUser, dismissed]);
 
 
-
-
-
   // ✔ אישור בקשה - יוצר Match בשרת ופותח צ'אט
   const handleAccept = async (requestId) => {
     const result = await approveRequest(requestId);
@@ -307,9 +305,11 @@ export default function MatchesScreen() {
             flex: 1,
             justifyContent: "center",
             alignItems: "center",
+            gap: 12,
           }}
         >
-          <Text>טוען התאמות...</Text>
+          <ActivityIndicator size="large" color={COLORS.brand} />
+          <Text style={styles.placeholder}>טוען התאמות...</Text>
         </View>
       </SafeAreaView>
     );
@@ -319,8 +319,13 @@ export default function MatchesScreen() {
     <SafeAreaView style={styles.container}>
       {/* Header */}
       <View style={styles.headerRow}>
-        <TouchableOpacity onPress={() => router.back()}>
-          <Ionicons name="arrow-forward" size={26} color="#1A3C40" />
+        <TouchableOpacity
+          onPress={() => router.back()}
+          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+          accessibilityRole="button"
+          accessibilityLabel="חזרה"
+        >
+          <Ionicons name="arrow-forward" size={26} color={COLORS.brand} />
         </TouchableOpacity>
 
         <Text style={styles.headerTitle}>התאמות עבורך</Text>
@@ -350,7 +355,7 @@ export default function MatchesScreen() {
                   <Image source={{ uri: imageUri }} style={styles.avatar} />
                 ) : (
                   <View style={[styles.avatar, styles.avatarFallback]}>
-                    <Ionicons name="person" size={24} color="#fff" />
+                    <Ionicons name="person" size={24} color={COLORS.onBrand} />
                   </View>
                 )}
 
@@ -360,12 +365,22 @@ export default function MatchesScreen() {
                 </View>
 
                 <View style={styles.actions}>
-                  <TouchableOpacity onPress={() => handleAccept(req.requestID)}>
-                    <Ionicons name="checkmark-circle" size={28} color="green" />
+                  <TouchableOpacity
+                    onPress={() => handleAccept(req.requestID)}
+                    hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                    accessibilityRole="button"
+                    accessibilityLabel={`אישור בקשה מ-${name}`}
+                  >
+                    <Ionicons name="checkmark-circle" size={30} color={COLORS.success} />
                   </TouchableOpacity>
 
-                  <TouchableOpacity onPress={() => handleReject(req.requestID)}>
-                    <Ionicons name="close-circle" size={28} color="red" />
+                  <TouchableOpacity
+                    onPress={() => handleReject(req.requestID)}
+                    hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                    accessibilityRole="button"
+                    accessibilityLabel={`דחיית בקשה מ-${name}`}
+                  >
+                    <Ionicons name="close-circle" size={30} color={COLORS.danger} />
                   </TouchableOpacity>
                 </View>
               </View>
@@ -394,7 +409,7 @@ export default function MatchesScreen() {
                   />
                 ) : (
                   <View style={[styles.matchAvatar, styles.avatarFallback]}>
-                    <Ionicons name="person" size={32} color="#fff" />
+                    <Ionicons name="person" size={32} color={COLORS.onBrand} />
                   </View>
                 )}
 
@@ -414,7 +429,7 @@ export default function MatchesScreen() {
 
                 {/* ציון התאמה */}
                 <View style={styles.scoreContainer}>
-                  <Ionicons name="sparkles" size={18} color="#F59E0B" />
+                  <Ionicons name="sparkles" size={18} color={COLORS.amber} />
                   <Text style={styles.scoreText}>{user.matchScore}%</Text>
                 </View>
               </TouchableOpacity>
@@ -431,7 +446,7 @@ export default function MatchesScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#F0F2F5",
+    backgroundColor: COLORS.background,
   },
 
   headerRow: {
@@ -446,7 +461,7 @@ const styles = StyleSheet.create({
   headerTitle: {
     fontSize: 20,
     fontFamily: FONTS.bold,
-    color: "#1A3C40",
+    color: COLORS.brand,
   },
 
   content: {
@@ -461,17 +476,17 @@ const styles = StyleSheet.create({
     marginTop: 18,
     marginBottom: 10,
     textAlign: "right",
-    color: "#1A3C40",
+    color: COLORS.brand,
   },
 
   requestCard: {
     flexDirection: "row-reverse",
     alignItems: "center",
-    backgroundColor: "#fff",
+    backgroundColor: COLORS.surface,
     padding: 12,
     borderRadius: 16,
     marginBottom: 10,
-    shadowColor: "#000",
+    shadowColor: COLORS.shadow,
     shadowOpacity: 0.05,
     shadowRadius: 6,
     elevation: 2,
@@ -481,7 +496,7 @@ const styles = StyleSheet.create({
     width: 45,
     height: 45,
     borderRadius: 22,
-    backgroundColor: "#D9D9D9",
+    backgroundColor: COLORS.divider,
     marginLeft: 10,
   },
 
@@ -489,12 +504,12 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontFamily: FONTS.bold,
     textAlign: "right",
-    color: "#1A3C40",
+    color: COLORS.brand,
   },
 
   age: {
     fontSize: 13,
-    color: "#666",
+    color: COLORS.textSecondary,
     textAlign: "right",
     marginTop: 2,
     fontFamily: FONTS.regular,
@@ -506,7 +521,7 @@ const styles = StyleSheet.create({
   },
 
   placeholder: {
-    color: "#888",
+    color: COLORS.textMuted,
     textAlign: "center",
     marginTop: 10,
     fontFamily: FONTS.regular,
@@ -519,11 +534,11 @@ const styles = StyleSheet.create({
   matchCard: {
     flexDirection: "row-reverse",
     alignItems: "center",
-    backgroundColor: "#FFFFFF",
+    backgroundColor: COLORS.surface,
     padding: 14,
     borderRadius: 18,
     marginBottom: 12,
-    shadowColor: "#000",
+    shadowColor: COLORS.shadow,
     shadowOpacity: 0.06,
     shadowRadius: 8,
     elevation: 3,
@@ -533,12 +548,12 @@ const styles = StyleSheet.create({
     width: 58,
     height: 58,
     borderRadius: 29,
-    backgroundColor: "#D9D9D9",
+    backgroundColor: COLORS.divider,
     marginLeft: 12,
   },
 
   avatarFallback: {
-    backgroundColor: "#1877F2",
+    backgroundColor: COLORS.primary,
     justifyContent: "center",
     alignItems: "center",
   },
@@ -551,12 +566,12 @@ const styles = StyleSheet.create({
   matchName: {
     fontSize: 16,
     fontFamily: FONTS.bold,
-    color: "#1A3C40",
+    color: COLORS.brand,
   },
 
   matchDetails: {
     fontSize: 13,
-    color: "#666",
+    color: COLORS.textSecondary,
     marginTop: 3,
     fontFamily: FONTS.regular,
     textAlign: "right",
@@ -565,7 +580,7 @@ const styles = StyleSheet.create({
   scoreContainer: {
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: "#E7F3FF",
+    backgroundColor: COLORS.amberLight,
     paddingVertical: 8,
     paddingHorizontal: 10,
     borderRadius: 14,
@@ -575,7 +590,7 @@ const styles = StyleSheet.create({
   scoreText: {
     marginTop: 2,
     fontSize: 14,
-    color: "#B45309",
+    color: COLORS.amberDark,
     fontFamily: FONTS.bold,
   },
 });

@@ -12,7 +12,7 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
-import { FONTS } from "./src/theme/fonts";
+import { COLORS, FONTS } from "./src/theme";
 
 // שליפת מספר גרסה אוטומטית מ-app.json. אם לא קיים - נציג "1.0.0".
 const APP_VERSION = Constants.expoConfig?.version || "1.0.0";
@@ -32,7 +32,7 @@ export default function AboutScreen() {
     <SafeAreaView style={styles.container}>
       <View style={styles.headerRow}>
         <TouchableOpacity onPress={() => router.back()}>
-          <Ionicons name="arrow-forward" size={26} color="#1A3C40" />
+          <Ionicons name="arrow-forward" size={26} color={COLORS.brand} />
         </TouchableOpacity>
         <Text style={styles.header}>אודות</Text>
         <View style={{ width: 26 }} />
@@ -68,7 +68,7 @@ export default function AboutScreen() {
           <Text style={styles.sectionTitle}>צוות הפיתוח</Text>
           {TEAM.map((name, index) => (
             <View key={index} style={styles.teamRow}>
-              <Ionicons name="person-circle-outline" size={20} color="#1A3C40" />
+              <Ionicons name="person-circle-outline" size={20} color={COLORS.brand} />
               <Text style={styles.teamName}>{name}</Text>
             </View>
           ))}
@@ -101,7 +101,7 @@ export default function AboutScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#F0F2F5" },
+  container: { flex: 1, backgroundColor: COLORS.background },
 
   headerRow: {
     flexDirection: "row-reverse",
@@ -115,7 +115,7 @@ const styles = StyleSheet.create({
   header: {
     fontSize: 20,
     fontFamily: FONTS.bold,
-    color: "#1A3C40",
+    color: COLORS.brand,
   },
 
   content: {
@@ -139,20 +139,20 @@ const styles = StyleSheet.create({
   appName: {
     fontSize: 28,
     fontFamily: FONTS.extraBold,
-    color: "#1A3C40",
+    color: COLORS.brand,
     marginTop: 4,
   },
 
   tagline: {
     fontSize: 14,
-    color: "#6E6E6E",
+    color: COLORS.textSecondary,
     fontFamily: FONTS.regular,
     marginTop: 6,
   },
 
   versionBadge: {
     marginTop: 12,
-    backgroundColor: "#E7F3FF",
+    backgroundColor: COLORS.brandLight,
     paddingHorizontal: 12,
     paddingVertical: 5,
     borderRadius: 12,
@@ -161,16 +161,16 @@ const styles = StyleSheet.create({
   versionText: {
     fontSize: 12,
     fontFamily: FONTS.bold,
-    color: "#1A3C40",
+    color: COLORS.brand,
   },
 
   // ====== Cards ======
   card: {
-    backgroundColor: "#fff",
+    backgroundColor: COLORS.surface,
     borderRadius: 14,
     padding: 16,
     marginBottom: 14,
-    shadowColor: "#000",
+    shadowColor: COLORS.shadow,
     shadowOpacity: 0.04,
     shadowRadius: 5,
     elevation: 1,
@@ -179,14 +179,14 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: 15,
     fontFamily: FONTS.bold,
-    color: "#1A3C40",
+    color: COLORS.brand,
     textAlign: "right",
     marginBottom: 10,
   },
 
   bodyText: {
     fontSize: 14,
-    color: "#444",
+    color: COLORS.text,
     fontFamily: FONTS.regular,
     textAlign: "right",
     lineHeight: 22,
@@ -203,7 +203,7 @@ const styles = StyleSheet.create({
   teamName: {
     fontSize: 14,
     fontFamily: FONTS.regular,
-    color: "#1A3C40",
+    color: COLORS.brand,
   },
 
   // ====== Project meta ======
@@ -215,14 +215,14 @@ const styles = StyleSheet.create({
 
   metaLabel: {
     fontSize: 13,
-    color: "#888",
+    color: COLORS.textMuted,
     fontFamily: FONTS.regular,
   },
 
   metaValue: {
     fontSize: 13,
     fontFamily: FONTS.bold,
-    color: "#1A3C40",
+    color: COLORS.brand,
     maxWidth: "70%",
     textAlign: "left",
   },
@@ -231,7 +231,7 @@ const styles = StyleSheet.create({
   footer: {
     textAlign: "center",
     fontSize: 12,
-    color: "#888",
+    color: COLORS.textMuted,
     fontFamily: FONTS.regular,
     marginTop: 8,
   },

@@ -15,7 +15,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import BottomNav from "../../components/BottomNav";
 import { BASE_URL } from "../src/api/config";
 import { getToken, getUser } from "../src/auth/authStore";
-import { FONTS } from "../src/theme/fonts";
+import { COLORS, FONTS } from "../src/theme";
 
 export default function MyTripsScreen() {
   const router = useRouter();
@@ -125,7 +125,7 @@ useFocusEffect(
           <Ionicons
             name="chevron-back"
             size={20}
-            color={past ? "#999" : "#1A3C40"}
+            color={past ? COLORS.textMuted : COLORS.brand}
           />
         </View>
 
@@ -161,7 +161,7 @@ useFocusEffect(
   if (loading) {
     return (
       <SafeAreaView style={styles.center}>
-        <ActivityIndicator size="large" color="#1A3C40" />
+        <ActivityIndicator size="large" color={COLORS.brand} />
       </SafeAreaView>
     );
   }
@@ -170,8 +170,13 @@ useFocusEffect(
     <SafeAreaView style={styles.container}>
       {/* Header עם חץ חזרה למסך הראשי */}
       <View style={styles.headerRow}>
-        <TouchableOpacity onPress={() => router.back()}>
-          <Ionicons name="arrow-forward" size={26} color="#1A3C40" />
+        <TouchableOpacity
+          onPress={() => router.back()}
+          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+          accessibilityRole="button"
+          accessibilityLabel="חזרה"
+        >
+          <Ionicons name="arrow-forward" size={26} color={COLORS.brand} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>הטיולים שלי</Text>
         <View style={{ width: 26 }} />
@@ -185,7 +190,7 @@ useFocusEffect(
         {/* ריק */}
         {trips.length === 0 ? (
           <View style={styles.emptyBox}>
-            <Ionicons name="map-outline" size={40} color="#aaa" />
+            <Ionicons name="map-outline" size={40} color={COLORS.textMuted} />
             <Text style={styles.emptyText}>אין לך טיולים עדיין</Text>
           </View>
         ) : (
@@ -202,7 +207,7 @@ useFocusEffect(
           })
         }
       >
-        <Ionicons name="add" size={30} color="#fff" />
+        <Ionicons name="add" size={30} color={COLORS.onBrand} />
       </TouchableOpacity>
 
       <BottomNav active="trips" />
@@ -213,7 +218,7 @@ useFocusEffect(
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#F0F2F5",
+    backgroundColor: COLORS.background,
   },
 
   // flex: 1 - ה-ScrollView לוקח את כל המקום הפנוי בין ה-Header ל-BottomNav.
@@ -241,23 +246,23 @@ const styles = StyleSheet.create({
   headerTitle: {
     fontSize: 20,
     fontFamily: FONTS.bold,
-    color: "#1A3C40",
+    color: COLORS.brand,
   },
 
   /* כרטיס */
   card: {
-    backgroundColor: "#fff",
+    backgroundColor: COLORS.surface,
     borderRadius: 16,
     padding: 16,
     marginBottom: 12,
-    shadowColor: "#000",
+    shadowColor: COLORS.shadow,
     shadowOpacity: 0.05,
     shadowRadius: 6,
     elevation: 2,
   },
 
   cardPast: {
-    backgroundColor: "#EAEAEA",
+    backgroundColor: COLORS.divider,
     opacity: 0.85,
   },
 
@@ -270,20 +275,20 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 18,
     fontFamily: FONTS.bold,
-    color: "#1A3C40",
+    color: COLORS.brand,
     textAlign: "right",
   },
 
   subtitle: {
     fontSize: 13,
     fontFamily: FONTS.regular,
-    color: "#555",
+    color: COLORS.textSecondary,
     marginTop: 4,
     textAlign: "right",
   },
 
   textPast: {
-    color: "#888",
+    color: COLORS.textMuted,
   },
 
   statusRow: {
@@ -298,15 +303,15 @@ const styles = StyleSheet.create({
   },
 
   statusActive: {
-    backgroundColor: "#1A3C40",
+    backgroundColor: COLORS.brand,
   },
 
   statusPast: {
-    backgroundColor: "#999",
+    backgroundColor: COLORS.textMuted,
   },
 
   statusText: {
-    color: "#fff",
+    color: COLORS.onBrand,
     fontSize: 12,
     fontFamily: FONTS.bold,
   },
@@ -320,7 +325,7 @@ const styles = StyleSheet.create({
   emptyText: {
     marginTop: 10,
     fontSize: 16,
-    color: "#888",
+    color: COLORS.textMuted,
     fontFamily: FONTS.regular,
   },
 
@@ -334,7 +339,7 @@ const styles = StyleSheet.create({
     position: "absolute",
     bottom: 90,
     alignSelf: "center",
-    backgroundColor: "#1A3C40",
+    backgroundColor: COLORS.brand,
     width: 60,
     height: 60,
     borderRadius: 30,

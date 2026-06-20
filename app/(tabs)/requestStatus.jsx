@@ -12,7 +12,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 
-import { FONTS } from "../src/theme/fonts";
+import { COLORS, FONTS } from "../src/theme";
 import { getUser } from "../src/auth/authStore";
 import { cancelRequest, getPendingRequests } from "../src/api/notificationService";
 import BottomNav from "../../components/BottomNav";
@@ -70,21 +70,21 @@ export default function RequestStatusScreen() {
   // החזרת אייקון וצבע לפי סטטוס הבקשה
   const renderStatus = (status) => {
     if (status === "Pending") {
-      return { icon: "time-outline", color: "#E08E45", label: "ממתין" };
+      return { icon: "time-outline", color: COLORS.amber, label: "ממתין" };
     }
     if (status === "Approved") {
-      return { icon: "checkmark-circle-outline", color: "#4CAF50", label: "אושר" };
+      return { icon: "checkmark-circle-outline", color: COLORS.success, label: "אושר" };
     }
     if (status === "Rejected") {
-      return { icon: "close-circle-outline", color: "#C0392B", label: "נדחה" };
+      return { icon: "close-circle-outline", color: COLORS.danger, label: "נדחה" };
     }
-    return { icon: "ellipse-outline", color: "#888", label: status || "—" };
+    return { icon: "ellipse-outline", color: COLORS.textMuted, label: status || "—" };
   };
 
   if (loading) {
     return (
       <SafeAreaView style={styles.center}>
-        <ActivityIndicator size="large" color="#1A3C40" />
+        <ActivityIndicator size="large" color={COLORS.brand} />
       </SafeAreaView>
     );
   }
@@ -93,8 +93,13 @@ export default function RequestStatusScreen() {
     <SafeAreaView style={styles.container}>
       {/* Header עם חץ חזרה */}
       <View style={styles.headerRow}>
-        <TouchableOpacity onPress={() => router.back()}>
-          <Ionicons name="arrow-forward" size={26} color="#1A3C40" />
+        <TouchableOpacity
+          onPress={() => router.back()}
+          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+          accessibilityRole="button"
+          accessibilityLabel="חזרה"
+        >
+          <Ionicons name="arrow-forward" size={26} color={COLORS.brand} />
         </TouchableOpacity>
         <Text style={styles.header}>סטטוס בקשות</Text>
         <View style={{ width: 26 }} />
@@ -103,7 +108,7 @@ export default function RequestStatusScreen() {
       <ScrollView contentContainerStyle={styles.content}>
         {requests.length === 0 ? (
           <View style={styles.emptyBox}>
-            <Ionicons name="paper-plane-outline" size={40} color="#aaa" />
+            <Ionicons name="paper-plane-outline" size={40} color={COLORS.textMuted} />
             <Text style={styles.emptyText}>אין בקשות פעילות</Text>
           </View>
         ) : (
@@ -146,12 +151,12 @@ export default function RequestStatusScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#F0F2F5" },
+  container: { flex: 1, backgroundColor: COLORS.background },
   center: {
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
-    backgroundColor: "#F0F2F5",
+    backgroundColor: COLORS.background,
   },
 
   headerRow: {
@@ -166,7 +171,7 @@ const styles = StyleSheet.create({
   header: {
     fontSize: 20,
     fontFamily: FONTS.bold,
-    color: "#1A3C40",
+    color: COLORS.brand,
   },
 
   content: {
@@ -177,11 +182,11 @@ const styles = StyleSheet.create({
   card: {
     flexDirection: "row-reverse",
     alignItems: "center",
-    backgroundColor: "#fff",
+    backgroundColor: COLORS.surface,
     padding: 14,
     borderRadius: 16,
     marginBottom: 10,
-    shadowColor: "#000",
+    shadowColor: COLORS.shadow,
     shadowOpacity: 0.05,
     shadowRadius: 6,
     elevation: 2,
@@ -196,27 +201,27 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 15,
     fontFamily: FONTS.bold,
-    color: "#1A3C40",
+    color: COLORS.brand,
   },
 
   subtitle: {
     fontSize: 13,
     fontFamily: FONTS.regular,
-    color: "#666",
+    color: COLORS.textSecondary,
     marginTop: 4,
   },
 
   cancelBtn: {
-    backgroundColor: "#FBE9E7",
+    backgroundColor: COLORS.dangerLight,
     paddingHorizontal: 14,
     paddingVertical: 8,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: "#F5C9C2",
+    borderColor: COLORS.dangerBorder,
   },
 
   cancelText: {
-    color: "#C0392B",
+    color: COLORS.danger,
     fontFamily: FONTS.bold,
     fontSize: 13,
   },
@@ -229,7 +234,7 @@ const styles = StyleSheet.create({
   emptyText: {
     marginTop: 10,
     fontSize: 16,
-    color: "#888",
+    color: COLORS.textMuted,
     fontFamily: FONTS.regular,
   },
 });

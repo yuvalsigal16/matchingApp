@@ -4,7 +4,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { useFocusEffect, useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 
-import { FONTS } from "../src/theme/fonts";
+import { COLORS, FONTS } from "../src/theme";
 import { getUser } from "../src/auth/authStore";
 import {
   getNotifications,
@@ -14,10 +14,10 @@ import BottomNav from "../../components/BottomNav";
 
 // אייקון לפי סוג ההתראה
 function iconForType(type) {
-  if (type === "RequestReceived") return { name: "person-add-outline", color: "#1A3C40" };
-  if (type === "RequestApproved") return { name: "checkmark-circle-outline", color: "#4CAF50" };
-  if (type === "RequestRejected") return { name: "close-circle-outline", color: "#C0392B" };
-  return { name: "notifications-outline", color: "#888" };
+  if (type === "RequestReceived") return { name: "person-add-outline", color: COLORS.brand };
+  if (type === "RequestApproved") return { name: "checkmark-circle-outline", color: COLORS.success };
+  if (type === "RequestRejected") return { name: "close-circle-outline", color: COLORS.danger };
+  return { name: "notifications-outline", color: COLORS.textMuted };
 }
 
 export default function NotificationsScreen() {
@@ -63,8 +63,13 @@ export default function NotificationsScreen() {
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.headerRow}>
-        <TouchableOpacity onPress={() => router.back()}>
-          <Ionicons name="arrow-forward" size={26} color="#1A3C40" />
+        <TouchableOpacity
+          onPress={() => router.back()}
+          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+          accessibilityRole="button"
+          accessibilityLabel="חזרה"
+        >
+          <Ionicons name="arrow-forward" size={26} color={COLORS.brand} />
         </TouchableOpacity>
         <Text style={styles.header}>התראות ופעולות</Text>
         <View style={{ width: 26 }} />
@@ -79,10 +84,10 @@ export default function NotificationsScreen() {
             activeOpacity={0.85}
             onPress={() => router.push(item.route)}
           >
-            <Ionicons name="chevron-back" size={20} color="#1A3C40" />
+            <Ionicons name="chevron-back" size={20} color={COLORS.brand} />
             <Text style={styles.cardText}>{item.title}</Text>
             <View style={styles.iconBox}>
-              <Ionicons name={item.icon} size={22} color="#1A3C40" />
+              <Ionicons name={item.icon} size={22} color={COLORS.brand} />
             </View>
           </TouchableOpacity>
         ))}
@@ -120,7 +125,7 @@ export default function NotificationsScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#F0F2F5" },
+  container: { flex: 1, backgroundColor: COLORS.background },
   content: { paddingHorizontal: 20, paddingTop: 10, paddingBottom: 40 },
 
   headerRow: {
@@ -135,18 +140,18 @@ const styles = StyleSheet.create({
   header: {
     fontSize: 20,
     fontFamily: FONTS.bold,
-    color: "#1A3C40",
+    color: COLORS.brand,
   },
 
   card: {
     flexDirection: "row-reverse",
     alignItems: "center",
     justifyContent: "space-between",
-    backgroundColor: "#fff",
+    backgroundColor: COLORS.surface,
     padding: 16,
     borderRadius: 16,
     marginBottom: 12,
-    shadowColor: "#000",
+    shadowColor: COLORS.shadow,
     shadowOpacity: 0.05,
     shadowRadius: 6,
     elevation: 2,
@@ -156,7 +161,7 @@ const styles = StyleSheet.create({
     flex: 1,
     fontSize: 16,
     fontFamily: FONTS.bold,
-    color: "#1A3C40",
+    color: COLORS.brand,
     textAlign: "right",
     marginHorizontal: 12,
   },
@@ -165,7 +170,7 @@ const styles = StyleSheet.create({
     width: 44,
     height: 44,
     borderRadius: 22,
-    backgroundColor: "#E7F3FF",
+    backgroundColor: COLORS.brandLight,
     justifyContent: "center",
     alignItems: "center",
   },
@@ -173,7 +178,7 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: 17,
     fontFamily: FONTS.bold,
-    color: "#1A3C40",
+    color: COLORS.brand,
     textAlign: "right",
     marginTop: 18,
     marginBottom: 10,
@@ -181,7 +186,7 @@ const styles = StyleSheet.create({
 
   emptyText: {
     textAlign: "center",
-    color: "#888",
+    color: COLORS.textMuted,
     fontFamily: FONTS.regular,
     marginTop: 20,
   },
@@ -189,18 +194,18 @@ const styles = StyleSheet.create({
   notifCard: {
     flexDirection: "row-reverse",
     alignItems: "center",
-    backgroundColor: "#fff",
+    backgroundColor: COLORS.surface,
     padding: 14,
     borderRadius: 14,
     marginBottom: 10,
-    shadowColor: "#000",
+    shadowColor: COLORS.shadow,
     shadowOpacity: 0.04,
     shadowRadius: 5,
     elevation: 1,
   },
 
   notifUnread: {
-    backgroundColor: "#E7F3FF",
+    backgroundColor: COLORS.brandLight,
   },
 
   notifText: {
@@ -212,13 +217,13 @@ const styles = StyleSheet.create({
   notifTitle: {
     fontSize: 15,
     fontFamily: FONTS.bold,
-    color: "#1A3C40",
+    color: COLORS.brand,
     textAlign: "right",
   },
 
   notifBody: {
     fontSize: 13,
-    color: "#666",
+    color: COLORS.textSecondary,
     fontFamily: FONTS.regular,
     marginTop: 3,
     textAlign: "right",
@@ -228,6 +233,6 @@ const styles = StyleSheet.create({
     width: 10,
     height: 10,
     borderRadius: 5,
-    backgroundColor: "#F59E0B",
+    backgroundColor: COLORS.amber,
   },
 });

@@ -14,7 +14,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 
 import { apiDeleteAccount } from "./src/api/authService";
 import { clearAuth, getUser } from "./src/auth/authStore";
-import { FONTS } from "./src/theme/fonts";
+import { COLORS, FONTS } from "./src/theme";
 
 // רשימת הדברים שיימחקו - כדי שהמשתמש יבין מה הוא עומד לאבד.
 const ITEMS_TO_DELETE = [
@@ -74,8 +74,14 @@ export default function DeleteAccountScreen() {
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.headerRow}>
-        <TouchableOpacity onPress={() => router.back()} disabled={deleting}>
-          <Ionicons name="arrow-forward" size={26} color="#1A3C40" />
+        <TouchableOpacity
+          onPress={() => router.back()}
+          disabled={deleting}
+          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+          accessibilityRole="button"
+          accessibilityLabel="חזרה"
+        >
+          <Ionicons name="arrow-forward" size={26} color={COLORS.brand} />
         </TouchableOpacity>
         <Text style={styles.header}>מחיקת חשבון</Text>
         <View style={{ width: 26 }} />
@@ -84,7 +90,7 @@ export default function DeleteAccountScreen() {
       <ScrollView contentContainerStyle={styles.content}>
         {/* כרטיס אזהרה */}
         <View style={styles.warningCard}>
-          <Ionicons name="warning" size={32} color="#C0392B" />
+          <Ionicons name="warning" size={32} color={COLORS.danger} />
           <Text style={styles.warningTitle}>פעולה בלתי הפיכה</Text>
           <Text style={styles.warningText}>
             מחיקת החשבון תמחק את כל הנתונים מהאפליקציה לצמיתות. לא ניתן
@@ -97,7 +103,7 @@ export default function DeleteAccountScreen() {
         <View style={styles.itemsList}>
           {ITEMS_TO_DELETE.map((item, index) => (
             <View key={index} style={styles.itemRow}>
-              <Ionicons name="close-circle" size={18} color="#C0392B" />
+              <Ionicons name="close-circle" size={18} color={COLORS.danger} />
               <Text style={styles.itemText}>{item}</Text>
             </View>
           ))}
@@ -111,10 +117,10 @@ export default function DeleteAccountScreen() {
           activeOpacity={0.85}
         >
           {deleting ? (
-            <ActivityIndicator color="#fff" />
+            <ActivityIndicator color={COLORS.onBrand} />
           ) : (
             <>
-              <Ionicons name="trash" size={20} color="#fff" />
+              <Ionicons name="trash" size={20} color={COLORS.onBrand} />
               <Text style={styles.deleteBtnText}>מחק את החשבון לצמיתות</Text>
             </>
           )}
@@ -135,7 +141,7 @@ export default function DeleteAccountScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#F0F2F5" },
+  container: { flex: 1, backgroundColor: COLORS.background },
 
   headerRow: {
     flexDirection: "row-reverse",
@@ -149,7 +155,7 @@ const styles = StyleSheet.create({
   header: {
     fontSize: 20,
     fontFamily: FONTS.bold,
-    color: "#1A3C40",
+    color: COLORS.brand,
   },
 
   content: {
@@ -159,8 +165,8 @@ const styles = StyleSheet.create({
   },
 
   warningCard: {
-    backgroundColor: "#FBE9E7",
-    borderColor: "#F5C9C2",
+    backgroundColor: COLORS.dangerLight,
+    borderColor: COLORS.dangerBorder,
     borderWidth: 1,
     borderRadius: 16,
     padding: 18,
@@ -171,14 +177,14 @@ const styles = StyleSheet.create({
   warningTitle: {
     fontSize: 18,
     fontFamily: FONTS.bold,
-    color: "#C0392B",
+    color: COLORS.danger,
     marginTop: 8,
     marginBottom: 6,
   },
 
   warningText: {
     fontSize: 14,
-    color: "#5D2E2E",
+    color: COLORS.danger,
     fontFamily: FONTS.regular,
     textAlign: "center",
     lineHeight: 22,
@@ -187,14 +193,14 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: 16,
     fontFamily: FONTS.bold,
-    color: "#1A3C40",
+    color: COLORS.brand,
     textAlign: "right",
     marginBottom: 10,
     marginTop: 8,
   },
 
   itemsList: {
-    backgroundColor: "#fff",
+    backgroundColor: COLORS.surface,
     borderRadius: 14,
     padding: 14,
     marginBottom: 22,
@@ -210,13 +216,13 @@ const styles = StyleSheet.create({
   itemText: {
     flex: 1,
     fontSize: 14,
-    color: "#1A3C40",
+    color: COLORS.brand,
     fontFamily: FONTS.regular,
     textAlign: "right",
   },
 
   deleteBtn: {
-    backgroundColor: "#C0392B",
+    backgroundColor: COLORS.danger,
     paddingVertical: 16,
     borderRadius: 14,
     flexDirection: "row-reverse",
@@ -227,7 +233,7 @@ const styles = StyleSheet.create({
   },
 
   deleteBtnText: {
-    color: "#fff",
+    color: COLORS.surface,
     fontSize: 16,
     fontFamily: FONTS.bold,
   },
@@ -238,7 +244,7 @@ const styles = StyleSheet.create({
   },
 
   cancelBtnText: {
-    color: "#666",
+    color: COLORS.textSecondary,
     fontSize: 15,
     fontFamily: FONTS.regular,
   },

@@ -11,7 +11,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 
-import { FONTS } from "../src/theme/fonts";
+import { COLORS, FONTS } from "../src/theme";
 import { getUser } from "../src/auth/authStore";
 import { getMyMatches } from "../src/api/notificationService";
 import BottomNav from "../../components/BottomNav";
@@ -76,7 +76,7 @@ export default function ActiveChatsScreen() {
   if (loading) {
     return (
       <SafeAreaView style={styles.center}>
-        <ActivityIndicator size="large" color="#1A3C40" />
+        <ActivityIndicator size="large" color={COLORS.brand} />
       </SafeAreaView>
     );
   }
@@ -85,8 +85,13 @@ export default function ActiveChatsScreen() {
     <SafeAreaView style={styles.container}>
       {/* Header */}
       <View style={styles.headerRow}>
-        <TouchableOpacity onPress={() => router.back()}>
-          <Ionicons name="arrow-forward" size={26} color="#1A3C40" />
+        <TouchableOpacity
+          onPress={() => router.back()}
+          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+          accessibilityRole="button"
+          accessibilityLabel="חזרה"
+        >
+          <Ionicons name="arrow-forward" size={26} color={COLORS.brand} />
         </TouchableOpacity>
 
         <Text style={styles.header}>צ'אטים</Text>
@@ -97,7 +102,7 @@ export default function ActiveChatsScreen() {
       <ScrollView contentContainerStyle={styles.content}>
         {matches.length === 0 ? (
           <View style={styles.emptyBox}>
-            <Ionicons name="chatbubbles-outline" size={40} color="#aaa" />
+            <Ionicons name="chatbubbles-outline" size={40} color={COLORS.textMuted} />
             <Text style={styles.emptyText}>אין צ'אטים עדיין</Text>
           </View>
         ) : (
@@ -113,7 +118,7 @@ export default function ActiveChatsScreen() {
                 <Text
                   style={[
                     styles.tripTitle,
-                    isPast && { color: "#aaa" },
+                    isPast && { color: COLORS.textMuted },
                   ]}
                 >
                   {trip.tripName}
@@ -140,7 +145,7 @@ export default function ActiveChatsScreen() {
                     >
                       {/* אווטר */}
                       <View style={styles.avatar}>
-                        <Ionicons name="person" size={24} color="#fff" />
+                        <Ionicons name="person" size={24} color={COLORS.onBrand} />
                       </View>
 
                       {/* טקסט */}
@@ -156,7 +161,7 @@ export default function ActiveChatsScreen() {
                       <Ionicons
                         name="chevron-back"
                         size={20}
-                        color="#1A3C40"
+                        color={COLORS.brand}
                       />
                     </TouchableOpacity>
                   );
@@ -173,13 +178,13 @@ export default function ActiveChatsScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#F0F2F5" },
+  container: { flex: 1, backgroundColor: COLORS.background },
 
   center: {
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
-    backgroundColor: "#F0F2F5",
+    backgroundColor: COLORS.background,
   },
 
   headerRow: {
@@ -194,7 +199,7 @@ const styles = StyleSheet.create({
   header: {
     fontSize: 20,
     fontFamily: FONTS.bold,
-    color: "#1A3C40",
+    color: COLORS.brand,
   },
 
   content: {
@@ -205,7 +210,7 @@ const styles = StyleSheet.create({
   tripTitle: {
     fontSize: 18,
     fontFamily: FONTS.bold,
-    color: "#1A3C40",
+    color: COLORS.brand,
     marginBottom: 8,
     textAlign: "right",
   },
@@ -213,25 +218,25 @@ const styles = StyleSheet.create({
   card: {
     flexDirection: "row-reverse",
     alignItems: "center",
-    backgroundColor: "#fff",
+    backgroundColor: COLORS.surface,
     padding: 14,
     borderRadius: 16,
     marginBottom: 10,
-    shadowColor: "#000",
+    shadowColor: COLORS.shadow,
     shadowOpacity: 0.05,
     shadowRadius: 6,
     elevation: 2,
   },
 
   cardPast: {
-    backgroundColor: "#E0E0E0",
+    backgroundColor: COLORS.divider,
   },
 
   avatar: {
     width: 48,
     height: 48,
     borderRadius: 24,
-    backgroundColor: "#1A3C40",
+    backgroundColor: COLORS.brand,
     justifyContent: "center",
     alignItems: "center",
   },
@@ -245,13 +250,13 @@ const styles = StyleSheet.create({
   name: {
     fontSize: 16,
     fontFamily: FONTS.bold,
-    color: "#1A3C40",
+    color: COLORS.brand,
   },
 
   lastMsg: {
     fontSize: 13,
     fontFamily: FONTS.regular,
-    color: "#666",
+    color: COLORS.textSecondary,
     marginTop: 2,
   },
 
@@ -263,7 +268,7 @@ const styles = StyleSheet.create({
   emptyText: {
     marginTop: 10,
     fontSize: 16,
-    color: "#888",
+    color: COLORS.textMuted,
     fontFamily: FONTS.regular,
   },
 });

@@ -19,6 +19,7 @@ import {
   getTripSuggestions,
 } from "../../src/api/chatService";
 import { getUserProfile } from "../../src/api/userProfileService";
+import { COLORS, FONTS } from "../../src/theme";
 
 import { StyleSheet } from "react-native";
 export default function TripDetails() {
@@ -220,7 +221,7 @@ err
   if (loading) {
     return (
       <SafeAreaView style={styles.center}>
-        <ActivityIndicator size="large" color="#1A3C40" />
+        <ActivityIndicator size="large" color={COLORS.brand} />
       </SafeAreaView>
     );
   }
@@ -241,8 +242,13 @@ err
     <SafeAreaView style={styles.container}>
       {/* HEADER */}
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.back()}>
-          <Ionicons name="arrow-forward" size={26} color="#1A3C40" />
+        <TouchableOpacity
+          onPress={() => router.back()}
+          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+          accessibilityRole="button"
+          accessibilityLabel="חזרה"
+        >
+          <Ionicons name="arrow-forward" size={26} color={COLORS.brand} />
         </TouchableOpacity>
 
         <Text style={styles.headerTitle}>פרטי טיול</Text>
@@ -271,7 +277,7 @@ err
           {/* יוצר הטיול תמיד ראשון */}
           {creator && (
             <View style={styles.participant}>
-              <Ionicons name="person-circle" size={22} color="#1A3C40" />
+              <Ionicons name="person-circle" size={22} color={COLORS.brand} />
               <View style={{ flex: 1, alignItems: "flex-end" }}>
                 <Text style={[styles.value, { fontWeight: "bold" }]}>
                   {creator.firstName} {creator.lastName}
@@ -287,7 +293,7 @@ err
             })
             .map((p, i) => (
               <View key={i} style={styles.participant}>
-                <Ionicons name="person-circle-outline" size={22} color="#555" />
+                <Ionicons name="person-circle-outline" size={22} color={COLORS.textSecondary} />
                 <Text style={styles.value}>
                   {p.firstName} {p.lastName}
                 </Text>
@@ -487,7 +493,7 @@ size={
 34
 }
 color={
-"#F4B400"
+COLORS.amber
 }
 />
 
@@ -553,13 +559,14 @@ color={
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#F0F2F5",
+    backgroundColor: COLORS.background,
   },
 
   center: {
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
+    backgroundColor: COLORS.background,
   },
 
   header: {
@@ -571,8 +578,8 @@ const styles = StyleSheet.create({
 
   headerTitle: {
     fontSize: 20,
-    fontWeight: "bold",
-    color: "#1A3C40",
+    fontFamily: FONTS.bold,
+    color: COLORS.brand,
   },
 
   content: {
@@ -580,7 +587,7 @@ const styles = StyleSheet.create({
   },
 
   card: {
-    backgroundColor: "#fff",
+    backgroundColor: COLORS.surface,
     borderRadius: 16,
     padding: 16,
     marginBottom: 15,
@@ -592,26 +599,31 @@ const styles = StyleSheet.create({
 
   title: {
     fontSize: 22,
-    fontWeight: "bold",
+    fontFamily: FONTS.bold,
+    color: COLORS.text,
     textAlign: "right",
     marginBottom: 10,
   },
 
   label: {
     fontSize: 12,
-    color: "#777",
+    fontFamily: FONTS.regular,
+    color: COLORS.textSecondary,
     textAlign: "right",
     marginTop: 8,
   },
 
   value: {
     fontSize: 15,
+    fontFamily: FONTS.regular,
+    color: COLORS.text,
     textAlign: "right",
   },
 
   sectionTitle: {
     fontSize: 18,
-    fontWeight: "bold",
+    fontFamily: FONTS.bold,
+    color: COLORS.brand,
     textAlign: "right",
     marginBottom: 10,
     marginTop: 15,
@@ -625,7 +637,7 @@ const styles = StyleSheet.create({
   },
 
   matchCard: {
-    backgroundColor: "#fff",
+    backgroundColor: COLORS.surface,
     borderRadius: 12,
     padding: 12,
     marginLeft: 10,
@@ -637,12 +649,14 @@ const styles = StyleSheet.create({
     width: 50,
     height: 50,
     borderRadius: 25,
-    backgroundColor: "#ddd",
+    backgroundColor: COLORS.divider,
     marginBottom: 8,
   },
 
   name: {
     fontSize: 14,
+    fontFamily: FONTS.regular,
+    color: COLORS.text,
   },
 
   chatRow: {
@@ -658,35 +672,36 @@ const styles = StyleSheet.create({
   },
 
   editBtn: {
-    backgroundColor: "#1A3C40",
+    backgroundColor: COLORS.brand,
     padding: 14,
     borderRadius: 12,
     alignItems: "center",
   },
 
   deactivateBtn: {
-    backgroundColor: "#6B7280",
+    backgroundColor: COLORS.textSecondary,
     padding: 14,
     borderRadius: 12,
     alignItems: "center",
     marginBottom: 10,
   },
   deleteBtn: {
-    backgroundColor: "#D9534F",
+    backgroundColor: COLORS.danger,
     padding: 14,
     borderRadius: 12,
     alignItems: "center",
   },
 
   btnText: {
-    color: "#fff",
-    fontWeight: "bold",
+    color: COLORS.onBrand,
+    fontFamily: FONTS.bold,
   },
 
-  placeTitle:{
-fontSize:16,
-fontWeight:"bold",
-marginBottom:4,
-textAlign:"right",
-},
+  placeTitle: {
+    fontSize: 16,
+    fontFamily: FONTS.bold,
+    color: COLORS.text,
+    marginBottom: 4,
+    textAlign: "right",
+  },
 });
