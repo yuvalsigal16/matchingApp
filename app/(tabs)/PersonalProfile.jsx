@@ -20,7 +20,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { BASE_URL } from "../src/api/config";
 import { deleteProfileImage, uploadProfileImage } from "../src/api/userProfileService";
 import { clearAuth, getToken, getUser } from "../src/auth/authStore";
-import { FONTS } from "../src/theme/fonts";
+import { COLORS, FONTS } from "../src/theme";
 import BottomNav from "../../components/BottomNav";
 
 
@@ -236,7 +236,7 @@ export default function ProfileScreen() {
     if (loading) {
       return (
         <View style={[styles.avatar, styles.avatarFallback]}>
-          <ActivityIndicator color="#fff" />
+          <ActivityIndicator color={COLORS.onBrand} />
         </View>
       );
     }
@@ -247,7 +247,7 @@ export default function ProfileScreen() {
 
     return (
       <View style={[styles.avatar, styles.avatarFallback]}>
-        <Ionicons name="person" size={40} color="#fff" />
+        <Ionicons name="person" size={40} color={COLORS.onBrand} />
       </View>
     );
   };
@@ -286,8 +286,13 @@ export default function ProfileScreen() {
 
         {/* Header — רק חץ חזרה ל-Home (אייקון ההגדרות הוסר כי הוא קיים בתפריט למטה) */}
         <View style={styles.header}>
-          <TouchableOpacity onPress={() => router.replace("/Home")}>
-            <Ionicons name="arrow-forward" size={26} color="#1A3C40" />
+          <TouchableOpacity
+            onPress={() => router.replace("/Home")}
+            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+            accessibilityRole="button"
+            accessibilityLabel="חזרה לדף הבית"
+          >
+            <Ionicons name="arrow-forward" size={26} color={COLORS.brand} />
           </TouchableOpacity>
         </View>
 
@@ -298,7 +303,7 @@ export default function ProfileScreen() {
               {renderAvatar()}
               {uploading && (
                 <View style={styles.uploadingOverlay}>
-                  <ActivityIndicator color="#fff" />
+                  <ActivityIndicator color={COLORS.onBrand} />
                 </View>
               )}
             </Pressable>
@@ -308,7 +313,7 @@ export default function ProfileScreen() {
               onPress={() => setImagePickerVisible(true)}
               disabled={uploading}
             >
-              <Ionicons name="camera" size={18} color="#fff" />
+              <Ionicons name="camera" size={18} color={COLORS.onBrand} />
             </TouchableOpacity>
           </View>
         </View>
@@ -348,7 +353,7 @@ export default function ProfileScreen() {
                 disabled={!item.route}
                 onPress={() => item.route && router.push(item.route)}
               >
-                <ChevronLeft size={20} color="#999" />
+                <ChevronLeft size={20} color={COLORS.textMuted} />
                 <View style={styles.menuTextBlock}>
                   <Text style={styles.menuText}>{item.title}</Text>
                   {item.sub ? (
@@ -356,7 +361,7 @@ export default function ProfileScreen() {
                   ) : null}
                 </View>
                 <View style={[styles.menuIcon, item.iconBg ? { backgroundColor: item.iconBg } : null]}>
-                  <Icon size={20} color="#1A3C40" />
+                  <Icon size={20} color={COLORS.brand} />
                 </View>
               </TouchableOpacity>
             );
@@ -369,7 +374,7 @@ export default function ProfileScreen() {
           onPress={handleLogout}
           activeOpacity={0.85}
         >
-          <LogOut size={20} color="#C0392B" />
+          <LogOut size={20} color={COLORS.danger} />
           <Text style={styles.logoutText}>התנתקות</Text>
         </TouchableOpacity>
       </ScrollView>
@@ -391,12 +396,12 @@ export default function ProfileScreen() {
             <Text style={styles.modalTitle}>בחירת תמונת פרופיל</Text>
 
             <Pressable style={styles.modalBtn} onPress={takePhoto}>
-              <Ionicons name="camera" size={22} color="#1A3C40" />
+              <Ionicons name="camera" size={22} color={COLORS.brand} />
               <Text style={styles.modalBtnText}>צילום במצלמה</Text>
             </Pressable>
 
             <Pressable style={styles.modalBtn} onPress={pickFromGallery}>
-              <Ionicons name="images" size={22} color="#1A3C40" />
+              <Ionicons name="images" size={22} color={COLORS.brand} />
               <Text style={styles.modalBtnText}>בחירה מהגלריה</Text>
             </Pressable>
 
@@ -405,7 +410,7 @@ export default function ProfileScreen() {
                 style={[styles.modalBtn, styles.modalBtnDanger]}
                 onPress={handleDeleteImage}
               >
-                <Ionicons name="trash-outline" size={22} color="#C0392B" />
+                <Ionicons name="trash-outline" size={22} color={COLORS.danger} />
                 <Text style={[styles.modalBtnText, styles.modalBtnDangerText]}>
                   מחיקת התמונה
                 </Text>
@@ -426,7 +431,7 @@ export default function ProfileScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#F0F2F5" },
+  container: { flex: 1, backgroundColor: COLORS.background },
   // ScrollView contentContainerStyle: לא משתמשים ב-flex:1 כי זה משבית גלילה.
   // paddingBottom נותן אוויר מתחת לכפתור ההתנתקות לפני ה-BottomNav.
   content: { paddingHorizontal: 20, paddingTop: 28, paddingBottom: 30 },
@@ -455,7 +460,7 @@ const styles = StyleSheet.create({
   },
 
   avatarFallback: {
-    backgroundColor: "#1877F2",
+    backgroundColor: COLORS.primary,
     justifyContent: "center",
     alignItems: "center",
   },
@@ -464,7 +469,7 @@ const styles = StyleSheet.create({
     position: "absolute",
     bottom: 2,
     right: 2,
-    backgroundColor: "#000",
+    backgroundColor: COLORS.brand,
     borderRadius: 20,
     padding: 6,
   },
@@ -477,7 +482,7 @@ const styles = StyleSheet.create({
 
   email: {
     textAlign: "center",
-    color: "#888",
+    color: COLORS.textMuted,
     marginBottom: 20,
   },
 
@@ -489,7 +494,7 @@ const styles = StyleSheet.create({
 
   statBox: {
     flex: 1,
-    backgroundColor: "#fff",
+    backgroundColor: COLORS.surface,
     marginHorizontal: 5,
     borderRadius: 16,
     padding: 12,
@@ -503,7 +508,7 @@ const styles = StyleSheet.create({
 
   statLabel: {
     fontSize: 12,
-    color: "#777",
+    color: COLORS.textSecondary,
   },
 
   menuList: {
@@ -514,7 +519,7 @@ const styles = StyleSheet.create({
     flexDirection: "row-reverse",
     alignItems: "center",
     justifyContent: "space-between",
-    backgroundColor: "#fff",
+    backgroundColor: COLORS.surface,
     padding: 16,
     borderRadius: 16,
     marginBottom: 10,
@@ -529,7 +534,7 @@ const styles = StyleSheet.create({
   menuText: {
     textAlign: "right",
     fontFamily: FONTS.regular,
-    color: "#1A1A1A",
+    color: COLORS.text,
   },
 
   menuSub: {
@@ -544,7 +549,7 @@ const styles = StyleSheet.create({
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: "#EEE",
+    backgroundColor: COLORS.divider,
     justifyContent: "center",
     alignItems: "center",
   },
@@ -555,25 +560,17 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     gap: 10,
-    backgroundColor: "#FBE9E7",
+    backgroundColor: COLORS.dangerLight,
     paddingVertical: 14,
     borderRadius: 16,
     marginTop: 20,
     borderWidth: 1,
-    borderColor: "#F5C9C2",
+    borderColor: COLORS.dangerBorder,
   },
   logoutText: {
     fontSize: 15,
     fontFamily: FONTS.bold,
-    color: "#C0392B",
-  },
-
-  bottomNav: {
-    flexDirection: "row",
-    justifyContent: "space-around",
-    padding: 12,
-    borderTopWidth: 1,
-    borderColor: "#ddd",
+    color: COLORS.danger,
   },
 
   uploadingOverlay: {
@@ -597,14 +594,14 @@ const styles = StyleSheet.create({
   },
   modalCard: {
     width: "100%",
-    backgroundColor: "#fff",
+    backgroundColor: COLORS.surface,
     borderRadius: 20,
     padding: 22,
   },
   modalTitle: {
     fontSize: 18,
     fontFamily: FONTS.bold,
-    color: "#1A3C40",
+    color: COLORS.brand,
     textAlign: "center",
     marginBottom: 18,
   },
@@ -615,14 +612,14 @@ const styles = StyleSheet.create({
     paddingVertical: 14,
     paddingHorizontal: 16,
     borderRadius: 14,
-    backgroundColor: "#F0F2F5",
+    backgroundColor: COLORS.background,
     marginBottom: 10,
     gap: 12,
   },
   modalBtnText: {
     fontSize: 15,
     fontFamily: FONTS.bold,
-    color: "#1A3C40",
+    color: COLORS.brand,
   },
   modalBtnCancel: {
     backgroundColor: "transparent",
@@ -633,12 +630,12 @@ const styles = StyleSheet.create({
   modalBtnCancelText: {
     fontSize: 15,
     fontFamily: FONTS.regular,
-    color: "#888",
+    color: COLORS.textMuted,
   },
   modalBtnDanger: {
-    backgroundColor: "#FBE9E7",
+    backgroundColor: COLORS.dangerLight,
   },
   modalBtnDangerText: {
-    color: "#C0392B",
+    color: COLORS.danger,
   },
 });

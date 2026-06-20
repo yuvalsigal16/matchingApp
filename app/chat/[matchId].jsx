@@ -24,7 +24,7 @@ import {
 } from "../src/api/chatService";
 
 import { getUser } from "../src/auth/authStore";
-import { FONTS } from "../src/theme/fonts";
+import { COLORS, FONTS } from "../src/theme";
 
 export default function ChatScreen() {
   const router = useRouter();
@@ -128,7 +128,7 @@ export default function ChatScreen() {
         <Text
           style={[
             styles.messageText,
-            isMine && { color: "#fff" },
+            isMine && { color: COLORS.onBrand },
           ]}
         >
           {item.text}
@@ -140,7 +140,7 @@ export default function ChatScreen() {
   if (loading) {
     return (
       <SafeAreaView style={styles.center}>
-        <ActivityIndicator size="large" color="#1A3C40" />
+        <ActivityIndicator size="large" color={COLORS.brand} />
       </SafeAreaView>
     );
   }
@@ -150,8 +150,13 @@ export default function ChatScreen() {
 
       {/* HEADER */}
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.back()}>
-          <Ionicons name="arrow-forward" size={26} color="#1A3C40" />
+        <TouchableOpacity
+          onPress={() => router.back()}
+          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+          accessibilityRole="button"
+          accessibilityLabel="חזרה"
+        >
+          <Ionicons name="arrow-forward" size={26} color={COLORS.brand} />
         </TouchableOpacity>
 
         <View style={styles.headerCenter}>
@@ -169,10 +174,10 @@ export default function ChatScreen() {
         >
           <Text style={styles.matchText}>
             {matchingStatus === "none"
-              ? "Matching"
+              ? "יצירת התאמה"
               : matchingStatus === "pending"
               ? "ממתין"
-              : "Matched"}
+              : "הותאמתם"}
           </Text>
         </TouchableOpacity>
       </View>
@@ -185,7 +190,24 @@ export default function ChatScreen() {
           item.messageID.toString()
         }
         renderItem={renderMessage}
-        contentContainerStyle={{ padding: 16 }}
+        contentContainerStyle={
+          messages.length === 0
+            ? styles.emptyListContent
+            : { padding: 16 }
+        }
+        ListEmptyComponent={
+          <View style={styles.emptyState}>
+            <Ionicons
+              name="chatbubbles-outline"
+              size={48}
+              color={COLORS.textMuted}
+            />
+            <Text style={styles.emptyTitle}>אין עדיין הודעות</Text>
+            <Text style={styles.emptySub}>
+              שלחו הודעה ראשונה כדי לפתוח את השיחה ✈️
+            </Text>
+          </View>
+        }
       />
 
       {/* INPUT */}
@@ -197,14 +219,20 @@ export default function ChatScreen() {
             value={messageText}
             onChangeText={setMessageText}
             placeholder="כתוב הודעה..."
+            placeholderTextColor={COLORS.textMuted}
             style={styles.input}
+            multiline
+            textAlign="right"
           />
 
           <TouchableOpacity
             onPress={sendMessage}
-            style={styles.sendBtn}
+            disabled={!messageText.trim()}
+            style={[styles.sendBtn, !messageText.trim() && styles.sendBtnDisabled]}
+            accessibilityRole="button"
+            accessibilityLabel="שליחת הודעה"
           >
-            <Ionicons name="send" size={18} color="#fff" />
+            <Ionicons name="send" size={18} color={COLORS.onBrand} />
           </TouchableOpacity>
         </View>
       </KeyboardAvoidingView>
@@ -213,7 +241,7 @@ export default function ChatScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#F0F2F5" },
+  container: { flex: 1, backgroundColor: COLORS.background },
 
   center: {
     flex: 1,
@@ -224,8 +252,11 @@ const styles = StyleSheet.create({
   header: {
     flexDirection: "row-reverse",
     justifyContent: "space-between",
+    alignItems: "center",
     padding: 12,
-    backgroundColor: "#fff",
+    backgroundColor: COLORS.surface,
+    borderBottomWidth: 1,
+    borderBottomColor: COLORS.border,
   },
 
   headerCenter: {
@@ -235,62 +266,113 @@ const styles = StyleSheet.create({
   chatName: {
     fontSize: 16,
     fontFamily: FONTS.bold,
+    color: COLORS.text,
   },
 
   tripName: {
     fontSize: 12,
-    color: "#777",
+    fontFamily: FONTS.regular,
+    color: COLORS.textSecondary,
   },
 
   matchBtn: {
-    backgroundColor: "#1A3C40",
-    padding: 8,
+    backgroundColor: COLORS.brand,
+    paddingVertical: 8,
+    paddingHorizontal: 12,
     borderRadius: 20,
   },
 
   matchText: {
-    color: "#fff",
+    color: COLORS.onBrand,
     fontSize: 12,
+    fontFamily: FONTS.bold,
   },
 
   messageBubble: {
-    padding: 10,
+    paddingVertical: 10,
+    paddingHorizontal: 12,
     marginBottom: 8,
-    borderRadius: 12,
+    borderRadius: 16,
     maxWidth: "75%",
   },
 
+  // הודעות שלי — ימין (RTL), בצבע המותג.
   myMessage: {
-    backgroundColor: "#1A3C40",
-    alignSelf: "flex-start",
+    backgroundColor: COLORS.brand,
+    alignSelf: "flex-end",
+    borderBottomRightRadius: 4,
   },
 
+  // הודעות הצד השני — שמאל, לבן.
   otherMessage: {
-    backgroundColor: "#fff",
-    alignSelf: "flex-end",
+    backgroundColor: COLORS.surface,
+    alignSelf: "flex-start",
+    borderBottomLeftRadius: 4,
   },
 
   messageText: {
-    color: "#222",
+    color: COLORS.text,
+    fontFamily: FONTS.regular,
+    fontSize: 15,
+    textAlign: "right",
+  },
+
+  // מצב ריק — אין הודעות עדיין.
+  emptyListContent: {
+    flexGrow: 1,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  emptyState: {
+    alignItems: "center",
+    paddingHorizontal: 40,
+  },
+  emptyTitle: {
+    fontFamily: FONTS.bold,
+    fontSize: 16,
+    color: COLORS.textSecondary,
+    marginTop: 12,
+  },
+  emptySub: {
+    fontFamily: FONTS.regular,
+    fontSize: 13,
+    color: COLORS.textMuted,
+    textAlign: "center",
+    marginTop: 4,
   },
 
   inputContainer: {
     flexDirection: "row-reverse",
+    alignItems: "center",
     padding: 10,
-    backgroundColor: "#fff",
+    backgroundColor: COLORS.surface,
+    borderTopWidth: 1,
+    borderTopColor: COLORS.border,
   },
 
   input: {
     flex: 1,
-    backgroundColor: "#eee",
+    backgroundColor: COLORS.background,
     borderRadius: 20,
-    paddingHorizontal: 10,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    maxHeight: 120,
+    fontFamily: FONTS.regular,
+    fontSize: 15,
+    color: COLORS.text,
   },
 
   sendBtn: {
-    backgroundColor: "#1A3C40",
-    padding: 10,
-    borderRadius: 20,
+    backgroundColor: COLORS.brand,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    justifyContent: "center",
+    alignItems: "center",
     marginLeft: 10,
+  },
+
+  sendBtnDisabled: {
+    backgroundColor: COLORS.textMuted,
   },
 });

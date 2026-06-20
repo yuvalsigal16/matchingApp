@@ -1,10 +1,10 @@
 import React, { useEffect, useState } from "react";
-import { ActivityIndicator, Alert, Image, StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import { ActivityIndicator, Image, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import { Bell, ChevronLeft, MapPin, MessageCircle, Users } from "lucide-react-native";
-import { FONTS } from "../src/theme/fonts";
+import { COLORS, FONTS } from "../src/theme";
 import { getToken, getUser } from "../src/auth/authStore";
 import { BASE_URL } from "../src/api/config";
 import BottomNav from "../../components/BottomNav";
@@ -29,6 +29,8 @@ export default function Home() {
     profileImage: "",
   });
   const [loading, setLoading] = useState(true);
+  // האם המשתמש עדיין לא השלים פרופיל/שאלון. אם כן — מציגים באנר עדין (לא Alert חוסם).
+  const [needsQuiz, setNeedsQuiz] = useState(false);
 
   useEffect(() => {
     const loadProfile = async () => {
@@ -81,25 +83,11 @@ export default function Home() {
         setUserData({ firstName, profileImage });
 
         // בדיקה האם המשתמש השלים את שאלון ההיכרות.
-        // אם לא — מציגים הודעה ידידותית ומפנים אותו לשאלון.
+        // אם לא — מסמנים להצגת באנר עדין במסך (במקום Alert חוסם שקופץ בכל כניסה).
         // 404 = אין שאלון, וזו הסיבה ש-PUT למסך עדכון נכשל.
         const hasProfile = profileRes.ok;
         const hasQuestionnaire = questionnaireRes.ok;
-
-        if (!hasProfile || !hasQuestionnaire) {
-          Alert.alert(
-            "השלמת פרטי היכרות",
-            "שמנו לב שעדיין לא השלמת את שאלון ההיכרות. מילוי השאלון יעזור לנו למצוא לך פרטנרים שמתאימים לך באמת.",
-            [
-              { text: "אחר כך", style: "cancel" },
-              {
-                text: "מילוי השאלון",
-                onPress: () => router.replace("/QuizStartScreen"),
-              },
-            ],
-            { cancelable: true },
-          );
-        }
+        setNeedsQuiz(!hasProfile || !hasQuestionnaire);
       } catch (error) {
         console.error("[HomeScreen] שגיאה בטעינת פרופיל:", error);
       } finally {
@@ -116,7 +104,7 @@ export default function Home() {
     if (loading) {
       return (
         <View style={[styles.avatar, styles.avatarFallback]}>
-          <ActivityIndicator size="small" color="#fff" />
+          <ActivityIndicator size="small" color={COLORS.onBrand} />
         </View>
       );
     }
@@ -135,7 +123,7 @@ export default function Home() {
 
     return (
       <View style={[styles.avatar, styles.avatarFallback]}>
-        <Ionicons name="person" size={28} color="#fff" />
+        <Ionicons name="person" size={28} color={COLORS.onBrand} />
       </View>
     );
   };
@@ -188,9 +176,29 @@ export default function Home() {
 
         <View style={styles.introSection}>
           <Text style={styles.introText}>מוכנ/ה למצוא את פרטנר הטיול הבא שלך?</Text>
-          <View style={styles.introIcon}>
-          </View>
         </View>
+
+        {/* באנר עדין המזמין להשלים את שאלון ההיכרות. לא חוסם — נעלם אחרי השלמה. */}
+        {needsQuiz && (
+          <TouchableOpacity
+            style={styles.quizBanner}
+            activeOpacity={0.9}
+            onPress={() => router.replace("/QuizStartScreen")}
+            accessibilityRole="button"
+            accessibilityLabel="השלמת שאלון ההיכרות"
+          >
+            <View style={styles.quizBannerIcon}>
+              <Ionicons name="sparkles" size={20} color={COLORS.amberDark} />
+            </View>
+            <View style={styles.quizBannerText}>
+              <Text style={styles.quizBannerTitle}>השלמת פרטי היכרות</Text>
+              <Text style={styles.quizBannerSub}>
+                מילוי השאלון יעזור לנו למצוא לך פרטנרים שמתאימים באמת
+              </Text>
+            </View>
+            <ChevronLeft size={20} color={COLORS.amberDark} strokeWidth={2.2} />
+          </TouchableOpacity>
+        )}
 
         <View style={styles.menuList}>
           {MENU_ITEMS.map((item) => {
@@ -204,12 +212,11 @@ export default function Home() {
               >
                 <View style={styles.tileTextContainer}>
                   <Text style={styles.tileTitle}>{item.title}</Text>
-                  <Text style={styles.tileSub}>{item.sub}</Text>
                 </View>
                 <View style={[styles.iconContainer, { borderColor: item.iconBorder }]}>
-                  <IconComponent size={22} color="#1A3C40" strokeWidth={2.2} />
+                  <IconComponent size={22} color={COLORS.brand} strokeWidth={2.2} />
                 </View>
-                <ChevronLeft size={22} color="#9A9A9A" strokeWidth={2.2} />
+                <ChevronLeft size={22} color={COLORS.textMuted} strokeWidth={2.2} />
               </TouchableOpacity>
             );
           })}
@@ -224,7 +231,7 @@ export default function Home() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#F0F2F5",
+    backgroundColor: COLORS.background,
   },
   content: {
     flex: 1,
@@ -244,14 +251,14 @@ const styles = StyleSheet.create({
   },
   greetingText: {
     fontSize: 14,
-    color: "#8A8A8A",
+    color: COLORS.textMuted,
     fontFamily: FONTS.regular,
     marginBottom: 6,
   },
   mainTitle: {
     fontSize: 24,
     fontFamily: FONTS.extraBold,
-    color: "#1A1A1A",
+    color: COLORS.text,
     letterSpacing: 0.2,
   },
 
@@ -261,7 +268,7 @@ const styles = StyleSheet.create({
     borderRadius: 30,
   },
   avatarFallback: {
-    backgroundColor: "#1877F2",
+    backgroundColor: COLORS.primary,
     justifyContent: "center",
     alignItems: "center",
   },
@@ -269,16 +276,54 @@ const styles = StyleSheet.create({
   introSection: {
     flexDirection: "row-reverse",
     alignItems: "center",
-    marginBottom: 36,
+    marginBottom: 20,
   },
   introText: {
     flex: 1,
     fontSize: 15,
-    color: "#6E6E6E",
+    color: COLORS.textSecondary,
     fontFamily: FONTS.regular,
     textAlign: "right",
     paddingHorizontal: 4,
     lineHeight: 22,
+  },
+
+  // באנר השלמת שאלון — גוון ענבר חמים, מבדיל אותו מהאריחים הרגילים.
+  quizBanner: {
+    flexDirection: "row-reverse",
+    alignItems: "center",
+    backgroundColor: COLORS.amberLight,
+    borderRadius: 16,
+    paddingVertical: 14,
+    paddingHorizontal: 16,
+    marginBottom: 24,
+    gap: 12,
+  },
+  quizBannerIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: COLORS.surface,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  quizBannerText: {
+    flex: 1,
+    alignItems: "flex-end",
+  },
+  quizBannerTitle: {
+    fontSize: 15,
+    fontFamily: FONTS.bold,
+    color: COLORS.amberDark,
+    textAlign: "right",
+  },
+  quizBannerSub: {
+    fontSize: 12,
+    fontFamily: FONTS.regular,
+    color: COLORS.amberDark,
+    textAlign: "right",
+    marginTop: 2,
+    opacity: 0.85,
   },
 
   menuList: {
@@ -294,7 +339,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 18,
     borderRadius: 20,
     marginBottom: 14,
-    shadowColor: "#000",
+    shadowColor: COLORS.shadow,
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.06,
     shadowRadius: 8,
@@ -308,39 +353,15 @@ const styles = StyleSheet.create({
   tileTitle: {
     fontSize: 16,
     fontFamily: FONTS.bold,
-    color: "#1A1A1A",
-    marginBottom: 4,
-  },
-  tileSub: {
-    fontSize: 13,
-    color: "#7A7A7A",
-    fontFamily: FONTS.regular,
+    color: COLORS.text,
   },
   iconContainer: {
     width: 50,
     height: 50,
     borderRadius: 25,
-    backgroundColor: "#fff",
+    backgroundColor: COLORS.surface,
     justifyContent: "center",
     alignItems: "center",
     borderWidth: 1.5,
   },
-
-  bottomNav: {
-    flexDirection: "row",
-    justifyContent: "space-around",
-    alignItems: "center",
-    paddingVertical: 12,
-    paddingBottom: 14,
-    backgroundColor: "#F0F2F5",
-    borderTopWidth: 1,
-    borderTopColor: "#DADDE1",
-  },
-  navItem: {
-    width: 56,
-    height: 44,
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  navItemActive: {},
 });

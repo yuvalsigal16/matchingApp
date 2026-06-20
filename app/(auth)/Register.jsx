@@ -15,7 +15,7 @@ import {
 import { apiLogin, apiRegister } from "../src/api/authService";
 import { setAuth } from "../src/auth/authStore";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { FONTS } from "../src/theme/fonts";
+import { COLORS, FONTS } from "../src/theme";
 
 // ── פונקציות בדיקת תקינות ──
 
@@ -50,14 +50,14 @@ const PasswordField = ({
       <Ionicons
         name={showPassword ? "eye-outline" : "eye-off-outline"} // עין פתוחה = גלוי, סגורה = מוסתר
         size={22}
-        color="#CCCCCC" // אפור בהיר
+        color={COLORS.textMuted}
       />
     </TouchableOpacity>
     {/* שדה הקלט עצמו - secureTextEntry שולט אם הטקסט מוסתר */}
     <TextInput
       style={styles.passwordInput}
       placeholder={placeholder}
-      placeholderTextColor="#aaa"
+      placeholderTextColor={COLORS.textMuted}
       value={value}
       onChangeText={onChangeText}
       onBlur={onBlur}
@@ -165,7 +165,7 @@ export default function RegisterScreen() {
             <TextInput
               style={[styles.input, emailError ? styles.inputError : null]}
               placeholder="כתובת אימייל"
-              placeholderTextColor="#aaa"
+              placeholderTextColor={COLORS.textMuted}
               value={email}
               onChangeText={(v) => {
                 setEmail(v);
@@ -227,7 +227,7 @@ export default function RegisterScreen() {
             disabled={isLoading}
           >
             {isLoading ? (
-              <ActivityIndicator color="#fff" />
+              <ActivityIndicator color={COLORS.onBrand} />
             ) : (
               <Text style={styles.mainButtonText}>הירשם</Text>
             )}
@@ -256,7 +256,7 @@ const styles = StyleSheet.create({
   // מיכל ראשי — מלא את כל המסך, רקע לבן
   safe: {
     flex: 1,
-    backgroundColor: "#fff",
+    backgroundColor: COLORS.background,
   },
 
   // תוכן ה-ScrollView — ממורכז אנכית במסך
@@ -272,7 +272,7 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 32,
     fontFamily: FONTS.extraBold,
-    color: "#111",
+    color: COLORS.text,
     textAlign: "center",
     marginBottom: 36,
   },
@@ -289,13 +289,13 @@ const styles = StyleSheet.create({
     height: 54,
     borderRadius: 30, // פינות מעוגלות לגמרי
     borderWidth: 1.5,
-    borderColor: "#ddd",
+    borderColor: COLORS.border,
     paddingHorizontal: 20,
     fontSize: 16,
     fontFamily: FONTS.regular,
-    color: "#222",
+    color: COLORS.text,
     marginBottom: 6,
-    backgroundColor: "#fafafa",
+    backgroundColor: COLORS.surface,
   },
 
   // מיכל שדה סיסמה (כולל אייקון עין)
@@ -306,8 +306,8 @@ const styles = StyleSheet.create({
     height: 54,
     borderRadius: 30,
     borderWidth: 1.5,
-    borderColor: "#ddd",
-    backgroundColor: "#fafafa",
+    borderColor: COLORS.border,
+    backgroundColor: COLORS.surface,
     paddingHorizontal: 16,
     marginBottom: 6,
   },
@@ -317,7 +317,7 @@ const styles = StyleSheet.create({
     flex: 1, // תופס את כל השטח הפנוי
     fontSize: 16,
     fontFamily: FONTS.regular,
-    color: "#222",
+    color: COLORS.text,
     height: "100%",
   },
 
@@ -328,12 +328,12 @@ const styles = StyleSheet.create({
 
   // מסגרת אדומה — מוחלת כשיש שגיאה בשדה
   inputError: {
-    borderColor: "#e74c3c",
+    borderColor: COLORS.danger,
   },
 
   // טקסט הודעת שגיאה
   errorText: {
-    color: "#e74c3c",
+    color: COLORS.danger,
     fontSize: 12,
     fontFamily: FONTS.regular,
     textAlign: "right",
@@ -345,13 +345,13 @@ const styles = StyleSheet.create({
   mainButton: {
     width: "100%",
     height: 54,
-    backgroundColor: "#111", // שחור
+    backgroundColor: COLORS.brand,
     borderRadius: 30,
     justifyContent: "center",
     alignItems: "center",
     marginTop: 20,
     marginBottom: 4,
-    shadowColor: "#000",
+    shadowColor: COLORS.shadow,
     shadowOffset: { width: 0, height: 3 },
     shadowOpacity: 0.15,
     shadowRadius: 6,
@@ -360,20 +360,20 @@ const styles = StyleSheet.create({
 
   // טקסט בתוך כפתור "הירשם"
   mainButtonDisabled: {
-    backgroundColor: "#555",
+    backgroundColor: COLORS.textMuted,
     shadowOpacity: 0,
     elevation: 0,
   },
 
   mainButtonText: {
-    color: "#fff",
+    color: COLORS.onBrand,
     fontSize: 17,
     fontFamily: FONTS.bold,
     letterSpacing: 0.5,
   },
 
   apiErrorText: {
-    color: "#e74c3c",
+    color: COLORS.danger,
     fontSize: 14,
     fontFamily: FONTS.regular,
     textAlign: "center",
@@ -392,14 +392,14 @@ const styles = StyleSheet.create({
 
   // טקסט אפור ("כבר יש לך חשבון?")
   mutedText: {
-    color: "#666",
+    color: COLORS.textSecondary,
     fontSize: 14,
     fontFamily: FONTS.regular,
   },
 
-  // טקסט לחיץ כחול ("התחבר")
+  // טקסט לחיץ ("התחבר")
   linkText: {
-    color: "#1E90FF",
+    color: COLORS.brand,
     fontSize: 14,
     fontFamily: FONTS.bold,
   },

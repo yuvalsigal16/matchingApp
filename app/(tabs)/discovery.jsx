@@ -4,7 +4,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
 import { ChevronRight, Users, Star } from "lucide-react-native";
 
-import { FONTS } from "../src/theme/fonts";
+import { COLORS, FONTS } from "../src/theme";
 import { getUser } from "../src/auth/authStore";
 import BottomNav from "../../components/BottomNav";
 
@@ -38,8 +38,14 @@ export default function DiscoveryScreen() {
       <View style={styles.inner}>
         {/* Header */}
         <View style={styles.headerRow}>
-          <TouchableOpacity style={styles.backBtn} onPress={() => router.back()}>
-            <ChevronRight size={22} color="#1A3C40" />
+          <TouchableOpacity
+            style={styles.backBtn}
+            onPress={() => router.back()}
+            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+            accessibilityRole="button"
+            accessibilityLabel="חזרה"
+          >
+            <ChevronRight size={22} color={COLORS.brand} />
           </TouchableOpacity>
           <Text style={styles.title}>גילוי וקהילה</Text>
           {initials ? (
@@ -64,7 +70,7 @@ export default function DiscoveryScreen() {
                 activeOpacity={0.85}
                 onPress={() => router.push(item.route)}
               >
-                <ChevronRight size={20} color="#999" />
+                <ChevronRight size={20} color={COLORS.textMuted} />
                 <View style={styles.cardText}>
                   <Text style={styles.cardTitle}>{item.title}</Text>
                   <Text style={styles.cardSub}>{item.sub}</Text>
@@ -84,7 +90,7 @@ export default function DiscoveryScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#F0F2F5" },
+  container: { flex: 1, backgroundColor: COLORS.background },
 
   inner: { flex: 1 },
 
@@ -101,10 +107,10 @@ const styles = StyleSheet.create({
     width: 36,
     height: 36,
     borderRadius: 18,
-    backgroundColor: "#fff",
+    backgroundColor: COLORS.surface,
     justifyContent: "center",
     alignItems: "center",
-    shadowColor: "#000",
+    shadowColor: COLORS.shadow,
     shadowOpacity: 0.08,
     shadowRadius: 4,
     elevation: 2,
@@ -114,7 +120,7 @@ const styles = StyleSheet.create({
     width: 36,
     height: 36,
     borderRadius: 18,
-    backgroundColor: "#E3EFE5",
+    backgroundColor: COLORS.brandLight,
     justifyContent: "center",
     alignItems: "center",
   },
@@ -122,19 +128,19 @@ const styles = StyleSheet.create({
   initialsText: {
     fontSize: 13,
     fontFamily: FONTS.bold,
-    color: "#1A3C40",
+    color: COLORS.brand,
   },
 
   title: {
     fontSize: 20,
     fontFamily: FONTS.extraBold,
-    color: "#1A1A1A",
+    color: COLORS.text,
   },
 
   subtitle: {
     fontSize: 14,
     fontFamily: FONTS.regular,
-    color: "#888",
+    color: COLORS.textMuted,
     textAlign: "center",
     marginBottom: 20,
   },
@@ -148,10 +154,10 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    backgroundColor: "#fff",
+    backgroundColor: COLORS.surface,
     padding: 18,
     borderRadius: 18,
-    shadowColor: "#000",
+    shadowColor: COLORS.shadow,
     shadowOpacity: 0.05,
     shadowRadius: 6,
     elevation: 2,
@@ -166,7 +172,7 @@ const styles = StyleSheet.create({
   cardTitle: {
     fontSize: 16,
     fontFamily: FONTS.bold,
-    color: "#1A1A1A",
+    color: COLORS.text,
     textAlign: "right",
     marginBottom: 4,
   },
@@ -174,7 +180,7 @@ const styles = StyleSheet.create({
   cardSub: {
     fontSize: 13,
     fontFamily: FONTS.regular,
-    color: "#999",
+    color: COLORS.textMuted,
     textAlign: "right",
   },
 

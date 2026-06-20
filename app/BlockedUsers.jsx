@@ -15,7 +15,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 
 import { getBlockedUsers, unblockUser } from "./src/api/blockService";
 import { BASE_URL } from "./src/api/config";
-import { FONTS } from "./src/theme/fonts";
+import { COLORS, FONTS } from "./src/theme";
 
 // בונה URI מלא לתמונה (השרת עשוי להחזיר נתיב יחסי)
 function buildImageUri(raw) {
@@ -108,7 +108,7 @@ export default function BlockedUsersScreen() {
           <Image source={{ uri: imageUri }} style={styles.avatar} />
         ) : (
           <View style={[styles.avatar, styles.avatarFallback]}>
-            <Ionicons name="person" size={24} color="#fff" />
+            <Ionicons name="person" size={24} color={COLORS.onBrand} />
           </View>
         )}
 
@@ -126,7 +126,7 @@ export default function BlockedUsersScreen() {
           activeOpacity={0.85}
         >
           {isUnblocking ? (
-            <ActivityIndicator size="small" color="#1A3C40" />
+            <ActivityIndicator size="small" color={COLORS.brand} />
           ) : (
             <Text style={styles.unblockText}>בטל חסימה</Text>
           )}
@@ -139,7 +139,7 @@ export default function BlockedUsersScreen() {
     <SafeAreaView style={styles.container}>
       <View style={styles.headerRow}>
         <TouchableOpacity onPress={() => router.back()}>
-          <Ionicons name="arrow-forward" size={26} color="#1A3C40" />
+          <Ionicons name="arrow-forward" size={26} color={COLORS.brand} />
         </TouchableOpacity>
         <Text style={styles.header}>משתמשים חסומים</Text>
         <View style={{ width: 26 }} />
@@ -147,12 +147,12 @@ export default function BlockedUsersScreen() {
 
       {loading ? (
         <View style={styles.centerBox}>
-          <ActivityIndicator size="large" color="#1A3C40" />
+          <ActivityIndicator size="large" color={COLORS.brand} />
         </View>
       ) : users.length === 0 ? (
         // מצב ריק - אייקון + הסבר ידידותי.
         <View style={styles.centerBox}>
-          <Ionicons name="shield-checkmark-outline" size={64} color="#aaa" />
+          <Ionicons name="shield-checkmark-outline" size={64} color={COLORS.textMuted} />
           <Text style={styles.emptyTitle}>אין משתמשים חסומים</Text>
           <Text style={styles.emptyText}>
             כשתחסום משתמש, הוא יופיע כאן ויהיה אפשר לבטל את החסימה בכל רגע.
@@ -171,7 +171,7 @@ export default function BlockedUsersScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#F0F2F5" },
+  container: { flex: 1, backgroundColor: COLORS.background },
 
   headerRow: {
     flexDirection: "row-reverse",
@@ -185,7 +185,7 @@ const styles = StyleSheet.create({
   header: {
     fontSize: 20,
     fontFamily: FONTS.bold,
-    color: "#1A3C40",
+    color: COLORS.brand,
   },
 
   content: {
@@ -195,7 +195,7 @@ const styles = StyleSheet.create({
 
   subTitle: {
     fontSize: 13,
-    color: "#666",
+    color: COLORS.textSecondary,
     fontFamily: FONTS.regular,
     textAlign: "right",
     marginBottom: 14,
@@ -213,13 +213,13 @@ const styles = StyleSheet.create({
   emptyTitle: {
     fontSize: 18,
     fontFamily: FONTS.bold,
-    color: "#1A3C40",
+    color: COLORS.brand,
     marginTop: 14,
   },
 
   emptyText: {
     fontSize: 14,
-    color: "#888",
+    color: COLORS.textMuted,
     fontFamily: FONTS.regular,
     textAlign: "center",
     marginTop: 8,
@@ -230,11 +230,11 @@ const styles = StyleSheet.create({
   card: {
     flexDirection: "row-reverse",
     alignItems: "center",
-    backgroundColor: "#fff",
+    backgroundColor: COLORS.surface,
     padding: 12,
     borderRadius: 14,
     marginBottom: 10,
-    shadowColor: "#000",
+    shadowColor: COLORS.shadow,
     shadowOpacity: 0.04,
     shadowRadius: 5,
     elevation: 1,
@@ -244,12 +244,12 @@ const styles = StyleSheet.create({
     width: 50,
     height: 50,
     borderRadius: 25,
-    backgroundColor: "#D9D9D9",
+    backgroundColor: COLORS.divider,
     marginLeft: 12,
   },
 
   avatarFallback: {
-    backgroundColor: "#1877F2",
+    backgroundColor: COLORS.primary,
     justifyContent: "center",
     alignItems: "center",
   },
@@ -262,18 +262,18 @@ const styles = StyleSheet.create({
   name: {
     fontSize: 15,
     fontFamily: FONTS.bold,
-    color: "#1A3C40",
+    color: COLORS.brand,
   },
 
   date: {
     fontSize: 12,
-    color: "#888",
+    color: COLORS.textMuted,
     fontFamily: FONTS.regular,
     marginTop: 3,
   },
 
   unblockBtn: {
-    backgroundColor: "#E7F3FF",
+    backgroundColor: COLORS.brandLight,
     paddingHorizontal: 14,
     paddingVertical: 8,
     borderRadius: 10,
@@ -282,7 +282,7 @@ const styles = StyleSheet.create({
   },
 
   unblockText: {
-    color: "#1A3C40",
+    color: COLORS.brand,
     fontFamily: FONTS.bold,
     fontSize: 13,
   },

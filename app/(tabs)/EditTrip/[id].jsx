@@ -16,7 +16,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 
 import { BASE_URL } from "../../src/api/config";
 import { getToken } from "../../src/auth/authStore";
-import { FONTS } from "../../src/theme/fonts";
+import { COLORS, FONTS } from "../../src/theme";
 
 function toIsoDateOnly(date) {
   const y = date.getFullYear();
@@ -147,7 +147,7 @@ export default function EditTrip() {
         <Text style={styles.label}>{label}</Text>
         <TouchableOpacity style={styles.dateBtn} onPress={() => setShowPicker(true)}>
           <Text style={styles.dateBtnText}>{formatDisplay(date)}</Text>
-          <Ionicons name="calendar-outline" size={18} color="#1A3C40" />
+          <Ionicons name="calendar-outline" size={18} color={COLORS.brand} />
         </TouchableOpacity>
         {showPicker && (
           <DateTimePicker
@@ -167,7 +167,7 @@ export default function EditTrip() {
   if (loading) {
     return (
       <SafeAreaView style={styles.center}>
-        <ActivityIndicator size="large" color="#1A3C40" />
+        <ActivityIndicator size="large" color={COLORS.brand} />
       </SafeAreaView>
     );
   }
@@ -175,8 +175,13 @@ export default function EditTrip() {
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.back()}>
-          <Ionicons name="arrow-forward" size={26} color="#1A3C40" />
+        <TouchableOpacity
+          onPress={() => router.back()}
+          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+          accessibilityRole="button"
+          accessibilityLabel="חזרה"
+        >
+          <Ionicons name="arrow-forward" size={26} color={COLORS.brand} />
         </TouchableOpacity>
         <Text style={styles.title}>עריכת טיול</Text>
         <View style={{ width: 26 }} />
@@ -206,7 +211,7 @@ export default function EditTrip() {
           disabled={saving}
         >
           {saving ? (
-            <ActivityIndicator color="#fff" />
+            <ActivityIndicator color={COLORS.onBrand} />
           ) : (
             <Text style={styles.saveText}>שמור שינויים</Text>
           )}
@@ -217,8 +222,8 @@ export default function EditTrip() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#F0F2F5" },
-  center: { flex: 1, justifyContent: "center", alignItems: "center" },
+  container: { flex: 1, backgroundColor: COLORS.background },
+  center: { flex: 1, justifyContent: "center", alignItems: "center", backgroundColor: COLORS.background },
 
   header: {
     flexDirection: "row-reverse",
@@ -230,7 +235,7 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 18,
     fontFamily: FONTS.bold,
-    color: "#1A3C40",
+    color: COLORS.brand,
   },
 
   content: { padding: 20, paddingBottom: 60 },
@@ -240,7 +245,7 @@ const styles = StyleSheet.create({
   label: {
     textAlign: "right",
     marginBottom: 6,
-    color: "#777",
+    color: COLORS.textSecondary,
     fontSize: 13,
     fontFamily: FONTS.regular,
   },
@@ -249,7 +254,7 @@ const styles = StyleSheet.create({
     flexDirection: "row-reverse",
     alignItems: "center",
     justifyContent: "space-between",
-    backgroundColor: "#fff",
+    backgroundColor: COLORS.surface,
     padding: 14,
     borderRadius: 12,
   },
@@ -257,11 +262,11 @@ const styles = StyleSheet.create({
   dateBtnText: {
     fontSize: 15,
     fontFamily: FONTS.regular,
-    color: "#222",
+    color: COLORS.text,
   },
 
   saveBtn: {
-    backgroundColor: "#1A3C40",
+    backgroundColor: COLORS.brand,
     padding: 16,
     borderRadius: 12,
     marginTop: 10,
@@ -269,7 +274,7 @@ const styles = StyleSheet.create({
   },
 
   saveText: {
-    color: "#fff",
+    color: COLORS.onBrand,
     fontFamily: FONTS.bold,
     fontSize: 16,
   },

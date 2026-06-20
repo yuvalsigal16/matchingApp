@@ -4,7 +4,6 @@ import { useRouter } from "expo-router";
 import React, { useEffect, useState } from "react";
 import {
   ActivityIndicator,
-  Alert,
   KeyboardAvoidingView,
   Platform,
   ScrollView,
@@ -19,7 +18,7 @@ import { apiLogin } from "../src/api/authService";
 import { getUserProfile } from "../src/api/userProfileService";
 import { setAuth } from "../src/auth/authStore";
 import { registerForPushNotifications } from "../src/push/pushNotifications";
-import { FONTS } from "../src/theme/fonts";
+import { COLORS, FONTS } from "../src/theme";
 
 const isValidEmail = (val) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(val.trim());
 const isValidPassword = (val) => val.length >= 6;
@@ -118,7 +117,7 @@ export default function LoginScreen() {
             <TextInput
               style={[styles.input, emailError ? styles.inputError : null]}
               placeholder="כתובת אימייל"
-              placeholderTextColor="#aaa"
+              placeholderTextColor={COLORS.textMuted}
               value={email}
               onChangeText={(v) => {
                 setEmail(v);
@@ -147,7 +146,7 @@ export default function LoginScreen() {
                   }}
                   activeOpacity={0.7}
                 >
-                  <Ionicons name="person-circle-outline" size={18} color="#1A3C40" />
+                  <Ionicons name="person-circle-outline" size={18} color={COLORS.brand} />
                   <Text style={styles.suggestionEmail} numberOfLines={1}>
                     {savedCreds.email}
                   </Text>
@@ -172,14 +171,14 @@ export default function LoginScreen() {
                 <Ionicons
                   name={showPassword ? "eye-outline" : "eye-off-outline"}
                   size={22}
-                  color="#CCCCCC"
+                  color={COLORS.textMuted}
                 />
               </TouchableOpacity>
 
               <TextInput
                 style={styles.passwordInput}
                 placeholder="סיסמה"
-                placeholderTextColor="#aaa"
+                placeholderTextColor={COLORS.textMuted}
                 value={password}
                 onChangeText={(v) => {
                   setPassword(v);
@@ -223,7 +222,7 @@ export default function LoginScreen() {
             disabled={isLoading}
           >
             {isLoading ? (
-              <ActivityIndicator color="#fff" />
+              <ActivityIndicator color={COLORS.onBrand} />
             ) : (
               <Text style={styles.loginButtonText}>התחבר</Text>
             )}
@@ -251,7 +250,7 @@ const styles = StyleSheet.create({
   // עיצוב המיכל הראשי - מלא את כל המסך, רקע קרם חמים
   safe: {
     flex: 1,
-    backgroundColor: "#F0F2F5",
+    backgroundColor: COLORS.background,
   },
 
   center: {
@@ -273,7 +272,7 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 32, // גודל טקסט גדול
     fontFamily: FONTS.extraBold,
-    color: "#111", // כמעט שחור
+    color: COLORS.text,
     textAlign: "center", // ממורכז
     marginBottom: 36, // רווח מתחת לכותרת
   },
@@ -298,13 +297,13 @@ const styles = StyleSheet.create({
     height: 54, // גובה קבוע לנוחות לחיצה
     borderRadius: 30, // פינות מעוגלות לגמרי (כמו כדור)
     borderWidth: 1.5, // עובי המסגרת
-    borderColor: "#ddd", // צבע מסגרת אפור בהיר
+    borderColor: COLORS.border,
     paddingHorizontal: 20, // ריווח פנימי מימין ושמאל
     fontSize: 16,
     fontFamily: FONTS.regular,
-    color: "#222",
+    color: COLORS.text,
     marginBottom: 6,
-    backgroundColor: "#fafafa", // רקע לבן-אפרפר עדין
+    backgroundColor: COLORS.surface,
   },
 
   // עיצוב המיכל החיצוני של שדה הסיסמה (מכיל גם את אייקון העין)
@@ -315,8 +314,8 @@ const styles = StyleSheet.create({
     height: 54,
     borderRadius: 30,
     borderWidth: 1.5,
-    borderColor: "#ddd",
-    backgroundColor: "#fafafa",
+    borderColor: COLORS.border,
+    backgroundColor: COLORS.surface,
     paddingHorizontal: 16,
     marginBottom: 6,
   },
@@ -326,7 +325,7 @@ const styles = StyleSheet.create({
     flex: 1, // תופס את כל השטח הנותר בשורה
     fontSize: 16,
     fontFamily: FONTS.regular,
-    color: "#222",
+    color: COLORS.text,
     height: "100%",
   },
 
@@ -337,12 +336,12 @@ const styles = StyleSheet.create({
 
   // עיצוב מסגרת אדומה - מוחלת על שדה שיש בו שגיאה
   inputError: {
-    borderColor: "#e74c3c", // אדום
+    borderColor: COLORS.danger,
   },
 
   // עיצוב טקסט הודעת שגיאה מתחת לשדה
   errorText: {
-    color: "#e74c3c", // אדום
+    color: COLORS.danger,
     fontSize: 12,
     fontFamily: FONTS.regular,
     textAlign: "right",
@@ -361,14 +360,14 @@ const styles = StyleSheet.create({
 
   // עיצוב הטקסט הרגיל בשורות הממורכזות (אפור)
   mutedText: {
-    color: "#666",
+    color: COLORS.textSecondary,
     fontSize: 14,
     fontFamily: FONTS.regular,
   },
 
   // עיצוב הטקסט הלחיץ בשורות הממורכזות (כחול, מודגש)
   linkText: {
-    color: "#1E90FF", // כחול בהיר
+    color: COLORS.brand,
     fontSize: 14,
     fontFamily: FONTS.bold,
   },
@@ -377,14 +376,14 @@ const styles = StyleSheet.create({
   loginButton: {
     width: "100%",
     height: 54,
-    backgroundColor: "#111", // שחור
+    backgroundColor: COLORS.brand,
     borderRadius: 30,
     justifyContent: "center", // טקסט ממורכז אנכית
     alignItems: "center", // טקסט ממורכז אופקית
     marginTop: 20,
     marginBottom: 4,
     // צל עדין לתחושת עומק
-    shadowColor: "#000",
+    shadowColor: COLORS.shadow,
     shadowOffset: { width: 0, height: 3 },
     shadowOpacity: 0.15,
     shadowRadius: 6,
@@ -392,20 +391,20 @@ const styles = StyleSheet.create({
   },
 
   loginButtonDisabled: {
-    backgroundColor: "#555",
+    backgroundColor: COLORS.textMuted,
     shadowOpacity: 0,
     elevation: 0,
   },
 
   loginButtonText: {
-    color: "#fff",
+    color: COLORS.onBrand,
     fontSize: 17,
     fontFamily: FONTS.bold,
     letterSpacing: 0.5,
   },
 
   apiErrorText: {
-    color: "#e74c3c",
+    color: COLORS.danger,
     fontSize: 14,
     fontFamily: FONTS.regular,
     textAlign: "center",
@@ -415,7 +414,7 @@ const styles = StyleSheet.create({
 
   socialLabel: {
     fontSize: 15,
-    color: "#222",
+    color: COLORS.text,
     fontFamily: FONTS.bold,
   },
 
@@ -423,10 +422,10 @@ const styles = StyleSheet.create({
     flexDirection: "row-reverse",
     alignItems: "center",
     gap: 8,
-    backgroundColor: "#EEF6F6",
+    backgroundColor: COLORS.brandLight,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: "#1A3C40",
+    borderColor: COLORS.brand,
     paddingHorizontal: 14,
     paddingVertical: 10,
     marginBottom: 8,
@@ -436,7 +435,7 @@ const styles = StyleSheet.create({
     flex: 1,
     fontSize: 14,
     fontFamily: FONTS.regular,
-    color: "#1A3C40",
+    color: COLORS.brand,
     textAlign: "right",
   },
 

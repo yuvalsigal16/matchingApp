@@ -11,6 +11,7 @@ import { I18nManager, View } from "react-native";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import { loadAuth } from "./src/auth/authStore";
 import { installFetchInterceptor } from "./src/api/installFetchInterceptor";
+import { COLORS } from "./src/theme";
 
 // מבטלים RTL ברמת המערכת. הקוד משתמש ב-"row-reverse" ידני להשגת תצוגת RTL,
 // ולכן ה-isRTL של React Native חייב להישאר false (אחרת זה מתהפך).
@@ -34,7 +35,7 @@ export default function RootLayout() {
   }, []);
 
   if (!fontsLoaded || !authLoaded) {
-    return <View style={{ flex: 1, backgroundColor: "#1A3C40" }} />;
+    return <View style={{ flex: 1, backgroundColor: COLORS.brand }} />;
   }
 
   return (

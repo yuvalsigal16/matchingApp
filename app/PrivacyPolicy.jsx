@@ -10,7 +10,7 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
-import { FONTS } from "./src/theme/fonts";
+import { COLORS, FONTS } from "./src/theme";
 
 // מסך מדיניות פרטיות - טקסט סטטי מקורי בעברית.
 const LAST_UPDATED = "יוני 2026";
@@ -100,7 +100,7 @@ export default function PrivacyPolicyScreen() {
     <SafeAreaView style={styles.container}>
       <View style={styles.headerRow}>
         <TouchableOpacity onPress={() => router.back()}>
-          <Ionicons name="arrow-forward" size={26} color="#1A3C40" />
+          <Ionicons name="arrow-forward" size={26} color={COLORS.brand} />
         </TouchableOpacity>
         <Text style={styles.header}>מדיניות פרטיות</Text>
         <View style={{ width: 26 }} />
@@ -126,7 +126,7 @@ export default function PrivacyPolicyScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#F0F2F5" },
+  container: { flex: 1, backgroundColor: COLORS.background },
 
   headerRow: {
     flexDirection: "row-reverse",
@@ -140,7 +140,7 @@ const styles = StyleSheet.create({
   header: {
     fontSize: 20,
     fontFamily: FONTS.bold,
-    color: "#1A3C40",
+    color: COLORS.brand,
   },
 
   content: {
@@ -150,7 +150,7 @@ const styles = StyleSheet.create({
 
   lastUpdated: {
     fontSize: 12,
-    color: "#888",
+    color: COLORS.textMuted,
     fontFamily: FONTS.regular,
     textAlign: "right",
     marginTop: 4,
@@ -159,11 +159,11 @@ const styles = StyleSheet.create({
 
   intro: {
     fontSize: 14,
-    color: "#444",
+    color: COLORS.text,
     fontFamily: FONTS.regular,
     textAlign: "right",
     lineHeight: 22,
-    backgroundColor: "#fff",
+    backgroundColor: COLORS.surface,
     padding: 14,
     borderRadius: 12,
     marginBottom: 18,
@@ -176,14 +176,14 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: 15,
     fontFamily: FONTS.bold,
-    color: "#1A3C40",
+    color: COLORS.brand,
     textAlign: "right",
     marginBottom: 6,
   },
 
   sectionBody: {
     fontSize: 14,
-    color: "#444",
+    color: COLORS.text,
     fontFamily: FONTS.regular,
     textAlign: "right",
     lineHeight: 22,

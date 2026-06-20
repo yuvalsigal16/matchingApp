@@ -23,7 +23,7 @@ import {
   getTripSuggestions,
 } from "../src/api/chatService";
 
-import { FONTS } from "../src/theme/fonts";
+import { COLORS, FONTS } from "../src/theme";
 
 export default function MatchingSuccess() {
   const router = useRouter();
@@ -88,7 +88,7 @@ export default function MatchingSuccess() {
       <SafeAreaView style={styles.center}>
         <ActivityIndicator
           size="large"
-          color="#1A3C40"
+          color={COLORS.brand}
         />
       </SafeAreaView>
     );
@@ -106,7 +106,7 @@ export default function MatchingSuccess() {
           <Ionicons
             name="heart"
             size={90}
-            color="#fff"
+            color={COLORS.onBrand}
           />
         </View>
 
@@ -267,7 +267,7 @@ StyleSheet.create({
 
 container:{
 flex:1,
-backgroundColor:"#F5F0E8",
+backgroundColor:COLORS.background,
 padding:24,
 },
 
@@ -275,6 +275,7 @@ center:{
 flex:1,
 justifyContent:"center",
 alignItems:"center",
+backgroundColor:COLORS.background,
 },
 
 iconContainer:{
@@ -282,7 +283,7 @@ alignSelf:"center",
 width:150,
 height:150,
 borderRadius:75,
-backgroundColor:"#2E8B57",
+backgroundColor:COLORS.success,
 justifyContent:"center",
 alignItems:"center",
 marginBottom:24,
@@ -292,13 +293,13 @@ title:{
 fontSize:34,
 textAlign:"center",
 fontFamily:FONTS.bold,
-color:"#1A3C40",
+color:COLORS.brand,
 },
 
 subtitle:{
 fontSize:18,
 textAlign:"center",
-color:"#2E8B57",
+color:COLORS.success,
 marginTop:8,
 fontFamily:FONTS.bold,
 },
@@ -308,10 +309,11 @@ textAlign:"center",
 marginTop:12,
 marginBottom:30,
 fontFamily:FONTS.regular,
+color:COLORS.textSecondary,
 },
 
 infoCard:{
-backgroundColor:"#fff",
+backgroundColor:COLORS.surface,
 padding:20,
 borderRadius:18,
 marginBottom:20,
@@ -324,11 +326,13 @@ marginBottom:14,
 },
 
 label:{
-color:"#777",
+color:COLORS.textSecondary,
+fontFamily:FONTS.regular,
 },
 
 value:{
 fontFamily:FONTS.bold,
+color:COLORS.text,
 },
 
 sectionTitle:{
@@ -336,10 +340,11 @@ fontSize:18,
 fontFamily:FONTS.bold,
 marginBottom:16,
 textAlign:"right",
+color:COLORS.brand,
 },
 
 placeCard:{
-backgroundColor:"#fff",
+backgroundColor:COLORS.surface,
 padding:14,
 borderRadius:16,
 marginBottom:10,
@@ -348,22 +353,25 @@ marginBottom:10,
 placeName:{
 fontFamily:FONTS.bold,
 marginBottom:6,
+color:COLORS.text,
 },
 
 empty:{
 textAlign:"center",
 marginBottom:20,
+color:COLORS.textMuted,
+fontFamily:FONTS.regular,
 },
 
 primaryBtn:{
-backgroundColor:"#1A3C40",
+backgroundColor:COLORS.brand,
 padding:18,
 borderRadius:18,
 marginTop:20,
 },
 
 primaryText:{
-color:"#fff",
+color:COLORS.onBrand,
 textAlign:"center",
 fontFamily:FONTS.bold,
 },
@@ -372,13 +380,14 @@ secondaryBtn:{
 marginTop:12,
 padding:18,
 borderWidth:1,
-borderColor:"#1A3C40",
+borderColor:COLORS.brand,
 borderRadius:18,
 },
 
 secondaryText:{
 textAlign:"center",
 fontFamily:FONTS.bold,
+color:COLORS.brand,
 },
 
 });

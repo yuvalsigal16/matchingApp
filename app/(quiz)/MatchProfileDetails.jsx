@@ -17,7 +17,7 @@ import { ChevronRight, MapPin, Plane } from "lucide-react-native";
 import { BASE_URL } from "../src/api/config";
 import { getToken, getUser } from "../src/auth/authStore";
 import { sendChatRequest } from "../src/api/notificationService";
-import { FONTS } from "../src/theme/fonts";
+import { COLORS, FONTS } from "../src/theme";
 
 const GENDER_DB_TO_HE = { Male: "זכר", Female: "נקבה", Other: "אחר" };
 
@@ -132,7 +132,7 @@ export default function MatchProfile() {
   if (loading) {
     return (
       <SafeAreaView style={styles.center}>
-        <ActivityIndicator size="large" color="#1A3C40" />
+        <ActivityIndicator size="large" color={COLORS.brand} />
       </SafeAreaView>
     );
   }
@@ -165,8 +165,14 @@ export default function MatchProfile() {
   return (
     <SafeAreaView style={styles.container}>
       {/* כפתור חזרה */}
-      <TouchableOpacity style={styles.backBtn} onPress={() => router.back()}>
-        <ChevronRight size={22} color="#1A3C40" />
+      <TouchableOpacity
+        style={styles.backBtn}
+        onPress={() => router.back()}
+        hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+        accessibilityRole="button"
+        accessibilityLabel="חזרה"
+      >
+        <ChevronRight size={22} color={COLORS.brand} />
       </TouchableOpacity>
 
       <ScrollView
@@ -197,7 +203,7 @@ export default function MatchProfile() {
 
           {user.city ? (
             <View style={styles.cityRow}>
-              <MapPin size={14} color="#7A8B8E" />
+              <MapPin size={14} color={COLORS.textMuted} />
               <Text style={styles.cityText}>{user.city}</Text>
             </View>
           ) : null}
@@ -215,7 +221,7 @@ export default function MatchProfile() {
         {trips.length > 0 && (
           <View style={styles.section}>
             <View style={styles.sectionHeader}>
-              <Plane size={17} color="#1A3C40" />
+              <Plane size={17} color={COLORS.brand} />
               <Text style={styles.sectionTitle}>טיולים מתוכננים</Text>
             </View>
             {trips.map((t, i) => (
@@ -291,8 +297,8 @@ export default function MatchProfile() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#F0F2F5" },
-  center: { flex: 1, justifyContent: "center", alignItems: "center" },
+  container: { flex: 1, backgroundColor: COLORS.background },
+  center: { flex: 1, justifyContent: "center", alignItems: "center", backgroundColor: COLORS.background },
 
   backBtn: {
     position: "absolute",
@@ -302,10 +308,10 @@ const styles = StyleSheet.create({
     width: 36,
     height: 36,
     borderRadius: 18,
-    backgroundColor: "#fff",
+    backgroundColor: COLORS.surface,
     justifyContent: "center",
     alignItems: "center",
-    shadowColor: "#000",
+    shadowColor: COLORS.shadow,
     shadowOpacity: 0.08,
     shadowRadius: 4,
     elevation: 3,
@@ -318,11 +324,11 @@ const styles = StyleSheet.create({
     paddingTop: 30,
     paddingBottom: 28,
     paddingHorizontal: 24,
-    backgroundColor: "#fff",
+    backgroundColor: COLORS.surface,
     marginBottom: 16,
     borderBottomLeftRadius: 28,
     borderBottomRightRadius: 28,
-    shadowColor: "#000",
+    shadowColor: COLORS.shadow,
     shadowOpacity: 0.06,
     shadowRadius: 8,
     elevation: 3,
@@ -334,14 +340,14 @@ const styles = StyleSheet.create({
     borderRadius: 48,
     marginBottom: 14,
     borderWidth: 3,
-    borderColor: "#E8F0F0",
+    borderColor: COLORS.brandLight,
   },
 
   avatarPlaceholder: {
     width: 96,
     height: 96,
     borderRadius: 48,
-    backgroundColor: "#1A3C40",
+    backgroundColor: COLORS.brand,
     justifyContent: "center",
     alignItems: "center",
     marginBottom: 14,
@@ -350,20 +356,20 @@ const styles = StyleSheet.create({
   avatarInitials: {
     fontSize: 34,
     fontFamily: FONTS.bold,
-    color: "#fff",
+    color: COLORS.onBrand,
   },
 
   name: {
     fontSize: 22,
     fontFamily: FONTS.extraBold || FONTS.bold,
-    color: "#1A1A1A",
+    color: COLORS.text,
     marginBottom: 4,
   },
 
   ageLine: {
     fontSize: 15,
     fontFamily: FONTS.regular,
-    color: "#666",
+    color: COLORS.textSecondary,
     marginBottom: 6,
   },
 
@@ -377,11 +383,11 @@ const styles = StyleSheet.create({
   cityText: {
     fontSize: 14,
     fontFamily: FONTS.regular,
-    color: "#7A8B8E",
+    color: COLORS.textMuted,
   },
 
   matchBox: {
-    backgroundColor: "#FFF8E7",
+    backgroundColor: COLORS.amberLight,
     borderRadius: 20,
     paddingHorizontal: 16,
     paddingVertical: 8,
@@ -391,16 +397,16 @@ const styles = StyleSheet.create({
   matchText: {
     fontSize: 15,
     fontFamily: FONTS.bold,
-    color: "#D97706",
+    color: COLORS.amberDark,
   },
 
   section: {
-    backgroundColor: "#fff",
+    backgroundColor: COLORS.surface,
     marginHorizontal: 16,
     marginBottom: 12,
     borderRadius: 18,
     padding: 18,
-    shadowColor: "#000",
+    shadowColor: COLORS.shadow,
     shadowOpacity: 0.04,
     shadowRadius: 6,
     elevation: 2,
@@ -416,32 +422,32 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: 15,
     fontFamily: FONTS.bold,
-    color: "#1A3C40",
+    color: COLORS.brand,
     textAlign: "right",
     marginBottom: 12,
   },
 
   tripCard: {
-    backgroundColor: "#F0F8F8",
+    backgroundColor: COLORS.brandLight,
     borderRadius: 12,
     padding: 12,
     marginBottom: 8,
     borderRightWidth: 3,
-    borderRightColor: "#1A3C40",
+    borderRightColor: COLORS.brand,
     alignItems: "flex-end",
   },
 
   tripDest: {
     fontSize: 16,
     fontFamily: FONTS.bold,
-    color: "#1A3C40",
+    color: COLORS.brand,
     textAlign: "right",
   },
 
   tripDates: {
     fontSize: 13,
     fontFamily: FONTS.regular,
-    color: "#7A8B8E",
+    color: COLORS.textMuted,
     marginTop: 3,
     textAlign: "right",
   },
@@ -453,7 +459,7 @@ const styles = StyleSheet.create({
   },
 
   tag: {
-    backgroundColor: "#EEF6F6",
+    backgroundColor: COLORS.brandLight,
     borderRadius: 20,
     paddingHorizontal: 12,
     paddingVertical: 6,
@@ -462,7 +468,7 @@ const styles = StyleSheet.create({
   tagText: {
     fontSize: 13,
     fontFamily: FONTS.regular,
-    color: "#1A3C40",
+    color: COLORS.brand,
   },
 
   interestTag: {
@@ -488,28 +494,28 @@ const styles = StyleSheet.create({
 
   chatBtn: {
     flex: 1,
-    backgroundColor: "#1A3C40",
+    backgroundColor: COLORS.brand,
     paddingVertical: 16,
     borderRadius: 14,
     alignItems: "center",
   },
 
   chatBtnText: {
-    color: "#fff",
+    color: COLORS.onBrand,
     fontSize: 16,
     fontFamily: FONTS.bold,
   },
 
   removeBtn: {
     flex: 1,
-    backgroundColor: "#F1F3F4",
+    backgroundColor: COLORS.divider,
     paddingVertical: 16,
     borderRadius: 14,
     alignItems: "center",
   },
 
   removeBtnText: {
-    color: "#666",
+    color: COLORS.textSecondary,
     fontSize: 16,
     fontFamily: FONTS.bold,
   },

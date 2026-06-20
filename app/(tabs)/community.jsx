@@ -5,6 +5,7 @@ import {
   Modal,
   Platform,
   Pressable,
+  RefreshControl,
   ScrollView,
   StyleSheet,
   Text,
@@ -18,7 +19,7 @@ import { ChevronRight, Plus, Users } from "lucide-react-native";
 
 import { BASE_URL } from "../src/api/config";
 import { getToken, getUser } from "../src/auth/authStore";
-import { FONTS } from "../src/theme/fonts";
+import { COLORS, FONTS } from "../src/theme";
 import BottomNav from "../../components/BottomNav";
 
 const ICON_COLORS = [
@@ -38,6 +39,7 @@ export default function CommunityScreen() {
 
   const [communities, setCommunities] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [joining, setJoining] = useState({});
 
   // מצב מודל יצירת קהילה
@@ -50,8 +52,14 @@ export default function CommunityScreen() {
     loadCommunities();
   }, []);
 
-  const loadCommunities = async () => {
-    setLoading(true);
+  const onRefresh = async () => {
+    setRefreshing(true);
+    await loadCommunities(true);
+    setRefreshing(false);
+  };
+
+  const loadCommunities = async (silent = false) => {
+    if (!silent) setLoading(true);
     try {
       const token = getToken();
       const res = await fetch(`${BASE_URL}/Community`, {
@@ -67,7 +75,7 @@ export default function CommunityScreen() {
     } catch (err) {
       console.error("loadCommunities:", err);
     } finally {
-      setLoading(false);
+      if (!silent) setLoading(false);
     }
   };
 
@@ -121,16 +129,24 @@ export default function CommunityScreen() {
   };
 
   const handleJoin = async (communityId) => {
+    const me = getUser();
+    if (!me?.userID) {
+      Alert.alert("שגיאה", "יש להתחבר כדי להצטרף לקהילה");
+      return;
+    }
     setJoining((prev) => ({ ...prev, [communityId]: true }));
     try {
       const token = getToken();
-      const res = await fetch(`${BASE_URL}/Community/${communityId}/join`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-      });
+      // ההצטרפות נעשית דרך CommunityMember עם פרמטרים ב-query string
+      // (ה-controller מקבל communityID + userID כפרמטרים, לא ב-body).
+      // ה-route הקודם /Community/{id}/join לא קיים בשרת וגרם לשגיאה.
+      const res = await fetch(
+        `${BASE_URL}/CommunityMember?communityID=${communityId}&userID=${me.userID}`,
+        {
+          method: "POST",
+          headers: token ? { Authorization: `Bearer ${token}` } : {},
+        }
+      );
       if (res.ok) {
         setCommunities((prev) =>
           prev.map((c) =>
@@ -140,7 +156,8 @@ export default function CommunityScreen() {
           )
         );
       } else {
-        Alert.alert("שגיאה", "לא הצלחנו להצטרף לקהילה. נסה שוב.");
+        const msg = await res.text().catch(() => "");
+        Alert.alert("שגיאה", msg || "לא הצלחנו להצטרף לקהילה. נסה שוב.");
       }
     } catch (err) {
       Alert.alert("שגיאה", "בעיית תקשורת. נסה שוב.");
@@ -152,7 +169,7 @@ export default function CommunityScreen() {
   if (loading) {
     return (
       <SafeAreaView style={styles.center}>
-        <ActivityIndicator size="large" color="#1A3C40" />
+        <ActivityIndicator size="large" color={COLORS.brand} />
       </SafeAreaView>
     );
   }
@@ -161,8 +178,14 @@ export default function CommunityScreen() {
     <SafeAreaView style={styles.container}>
       {/* Header */}
       <View style={styles.headerRow}>
-        <TouchableOpacity style={styles.backBtn} onPress={() => router.back()}>
-          <ChevronRight size={22} color="#1A3C40" />
+        <TouchableOpacity
+          style={styles.backBtn}
+          onPress={() => router.back()}
+          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+          accessibilityRole="button"
+          accessibilityLabel="חזרה"
+        >
+          <ChevronRight size={22} color={COLORS.brand} />
         </TouchableOpacity>
         <Text style={styles.title}>קהילות</Text>
         <View style={{ width: 36 }} />
@@ -176,14 +199,25 @@ export default function CommunityScreen() {
           style={styles.addBtn}
           onPress={() => setCreateVisible(true)}
         >
-          <Plus size={20} color="#fff" strokeWidth={2.5} />
+          <Plus size={20} color={COLORS.onBrand} strokeWidth={2.5} />
         </TouchableOpacity>
       </View>
 
-      <ScrollView contentContainerStyle={styles.list} showsVerticalScrollIndicator={false}>
+      <ScrollView
+        contentContainerStyle={styles.list}
+        showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            colors={[COLORS.brand]}
+            tintColor={COLORS.brand}
+          />
+        }
+      >
         {communities.length === 0 ? (
           <View style={styles.emptyBox}>
-            <Users size={40} color="#ccc" strokeWidth={1.5} />
+            <Users size={40} color={COLORS.textMuted} strokeWidth={1.5} />
             <Text style={styles.emptyText}>אין קהילות עדיין</Text>
           </View>
         ) : (
@@ -202,7 +236,7 @@ export default function CommunityScreen() {
                   activeOpacity={0.8}
                 >
                   {isJoining ? (
-                    <ActivityIndicator size="small" color="#fff" />
+                    <ActivityIndicator size="small" color={COLORS.onBrand} />
                   ) : (
                     <Text style={styles.joinText}>
                       {isJoined ? "חבר" : "הצטרף"}
@@ -248,7 +282,7 @@ export default function CommunityScreen() {
             <TextInput
               style={styles.input}
               placeholder="לדוגמה: טיולים בדרום אמריקה"
-              placeholderTextColor="#bbb"
+              placeholderTextColor={COLORS.textMuted}
               value={newName}
               onChangeText={setNewName}
               textAlign="right"
@@ -259,7 +293,7 @@ export default function CommunityScreen() {
             <TextInput
               style={[styles.input, styles.inputMulti]}
               placeholder="ספרי על הקהילה..."
-              placeholderTextColor="#bbb"
+              placeholderTextColor={COLORS.textMuted}
               value={newDesc}
               onChangeText={setNewDesc}
               textAlign="right"
@@ -273,7 +307,7 @@ export default function CommunityScreen() {
               disabled={creating}
             >
               {creating ? (
-                <ActivityIndicator color="#fff" size="small" />
+                <ActivityIndicator color={COLORS.onBrand} size="small" />
               ) : (
                 <Text style={styles.createBtnText}>צרי קהילה</Text>
               )}
@@ -293,12 +327,12 @@ export default function CommunityScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#F0F2F5" },
+  container: { flex: 1, backgroundColor: COLORS.background },
   center: {
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
-    backgroundColor: "#F0F2F5",
+    backgroundColor: COLORS.background,
   },
 
   headerRow: {
@@ -314,10 +348,10 @@ const styles = StyleSheet.create({
     width: 36,
     height: 36,
     borderRadius: 18,
-    backgroundColor: "#fff",
+    backgroundColor: COLORS.surface,
     justifyContent: "center",
     alignItems: "center",
-    shadowColor: "#000",
+    shadowColor: COLORS.shadow,
     shadowOpacity: 0.08,
     shadowRadius: 4,
     elevation: 2,
@@ -327,10 +361,10 @@ const styles = StyleSheet.create({
     width: 36,
     height: 36,
     borderRadius: 18,
-    backgroundColor: "#1A3C40",
+    backgroundColor: COLORS.brand,
     justifyContent: "center",
     alignItems: "center",
-    shadowColor: "#000",
+    shadowColor: COLORS.shadow,
     shadowOpacity: 0.15,
     shadowRadius: 4,
     elevation: 3,
@@ -346,7 +380,7 @@ const styles = StyleSheet.create({
 
   modalCard: {
     width: "100%",
-    backgroundColor: "#fff",
+    backgroundColor: COLORS.surface,
     borderRadius: 20,
     padding: 24,
   },
@@ -354,7 +388,7 @@ const styles = StyleSheet.create({
   modalTitle: {
     fontSize: 18,
     fontFamily: FONTS.bold,
-    color: "#1A3C40",
+    color: COLORS.brand,
     textAlign: "center",
     marginBottom: 20,
   },
@@ -362,19 +396,19 @@ const styles = StyleSheet.create({
   fieldLabel: {
     fontSize: 13,
     fontFamily: FONTS.bold,
-    color: "#555",
+    color: COLORS.textSecondary,
     textAlign: "right",
     marginBottom: 6,
   },
 
   input: {
-    backgroundColor: "#F0F2F5",
+    backgroundColor: COLORS.background,
     borderRadius: 12,
     paddingHorizontal: 14,
     paddingVertical: 12,
     fontSize: 15,
     fontFamily: FONTS.regular,
-    color: "#1A1A1A",
+    color: COLORS.text,
     marginBottom: 14,
     textAlign: "right",
   },
@@ -385,7 +419,7 @@ const styles = StyleSheet.create({
   },
 
   createBtn: {
-    backgroundColor: "#1A3C40",
+    backgroundColor: COLORS.brand,
     borderRadius: 14,
     paddingVertical: 14,
     alignItems: "center",
@@ -393,7 +427,7 @@ const styles = StyleSheet.create({
   },
 
   createBtnText: {
-    color: "#fff",
+    color: COLORS.onBrand,
     fontSize: 16,
     fontFamily: FONTS.bold,
   },
@@ -406,7 +440,7 @@ const styles = StyleSheet.create({
   cancelText: {
     fontSize: 14,
     fontFamily: FONTS.regular,
-    color: "#888",
+    color: COLORS.textMuted,
   },
 
   addRow: {
@@ -419,13 +453,13 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 20,
     fontFamily: FONTS.extraBold,
-    color: "#1A1A1A",
+    color: COLORS.text,
   },
 
   subtitle: {
     fontSize: 14,
     fontFamily: FONTS.regular,
-    color: "#888",
+    color: COLORS.textMuted,
     textAlign: "center",
     marginTop: 4,
     marginBottom: 2,
@@ -441,10 +475,10 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    backgroundColor: "#fff",
+    backgroundColor: COLORS.surface,
     padding: 16,
     borderRadius: 18,
-    shadowColor: "#000",
+    shadowColor: COLORS.shadow,
     shadowOpacity: 0.05,
     shadowRadius: 6,
     elevation: 2,
@@ -467,7 +501,7 @@ const styles = StyleSheet.create({
   cardName: {
     fontSize: 16,
     fontFamily: FONTS.bold,
-    color: "#1A1A1A",
+    color: COLORS.text,
     textAlign: "right",
     marginBottom: 4,
   },
@@ -475,12 +509,12 @@ const styles = StyleSheet.create({
   cardMembers: {
     fontSize: 13,
     fontFamily: FONTS.regular,
-    color: "#999",
+    color: COLORS.textMuted,
     textAlign: "right",
   },
 
   joinBtn: {
-    backgroundColor: "#1A1A1A",
+    backgroundColor: COLORS.brand,
     paddingHorizontal: 18,
     paddingVertical: 9,
     borderRadius: 20,
@@ -490,11 +524,11 @@ const styles = StyleSheet.create({
   },
 
   joinBtnDone: {
-    backgroundColor: "#6B7280",
+    backgroundColor: COLORS.textSecondary,
   },
 
   joinText: {
-    color: "#fff",
+    color: COLORS.onBrand,
     fontSize: 14,
     fontFamily: FONTS.bold,
   },
@@ -507,7 +541,7 @@ const styles = StyleSheet.create({
 
   emptyText: {
     fontSize: 16,
-    color: "#888",
+    color: COLORS.textMuted,
     fontFamily: FONTS.regular,
   },
 });

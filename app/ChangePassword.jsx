@@ -17,7 +17,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 
 import { apiChangePassword } from "./src/api/authService";
 import { getUser } from "./src/auth/authStore";
-import { FONTS } from "./src/theme/fonts";
+import { COLORS, FONTS } from "./src/theme";
 
 // אורך מינימלי של סיסמה - תואם לבדיקה במסך הרשמה.
 const MIN_PASSWORD_LENGTH = 6;
@@ -100,7 +100,7 @@ export default function ChangePasswordScreen() {
           <Ionicons
             name={show ? "eye-outline" : "eye-off-outline"}
             size={22}
-            color="#999"
+            color={COLORS.textMuted}
           />
         </TouchableOpacity>
         <TextInput
@@ -111,7 +111,7 @@ export default function ChangePasswordScreen() {
             setError("");
           }}
           placeholder={placeholder}
-          placeholderTextColor="#aaa"
+          placeholderTextColor={COLORS.textMuted}
           secureTextEntry={!show}
           textAlign="right"
           autoCapitalize="none"
@@ -125,7 +125,7 @@ export default function ChangePasswordScreen() {
     <SafeAreaView style={styles.container}>
       <View style={styles.headerRow}>
         <TouchableOpacity onPress={() => router.back()}>
-          <Ionicons name="arrow-forward" size={26} color="#1A3C40" />
+          <Ionicons name="arrow-forward" size={26} color={COLORS.brand} />
         </TouchableOpacity>
         <Text style={styles.header}>שינוי סיסמה</Text>
         <View style={{ width: 26 }} />
@@ -181,7 +181,7 @@ export default function ChangePasswordScreen() {
             activeOpacity={0.85}
           >
             {submitting ? (
-              <ActivityIndicator color="#fff" />
+              <ActivityIndicator color={COLORS.onBrand} />
             ) : (
               <Text style={styles.submitText}>עדכן סיסמה</Text>
             )}
@@ -193,7 +193,7 @@ export default function ChangePasswordScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#F0F2F5" },
+  container: { flex: 1, backgroundColor: COLORS.background },
 
   headerRow: {
     flexDirection: "row-reverse",
@@ -207,7 +207,7 @@ const styles = StyleSheet.create({
   header: {
     fontSize: 20,
     fontFamily: FONTS.bold,
-    color: "#1A3C40",
+    color: COLORS.brand,
   },
 
   content: {
@@ -218,7 +218,7 @@ const styles = StyleSheet.create({
 
   intro: {
     fontSize: 14,
-    color: "#6E6E6E",
+    color: COLORS.textSecondary,
     fontFamily: FONTS.regular,
     textAlign: "right",
     marginBottom: 22,
@@ -232,7 +232,7 @@ const styles = StyleSheet.create({
   label: {
     fontSize: 14,
     fontFamily: FONTS.bold,
-    color: "#1A3C40",
+    color: COLORS.brand,
     textAlign: "right",
     marginBottom: 6,
   },
@@ -240,10 +240,10 @@ const styles = StyleSheet.create({
   inputWrapper: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "#fff",
+    backgroundColor: COLORS.surface,
     borderRadius: 14,
     borderWidth: 1,
-    borderColor: "#DADDE1",
+    borderColor: COLORS.border,
     paddingHorizontal: 14,
   },
 
@@ -252,7 +252,7 @@ const styles = StyleSheet.create({
     height: 48,
     fontSize: 15,
     fontFamily: FONTS.regular,
-    color: "#1A1A1A",
+    color: COLORS.text,
     textAlign: "right",
   },
 
@@ -261,7 +261,7 @@ const styles = StyleSheet.create({
   },
 
   errorText: {
-    color: "#C0392B",
+    color: COLORS.danger,
     fontFamily: FONTS.regular,
     fontSize: 14,
     textAlign: "right",
@@ -270,7 +270,7 @@ const styles = StyleSheet.create({
   },
 
   submitBtn: {
-    backgroundColor: "#1A3C40",
+    backgroundColor: COLORS.brand,
     paddingVertical: 16,
     borderRadius: 14,
     alignItems: "center",
@@ -278,7 +278,7 @@ const styles = StyleSheet.create({
   },
 
   submitText: {
-    color: "#fff",
+    color: COLORS.surface,
     fontSize: 16,
     fontFamily: FONTS.bold,
   },

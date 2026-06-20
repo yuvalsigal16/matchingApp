@@ -6,6 +6,7 @@ import {
   Modal,
   Platform,
   Pressable,
+  RefreshControl,
   ScrollView,
   StyleSheet,
   Text,
@@ -21,7 +22,7 @@ import { BASE_URL } from "../src/api/config";
 import { getToken, getUser } from "../src/auth/authStore";
 import { addRecommendation, getRecommendationsByTrip } from "../src/api/recommendationService";
 import { getUserTrips } from "../src/api/tripService";
-import { FONTS } from "../src/theme/fonts";
+import { COLORS, FONTS } from "../src/theme";
 import BottomNav from "../../components/BottomNav";
 
 export default function RecommendationsScreen() {
@@ -29,6 +30,7 @@ export default function RecommendationsScreen() {
 
   const [recommendations, setRecommendations] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [modalVisible, setModalVisible] = useState(false);
 
   // טופס יצירת המלצה
@@ -43,8 +45,14 @@ export default function RecommendationsScreen() {
     loadRecommendations();
   }, []);
 
-  const loadRecommendations = async () => {
-    setLoading(true);
+  const onRefresh = async () => {
+    setRefreshing(true);
+    await loadRecommendations(true);
+    setRefreshing(false);
+  };
+
+  const loadRecommendations = async (silent = false) => {
+    if (!silent) setLoading(true);
     try {
       const userId = getUser()?.userID;
       const token = getToken();
@@ -52,7 +60,8 @@ export default function RecommendationsScreen() {
 
       const headers = { Authorization: `Bearer ${token}` };
 
-      const tripsRes = await fetch(`${BASE_URL}/Trips/user/${userId}`, { headers });
+      // ה-route בשרת הוא /Trip/user (יחיד). שימוש ב-/Trips גרם ל-404 וההמלצות לא נטענו.
+      const tripsRes = await fetch(`${BASE_URL}/Trip/user/${userId}`, { headers });
       if (!tripsRes.ok) return;
       const userTrips = await tripsRes.json();
 
@@ -67,7 +76,7 @@ export default function RecommendationsScreen() {
     } catch (err) {
       console.error("loadRecommendations:", err);
     } finally {
-      setLoading(false);
+      if (!silent) setLoading(false);
     }
   };
 
@@ -108,7 +117,10 @@ export default function RecommendationsScreen() {
         isAnonymous: false,
       });
       setModalVisible(false);
-      loadRecommendations();
+      await loadRecommendations();
+      // משוב ברור שההמלצה נשמרה — קודם המשתמשת לא ידעה אם זה עבד.
+      if (Platform.OS === "web") window.alert("ההמלצה נוספה בהצלחה");
+      else Alert.alert("נוסף בהצלחה ✨", "ההמלצה שלך נוספה ומופיעה ברשימה");
     } catch (err) {
       Alert.alert("שגיאה", err.message || "לא ניתן להוסיף המלצה");
     } finally {
@@ -124,7 +136,7 @@ export default function RecommendationsScreen() {
   if (loading) {
     return (
       <SafeAreaView style={styles.center}>
-        <ActivityIndicator size="large" color="#1A3C40" />
+        <ActivityIndicator size="large" color={COLORS.brand} />
       </SafeAreaView>
     );
   }
@@ -133,24 +145,42 @@ export default function RecommendationsScreen() {
     <SafeAreaView style={styles.container}>
       {/* Header */}
       <View style={styles.headerRow}>
-        <TouchableOpacity onPress={() => router.back()}>
-          <Ionicons name="arrow-forward" size={26} color="#1A3C40" />
+        <TouchableOpacity
+          onPress={() => router.back()}
+          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+          accessibilityRole="button"
+          accessibilityLabel="חזרה"
+        >
+          <Ionicons name="arrow-forward" size={26} color={COLORS.brand} />
         </TouchableOpacity>
         <Text style={styles.header}>המלצות</Text>
         <View style={{ width: 26 }} />
       </View>
 
-      <ScrollView contentContainerStyle={styles.content}>
+      <ScrollView
+        contentContainerStyle={styles.content}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            colors={[COLORS.brand]}
+            tintColor={COLORS.brand}
+          />
+        }
+      >
         {recommendations.length === 0 ? (
           <View style={styles.emptyBox}>
-            <Ionicons name="star-outline" size={40} color="#aaa" />
-            <Text style={styles.emptyText}>אין המלצות עדיין</Text>
+            <Ionicons name="star-outline" size={40} color={COLORS.textMuted} />
+            <Text style={styles.emptyTitle}>עדיין אין המלצות</Text>
+            <Text style={styles.emptyText}>
+              שתפו מקום שאהבתם בטיול — לחצו על ה־＋ למטה כדי להוסיף את ההמלצה הראשונה
+            </Text>
           </View>
         ) : (
           recommendations.map((rec) => (
             <View key={rec.recommendationID} style={styles.card}>
               <View style={styles.iconBox}>
-                <Ionicons name="location-outline" size={22} color="#1A3C40" />
+                <Ionicons name="location-outline" size={22} color={COLORS.brand} />
               </View>
               <View style={styles.cardText}>
                 <Text style={styles.title}>{rec.placeName}</Text>
@@ -171,7 +201,7 @@ export default function RecommendationsScreen() {
 
       {/* כפתור פלוס */}
       <TouchableOpacity style={styles.fab} onPress={openModal}>
-        <Ionicons name="add" size={28} color="#fff" />
+        <Ionicons name="add" size={28} color={COLORS.onBrand} />
       </TouchableOpacity>
 
       {/* Modal יצירת המלצה */}
@@ -190,7 +220,7 @@ export default function RecommendationsScreen() {
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>המלצה חדשה</Text>
               <Pressable onPress={() => setModalVisible(false)}>
-                <Ionicons name="close" size={24} color="#1A3C40" />
+                <Ionicons name="close" size={24} color={COLORS.brand} />
               </Pressable>
             </View>
 
@@ -220,7 +250,7 @@ export default function RecommendationsScreen() {
               <TextInput
                 style={styles.input}
                 placeholder="למשל: מסעדת פייר בפריז"
-                placeholderTextColor="#aaa"
+                placeholderTextColor={COLORS.textMuted}
                 value={placeName}
                 onChangeText={setPlaceName}
                 textAlign="right"
@@ -231,7 +261,7 @@ export default function RecommendationsScreen() {
               <TextInput
                 style={[styles.input, styles.inputMulti]}
                 placeholder="למה כדאי ללכת..."
-                placeholderTextColor="#aaa"
+                placeholderTextColor={COLORS.textMuted}
                 value={description}
                 onChangeText={setDescription}
                 multiline
@@ -248,7 +278,7 @@ export default function RecommendationsScreen() {
                     <Ionicons
                       name={s <= rating ? "star" : "star-outline"}
                       size={32}
-                      color="#F4C77B"
+                      color={COLORS.amber}
                     />
                   </Pressable>
                 ))}
@@ -261,7 +291,7 @@ export default function RecommendationsScreen() {
                 disabled={submitting}
               >
                 {submitting ? (
-                  <ActivityIndicator color="#fff" />
+                  <ActivityIndicator color={COLORS.onBrand} />
                 ) : (
                   <Text style={styles.submitBtnText}>הוסיפי המלצה</Text>
                 )}
@@ -277,8 +307,8 @@ export default function RecommendationsScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#F0F2F5" },
-  center: { flex: 1, justifyContent: "center", alignItems: "center", backgroundColor: "#F0F2F5" },
+  container: { flex: 1, backgroundColor: COLORS.background },
+  center: { flex: 1, justifyContent: "center", alignItems: "center", backgroundColor: COLORS.background },
 
   headerRow: {
     flexDirection: "row-reverse",
@@ -288,41 +318,49 @@ const styles = StyleSheet.create({
     paddingTop: 20,
     paddingBottom: 10,
   },
-  header: { fontSize: 20, fontFamily: FONTS.bold, color: "#1A3C40" },
+  header: { fontSize: 20, fontFamily: FONTS.bold, color: COLORS.brand },
 
   content: { paddingHorizontal: 20, paddingBottom: 120 },
 
   card: {
     flexDirection: "row-reverse",
     alignItems: "flex-start",
-    backgroundColor: "#fff",
+    backgroundColor: COLORS.surface,
     padding: 14,
     borderRadius: 16,
     marginBottom: 10,
-    shadowColor: "#000",
+    shadowColor: COLORS.shadow,
     shadowOpacity: 0.05,
     shadowRadius: 6,
     elevation: 2,
   },
   iconBox: {
     width: 48, height: 48, borderRadius: 24,
-    backgroundColor: "#E7F3FF",
+    backgroundColor: COLORS.brandLight,
     justifyContent: "center", alignItems: "center",
   },
   cardText: { flex: 1, marginHorizontal: 12, alignItems: "flex-end" },
-  title: { fontSize: 16, fontFamily: FONTS.bold, color: "#1A3C40" },
-  tripName: { fontSize: 12, fontFamily: FONTS.regular, color: "#1877F2", marginTop: 2 },
-  subtitle: { fontSize: 13, fontFamily: FONTS.regular, color: "#666", marginTop: 4, textAlign: "right" },
+  title: { fontSize: 16, fontFamily: FONTS.bold, color: COLORS.brand },
+  tripName: { fontSize: 12, fontFamily: FONTS.regular, color: COLORS.primary, marginTop: 2 },
+  subtitle: { fontSize: 13, fontFamily: FONTS.regular, color: COLORS.textSecondary, marginTop: 4, textAlign: "right" },
   stars: { fontSize: 13, marginTop: 6 },
 
-  emptyBox: { marginTop: 80, alignItems: "center" },
-  emptyText: { marginTop: 10, fontSize: 16, color: "#888", fontFamily: FONTS.regular },
+  emptyBox: { marginTop: 80, alignItems: "center", paddingHorizontal: 32 },
+  emptyTitle: { marginTop: 12, fontSize: 17, color: COLORS.brand, fontFamily: FONTS.bold },
+  emptyText: {
+    marginTop: 6,
+    fontSize: 14,
+    color: COLORS.textMuted,
+    fontFamily: FONTS.regular,
+    textAlign: "center",
+    lineHeight: 20,
+  },
 
   fab: {
     position: "absolute",
     bottom: 90,
     alignSelf: "center",
-    backgroundColor: "#1A3C40",
+    backgroundColor: COLORS.brand,
     width: 60, height: 60, borderRadius: 30,
     justifyContent: "center", alignItems: "center",
     elevation: 5,
@@ -335,7 +373,7 @@ const styles = StyleSheet.create({
     backgroundColor: "rgba(0,0,0,0.4)",
   },
   modalSheet: {
-    backgroundColor: "#fff",
+    backgroundColor: COLORS.surface,
     borderTopLeftRadius: 24,
     borderTopRightRadius: 24,
     paddingHorizontal: 20,
@@ -349,42 +387,42 @@ const styles = StyleSheet.create({
     alignItems: "center",
     marginBottom: 20,
   },
-  modalTitle: { fontSize: 18, fontFamily: FONTS.bold, color: "#1A3C40" },
+  modalTitle: { fontSize: 18, fontFamily: FONTS.bold, color: COLORS.brand },
 
   label: {
     fontSize: 14,
     fontFamily: FONTS.bold,
-    color: "#1A3C40",
+    color: COLORS.brand,
     textAlign: "right",
     marginBottom: 8,
     marginTop: 14,
   },
-  noTrips: { fontSize: 13, color: "#999", fontFamily: FONTS.regular, textAlign: "right" },
+  noTrips: { fontSize: 13, color: COLORS.textMuted, fontFamily: FONTS.regular, textAlign: "right" },
 
   tripPicker: { marginBottom: 4 },
   tripChip: {
     paddingHorizontal: 14,
     paddingVertical: 8,
     borderRadius: 20,
-    backgroundColor: "#F0F2F5",
+    backgroundColor: COLORS.background,
     marginLeft: 8,
     borderWidth: 1,
-    borderColor: "#ddd",
+    borderColor: COLORS.border,
   },
-  tripChipActive: { backgroundColor: "#1A3C40", borderColor: "#1A3C40" },
-  tripChipText: { fontSize: 13, fontFamily: FONTS.regular, color: "#444" },
-  tripChipTextActive: { color: "#fff" },
+  tripChipActive: { backgroundColor: COLORS.brand, borderColor: COLORS.brand },
+  tripChipText: { fontSize: 13, fontFamily: FONTS.regular, color: COLORS.textSecondary },
+  tripChipTextActive: { color: COLORS.onBrand },
 
   input: {
-    backgroundColor: "#F7F8FA",
+    backgroundColor: COLORS.background,
     borderRadius: 12,
     paddingHorizontal: 14,
     paddingVertical: 12,
     fontSize: 14,
     fontFamily: FONTS.regular,
-    color: "#1A3C40",
+    color: COLORS.text,
     borderWidth: 1,
-    borderColor: "#E5E7EB",
+    borderColor: COLORS.border,
   },
   inputMulti: { height: 80 },
 
@@ -395,12 +433,12 @@ const styles = StyleSheet.create({
   },
 
   submitBtn: {
-    backgroundColor: "#1A3C40",
+    backgroundColor: COLORS.brand,
     borderRadius: 30,
     paddingVertical: 16,
     alignItems: "center",
     marginTop: 24,
   },
   submitBtnDisabled: { opacity: 0.6 },
-  submitBtnText: { color: "#fff", fontSize: 16, fontFamily: FONTS.bold },
+  submitBtnText: { color: COLORS.onBrand, fontSize: 16, fontFamily: FONTS.bold },
 });

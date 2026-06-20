@@ -45,7 +45,7 @@ import {
 } from "../src/api/tripService";
 import { BASE_URL } from "../src/api/config";
 import { getToken, getUser } from "../src/auth/authStore";
-import { FONTS } from "../src/theme/fonts";
+import { COLORS, FONTS } from "../src/theme";
 
 // ── פונקציות עזר לתאריכים ──
 
@@ -584,7 +584,7 @@ export default function PreferencesQuizScreen() {
       <TextInput
         style={styles.input}
         placeholder={currentQ.placeholder}
-        placeholderTextColor="#aaa"
+        placeholderTextColor={COLORS.textMuted}
         textAlign="right" // יישור טקסט לימין (RTL)
         value={data[currentQ.id] || ""}
         // שמירת הערך ב-data תחת ה-id של השאלה
@@ -635,7 +635,7 @@ export default function PreferencesQuizScreen() {
     if (!data.recommendPeriod) return null;
     if (recLoading) return (
       <View style={styles.recCard}>
-        <ActivityIndicator size="small" color="#1A3C40" />
+        <ActivityIndicator size="small" color={COLORS.brand} />
         <Text style={styles.recLoadingText}>טוענת המלצה מהבינה המלאכותית...</Text>
       </View>
     );
@@ -676,7 +676,7 @@ export default function PreferencesQuizScreen() {
     background: "transparent",
     fontSize: 15,
     colorScheme: "light",
-    color: hasValue ? "#222" : "#aaa",
+    color: hasValue ? "#222" : COLORS.textMuted,
     direction: "rtl",
     cursor: "pointer",
     width: "100%",
@@ -705,7 +705,7 @@ export default function PreferencesQuizScreen() {
       return (
         <View style={styles.fieldsWrapper}>
           <View style={styles.dateLabelRow}>
-            <Plane size={18} color="#1A3C40" strokeWidth={1.8} />
+            <Plane size={18} color={COLORS.brand} strokeWidth={1.8} />
             <Text style={styles.dateLabel}>תאריך יציאה</Text>
           </View>
           <View style={styles.dateInputCard}>
@@ -728,7 +728,7 @@ export default function PreferencesQuizScreen() {
             }}
           >
             <View style={[styles.checkbox, data.oneWay && styles.checkboxChecked]}>
-              {data.oneWay && <Ionicons name="checkmark" size={16} color="#fff" />}
+              {data.oneWay && <Ionicons name="checkmark" size={16} color={COLORS.onBrand} />}
             </View>
             <Text style={styles.checkboxLabel}>כרטיס לכיוון אחד (ללא תאריך חזרה)</Text>
           </Pressable>
@@ -736,7 +736,7 @@ export default function PreferencesQuizScreen() {
           {!data.oneWay && (
             <>
               <View style={styles.dateLabelRow}>
-                <Home size={18} color="#1A3C40" strokeWidth={1.8} />
+                <Home size={18} color={COLORS.brand} strokeWidth={1.8} />
                 <Text style={styles.dateLabel}>תאריך חזרה</Text>
               </View>
               <View style={styles.dateInputCard}>
@@ -756,7 +756,7 @@ export default function PreferencesQuizScreen() {
             onPress={handleRecommendToggle}
           >
             <View style={[styles.checkbox, data.recommendPeriod && styles.checkboxChecked]}>
-              {data.recommendPeriod && <Ionicons name="checkmark" size={16} color="#fff" />}
+              {data.recommendPeriod && <Ionicons name="checkmark" size={16} color={COLORS.onBrand} />}
             </View>
             <Text style={styles.checkboxLabel}>תמליצי לי על תקופה טובה לטיסה</Text>
           </Pressable>
@@ -769,14 +769,14 @@ export default function PreferencesQuizScreen() {
     return (
       <View style={styles.fieldsWrapper}>
         <View style={styles.dateLabelRow}>
-          <Plane size={18} color="#1A3C40" strokeWidth={1.8} />
+          <Plane size={18} color={COLORS.brand} strokeWidth={1.8} />
           <Text style={styles.dateLabel}>תאריך יציאה</Text>
         </View>
         <Pressable
           style={styles.dateInputCard}
           onPress={() => setDatePickerOpen("start")}
         >
-          <Calendar size={18} color="#9AABAD" strokeWidth={1.8} />
+          <Calendar size={18} color={COLORS.textMuted} strokeWidth={1.8} />
           <Text style={[styles.dateTextInput, !data.startDate && styles.dateTextPlaceholder]}>
             {formatDate(data.startDate)}
           </Text>
@@ -795,7 +795,7 @@ export default function PreferencesQuizScreen() {
           }}
         >
           <View style={[styles.checkbox, data.oneWay && styles.checkboxChecked]}>
-            {data.oneWay && <Ionicons name="checkmark" size={16} color="#fff" />}
+            {data.oneWay && <Ionicons name="checkmark" size={16} color={COLORS.onBrand} />}
           </View>
           <Text style={styles.checkboxLabel}>כרטיס לכיוון אחד (ללא תאריך חזרה)</Text>
         </Pressable>
@@ -803,14 +803,14 @@ export default function PreferencesQuizScreen() {
         {!data.oneWay && (
           <>
             <View style={styles.dateLabelRow}>
-              <Home size={18} color="#1A3C40" strokeWidth={1.8} />
+              <Home size={18} color={COLORS.brand} strokeWidth={1.8} />
               <Text style={styles.dateLabel}>תאריך חזרה</Text>
             </View>
             <Pressable
               style={styles.dateInputCard}
               onPress={() => setDatePickerOpen("end")}
             >
-              <Calendar size={18} color="#9AABAD" strokeWidth={1.8} />
+              <Calendar size={18} color={COLORS.textMuted} strokeWidth={1.8} />
               <Text style={[styles.dateTextInput, !data.endDate && styles.dateTextPlaceholder]}>
                 {formatDate(data.endDate)}
               </Text>
@@ -853,7 +853,7 @@ export default function PreferencesQuizScreen() {
           onPress={handleRecommendToggle}
         >
           <View style={[styles.checkbox, data.recommendPeriod && styles.checkboxChecked]}>
-            {data.recommendPeriod && <Ionicons name="checkmark" size={16} color="#fff" />}
+            {data.recommendPeriod && <Ionicons name="checkmark" size={16} color={COLORS.onBrand} />}
           </View>
           <Text style={styles.checkboxLabel}>תמליצי לי על תקופה טובה לטיסה</Text>
         </Pressable>
@@ -920,9 +920,9 @@ export default function PreferencesQuizScreen() {
           minimumValue={AGE_MIN}
           maximumValue={AGE_MAX}
           step={1}
-          minimumTrackTintColor="#1A3C40"
-          maximumTrackTintColor="#D8E0E1"
-          thumbTintColor="#fff"
+          minimumTrackTintColor={COLORS.brand}
+          maximumTrackTintColor={COLORS.border}
+          thumbTintColor={COLORS.onBrand}
           thumbStyle={styles.ageThumb}
           trackStyle={styles.ageTrack}
           containerStyle={styles.ageSliderContainer}
@@ -945,7 +945,7 @@ export default function PreferencesQuizScreen() {
     if (interestsLoading) {
       return (
         <View style={styles.optionsContainer}>
-          <ActivityIndicator color="#1A3C40" />
+          <ActivityIndicator color={COLORS.brand} />
         </View>
       );
     }
@@ -1041,7 +1041,7 @@ export default function PreferencesQuizScreen() {
   const renderLifestyleCard = (Icon, label, content) => (
     <View style={styles.lifestyleCard}>
       <View style={styles.lifestyleCardHeader}>
-        <Icon size={20} color="#1A3C40" strokeWidth={2} />
+        <Icon size={20} color={COLORS.brand} strokeWidth={2} />
         <Text style={styles.lifestyleCardLabel}>{label}</Text>
       </View>
       {content}
@@ -1146,7 +1146,7 @@ export default function PreferencesQuizScreen() {
                     ]}
                   >
                     {isCompleted ? (
-                      <Ionicons name="checkmark" size={14} color="#fff" />
+                      <Ionicons name="checkmark" size={14} color={COLORS.onBrand} />
                     ) : (
                       <Text
                         style={[
@@ -1177,7 +1177,7 @@ export default function PreferencesQuizScreen() {
               onPress={() => router.back()}
               style={({ pressed }) => [styles.introBackBtn, pressed && { opacity: 0.5 }]}
             >
-              <Ionicons name="chevron-forward" size={26} color="#1A3C40" />
+              <Ionicons name="chevron-forward" size={26} color={COLORS.brand} />
             </Pressable>
           </View>
         )}
@@ -1223,7 +1223,7 @@ export default function PreferencesQuizScreen() {
               disabled={!answered || submitting}
             >
               {submitting ? (
-                <ActivityIndicator color="#fff" />
+                <ActivityIndicator color={COLORS.onBrand} />
               ) : (
                 <Text
                   style={[
@@ -1270,7 +1270,7 @@ const SHADOW = {
 };
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#F0F2F5" },
+  container: { flex: 1, backgroundColor: COLORS.background },
   flex: { flex: 1, alignItems: "center" },
 
   // ── Progress ──
@@ -1286,7 +1286,7 @@ const styles = StyleSheet.create({
     width: 38,
     height: 38,
     borderRadius: 19,
-    backgroundColor: "#fff",
+    backgroundColor: COLORS.surface,
     justifyContent: "center",
     alignItems: "center",
     shadowColor: "#000",
@@ -1311,40 +1311,40 @@ const styles = StyleSheet.create({
     width: 34,
     height: 34,
     borderRadius: 17,
-    backgroundColor: "#D0D8DA",
+    backgroundColor: COLORS.divider,
     justifyContent: "center",
     alignItems: "center",
   },
 
   stepCircleActive: {
-    backgroundColor: "#1A3C40",
+    backgroundColor: COLORS.brand,
     transform: [{ scale: 1.08 }],
   },
 
   stepCircleCompleted: {
-    backgroundColor: "#1A3C40",
+    backgroundColor: COLORS.brand,
   },
 
   stepNumber: {
-    color: "#5E6B6E",
+    color: COLORS.textSecondary,
     fontFamily: FONTS.bold,
     fontSize: 14,
   },
 
   stepNumberActive: {
-    color: "#fff",
+    color: COLORS.surface,
   },
 
   stepLine: {
     flex: 1,
     height: 3,
-    backgroundColor: "#D0D8DA",
+    backgroundColor: COLORS.divider,
     marginHorizontal: 6,
     borderRadius: 2,
   },
 
   stepLineCompleted: {
-    backgroundColor: "#1A3C40",
+    backgroundColor: COLORS.brand,
   },
 
   // ── Content ──
@@ -1360,7 +1360,7 @@ const styles = StyleSheet.create({
     marginBottom: 28,
     textAlign: "center",
     paddingHorizontal: 24,
-    color: "#1A1A1A",
+    color: COLORS.text,
   },
   scrollView: { width: "100%" },
   scrollArea: {
@@ -1384,7 +1384,7 @@ const styles = StyleSheet.create({
     width: 160,
     height: 160,
     borderRadius: 80,
-    backgroundColor: "#fff",
+    backgroundColor: COLORS.surface,
     justifyContent: "center",
     alignItems: "center",
     marginBottom: 26,
@@ -1394,7 +1394,7 @@ const styles = StyleSheet.create({
   introSubtitle: {
     fontSize: 17,
     fontFamily: FONTS.regular,
-    color: "#555",
+    color: COLORS.textSecondary,
     textAlign: "center",
     paddingHorizontal: 30,
     lineHeight: 26,
@@ -1405,7 +1405,7 @@ const styles = StyleSheet.create({
     width: "100%",
   },
   input: {
-    backgroundColor: "#fff",
+    backgroundColor: COLORS.surface,
     width: "100%",
     paddingVertical: 16,
     paddingHorizontal: 18,
@@ -1414,13 +1414,13 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontFamily: FONTS.regular,
     textAlign: "right",
-    color: "#222",
+    color: COLORS.text,
     ...SHADOW,
   },
   hintText: {
     fontSize: 13,
     fontFamily: FONTS.regular,
-    color: "#888",
+    color: COLORS.textMuted,
     textAlign: "center",
     marginTop: 4,
     paddingHorizontal: 12,
@@ -1438,12 +1438,12 @@ const styles = StyleSheet.create({
   dateLabel: {
     fontSize: 14,
     fontFamily: FONTS.bold,
-    color: "#1A3C40",
+    color: COLORS.brand,
   },
   dateInputCard: {
     flexDirection: "row-reverse",
     alignItems: "center",
-    backgroundColor: "#fff",
+    backgroundColor: COLORS.surface,
     width: "100%",
     paddingVertical: 4,
     paddingHorizontal: 18,
@@ -1458,11 +1458,11 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontFamily: FONTS.regular,
     textAlign: "right",
-    color: "#222",
+    color: COLORS.text,
   },
   // צבע אפור כשעוד לא נבחר תאריך — אפקט "placeholder"
   dateTextPlaceholder: {
-    color: "#aaa",
+    color: COLORS.textMuted,
   },
   // כפתור "סיום" שסוגר את בורר התאריכים ב-iOS
   dateDoneBtn: {
@@ -1474,7 +1474,7 @@ const styles = StyleSheet.create({
   dateDoneText: {
     fontSize: 15,
     fontFamily: FONTS.bold,
-    color: "#1A3C40",
+    color: COLORS.brand,
   },
   checkboxRow: {
     flexDirection: "row-reverse",
@@ -1488,26 +1488,26 @@ const styles = StyleSheet.create({
     height: 24,
     borderRadius: 6,
     borderWidth: 1.5,
-    borderColor: "#9AABAD",
-    backgroundColor: "#fff",
+    borderColor: COLORS.textMuted,
+    backgroundColor: COLORS.surface,
     justifyContent: "center",
     alignItems: "center",
   },
   checkboxChecked: {
-    backgroundColor: "#1A3C40",
-    borderColor: "#1A3C40",
+    backgroundColor: COLORS.brand,
+    borderColor: COLORS.brand,
   },
   checkboxLabel: {
     fontSize: 15,
     fontFamily: FONTS.regular,
-    color: "#333",
+    color: COLORS.text,
     flexShrink: 1,
     textAlign: "right",
   },
 
   // ── Recommendation card ──
   recCard: {
-    backgroundColor: "#EAF4F4",
+    backgroundColor: COLORS.brandLight,
     borderRadius: 14,
     padding: 16,
     marginTop: 14,
@@ -1515,16 +1515,16 @@ const styles = StyleSheet.create({
     flexDirection: "column",
     gap: 8,
     borderWidth: 1,
-    borderColor: "#C5DFE0",
+    borderColor: COLORS.border,
   },
   recCardError: {
-    backgroundColor: "#FFF0F0",
-    borderColor: "#F5C0C0",
+    backgroundColor: COLORS.dangerLight,
+    borderColor: COLORS.dangerBorder,
   },
   recTitle: {
     fontSize: 14,
     fontFamily: FONTS.bold,
-    color: "#1A3C40",
+    color: COLORS.brand,
     textAlign: "right",
   },
   recMonthsRow: {
@@ -1534,7 +1534,7 @@ const styles = StyleSheet.create({
     marginTop: 4,
   },
   recMonthBadge: {
-    backgroundColor: "#1A3C40",
+    backgroundColor: COLORS.brand,
     borderRadius: 20,
     paddingVertical: 5,
     paddingHorizontal: 12,
@@ -1545,33 +1545,33 @@ const styles = StyleSheet.create({
   recMonthText: {
     fontSize: 13,
     fontFamily: FONTS.bold,
-    color: "#fff",
+    color: COLORS.surface,
   },
   recLoadingText: {
     fontSize: 13,
     fontFamily: FONTS.regular,
-    color: "#1A3C40",
+    color: COLORS.brand,
     textAlign: "right",
     marginTop: 6,
   },
   recReason: {
     fontSize: 13,
     fontFamily: FONTS.regular,
-    color: "#2C6B6E",
+    color: COLORS.textSecondary,
     textAlign: "right",
     marginTop: 4,
   },
   recErrorText: {
     fontSize: 13,
     fontFamily: FONTS.regular,
-    color: "#C0392B",
+    color: COLORS.danger,
     textAlign: "right",
   },
 
   // ── Single-select options ──
   optionsContainer: { width: "100%", alignItems: "center" },
   optionBtn: {
-    backgroundColor: "#fff",
+    backgroundColor: COLORS.surface,
     width: "100%",
     paddingVertical: 17,
     paddingHorizontal: 20,
@@ -1582,12 +1582,12 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     ...SHADOW,
   },
-  pressedBtn: { backgroundColor: "#F0F4F5" },
-  selectedBtn: { backgroundColor: "#1A3C40", shadowOpacity: 0.18 },
-  optionText: { fontSize: 17, fontFamily: FONTS.regular, color: "#333" },
-  selectedText: { color: "#fff", fontFamily: FONTS.bold },
+  pressedBtn: { backgroundColor: COLORS.background },
+  selectedBtn: { backgroundColor: COLORS.brand, shadowOpacity: 0.18 },
+  optionText: { fontSize: 17, fontFamily: FONTS.regular, color: COLORS.text },
+  selectedText: { color: COLORS.surface, fontFamily: FONTS.bold },
   checkmark: {
-    color: "#fff",
+    color: COLORS.surface,
     fontSize: 16,
     fontFamily: FONTS.bold,
     marginLeft: 6,
@@ -1597,7 +1597,7 @@ const styles = StyleSheet.create({
   ageHint: {
     fontSize: 15,
     fontFamily: FONTS.bold,
-    color: "#1A3C40",
+    color: COLORS.brand,
     textAlign: "right",
     marginBottom: 14,
   },
@@ -1616,9 +1616,9 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     paddingHorizontal: 18,
     borderRadius: 14,
-    backgroundColor: "#1A3C40",
+    backgroundColor: COLORS.brand,
     alignItems: "center",
-    shadowColor: "#1A3C40",
+    shadowColor: COLORS.brand,
     shadowOffset: { width: 0, height: 3 },
     shadowOpacity: 0.18,
     shadowRadius: 6,
@@ -1627,7 +1627,7 @@ const styles = StyleSheet.create({
   ageNumberText: {
     fontSize: 20,
     fontFamily: FONTS.bold,
-    color: "#fff",
+    color: COLORS.surface,
     letterSpacing: 0.5,
   },
   // קו מקשר עדין בין שני ה-pills
@@ -1635,7 +1635,7 @@ const styles = StyleSheet.create({
     width: 14,
     height: 2,
     borderRadius: 1,
-    backgroundColor: "#1A3C40",
+    backgroundColor: COLORS.brand,
     opacity: 0.45,
   },
   // עיצוב הסליידר עצמו
@@ -1652,9 +1652,9 @@ const styles = StyleSheet.create({
     width: 26,
     height: 26,
     borderRadius: 13,
-    backgroundColor: "#fff",
+    backgroundColor: COLORS.surface,
     borderWidth: 3,
-    borderColor: "#1A3C40",
+    borderColor: COLORS.brand,
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.18,
@@ -1671,7 +1671,7 @@ const styles = StyleSheet.create({
   ageBound: {
     fontSize: 13,
     fontFamily: FONTS.regular,
-    color: "#9AABAD",
+    color: COLORS.textMuted,
   },
 
   // ── Tags grid (multi-select) ──
@@ -1683,23 +1683,23 @@ const styles = StyleSheet.create({
     width: "100%",
   },
   tag: {
-    backgroundColor: "#fff",
+    backgroundColor: COLORS.surface,
     paddingVertical: 11,
     paddingHorizontal: 18,
     borderRadius: 22,
     ...SHADOW,
   },
   tagSelected: {
-    backgroundColor: "#1A3C40",
+    backgroundColor: COLORS.brand,
     shadowOpacity: 0.18,
   },
   tagText: {
     fontSize: 15,
     fontFamily: FONTS.regular,
-    color: "#333",
+    color: COLORS.text,
   },
   tagTextSelected: {
-    color: "#fff",
+    color: COLORS.surface,
     fontFamily: FONTS.bold,
   },
 
@@ -1707,14 +1707,14 @@ const styles = StyleSheet.create({
   lifestyleIntro: {
     fontSize: 14,
     fontFamily: FONTS.regular,
-    color: "#7A8B8E",
+    color: COLORS.textMuted,
     textAlign: "center",
     marginBottom: 16,
     paddingHorizontal: 10,
     lineHeight: 20,
   },
   lifestyleCard: {
-    backgroundColor: "#fff",
+    backgroundColor: COLORS.surface,
     padding: 14,
     borderRadius: 14,
     marginBottom: 10,
@@ -1729,14 +1729,14 @@ const styles = StyleSheet.create({
   lifestyleCardLabel: {
     fontSize: 15,
     fontFamily: FONTS.bold,
-    color: "#1A3C40",
+    color: COLORS.brand,
     flex: 1,
     textAlign: "right",
   },
   lifestyleHelp: {
     fontSize: 12,
     fontFamily: FONTS.regular,
-    color: "#9A9A9A",
+    color: COLORS.textMuted,
     textAlign: "right",
     marginBottom: 10,
   },
@@ -1750,26 +1750,26 @@ const styles = StyleSheet.create({
     flex: 1,
     paddingVertical: 10,
     borderRadius: 10,
-    backgroundColor: "#F4F6F7",
+    backgroundColor: COLORS.background,
     alignItems: "center",
   },
   triBtnWide: {
     flex: 1.4,
     paddingVertical: 10,
     borderRadius: 10,
-    backgroundColor: "#F4F6F7",
+    backgroundColor: COLORS.background,
     alignItems: "center",
   },
   triBtnActive: {
-    backgroundColor: "#1A3C40",
+    backgroundColor: COLORS.brand,
   },
   triBtnText: {
     fontSize: 13,
     fontFamily: FONTS.regular,
-    color: "#1A3C40",
+    color: COLORS.brand,
   },
   triBtnTextActive: {
-    color: "#fff",
+    color: COLORS.surface,
     fontFamily: FONTS.bold,
   },
 
@@ -1784,44 +1784,44 @@ const styles = StyleSheet.create({
     aspectRatio: 1,
     maxWidth: 48,
     borderRadius: 10,
-    backgroundColor: "#F4F6F7",
+    backgroundColor: COLORS.background,
     alignItems: "center",
     justifyContent: "center",
   },
   ratingDotActive: {
-    backgroundColor: "#1A3C40",
+    backgroundColor: COLORS.brand,
   },
   ratingNum: {
     fontSize: 15,
     fontFamily: FONTS.bold,
-    color: "#1A3C40",
+    color: COLORS.brand,
   },
   ratingNumActive: {
-    color: "#fff",
+    color: COLORS.surface,
   },
   noPrefBtn: {
     alignSelf: "center",
     paddingVertical: 7,
     paddingHorizontal: 18,
     borderRadius: 14,
-    backgroundColor: "#F4F6F7",
+    backgroundColor: COLORS.background,
   },
   noPrefBtnActive: {
-    backgroundColor: "#1A3C40",
+    backgroundColor: COLORS.brand,
   },
   noPrefText: {
     fontSize: 12,
     fontFamily: FONTS.regular,
-    color: "#1A3C40",
+    color: COLORS.brand,
   },
   noPrefTextActive: {
-    color: "#fff",
+    color: COLORS.surface,
     fontFamily: FONTS.bold,
   },
 
   // ── Submit error ──
   submitErrorText: {
-    color: "#e74c3c",
+    color: COLORS.danger,
     fontSize: 13,
     fontFamily: FONTS.regular,
     textAlign: "center",
@@ -1835,11 +1835,11 @@ const styles = StyleSheet.create({
     alignItems: "center",
     paddingTop: 12,
     paddingBottom: 20,
-    backgroundColor: "#F0F2F5",
+    backgroundColor: COLORS.background,
   },
   nextBtnWrapper: { width: "72%", marginBottom: 8 },
   nextBtn: {
-    backgroundColor: "#1A3C40",
+    backgroundColor: COLORS.brand,
     paddingVertical: 16,
     borderRadius: 30,
     alignItems: "center",
@@ -1847,15 +1847,15 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.2,
   },
   nextBtnDisabled: {
-    backgroundColor: "#C8D0D2",
+    backgroundColor: COLORS.divider,
     shadowOpacity: 0,
     elevation: 0,
   },
-  nextBtnText: { fontFamily: FONTS.bold, fontSize: 18, color: "#fff" },
-  nextBtnTextDisabled: { color: "#9AABAD" },
+  nextBtnText: { fontFamily: FONTS.bold, fontSize: 18, color: COLORS.surface },
+  nextBtnTextDisabled: { color: COLORS.textMuted },
   backBtn: { paddingVertical: 8, paddingHorizontal: 10 },
   backLink: {
-    color: "#888",
+    color: COLORS.textMuted,
     fontSize: 14,
     fontFamily: FONTS.regular,
     textDecorationLine: "underline",

@@ -35,7 +35,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
 import Svg, { Path, G, Text as SvgText } from "react-native-svg";
 // פונטים מותאמים של האפליקציה
-import { FONTS } from "../src/theme/fonts";
+import { COLORS as THEME, FONTS } from "../src/theme";
 import { getAllUsers } from "../src/api/userService";
 import { getUser } from "../src/auth/authStore";
 import { getUserProfile } from "../src/api/userProfileService";
@@ -530,13 +530,13 @@ setResult({
           ]}
           onPress={() => router.back()}
         >
-          <ChevronRight size={26} color="#1A3C40" strokeWidth={2} />
+          <ChevronRight size={26} color={THEME.brand} strokeWidth={2} />
         </Pressable>
 
         {/* טקסט הכותרת המרכזי */}
         <View style={styles.headerTextWrap}>
           <View style={styles.headerTitleRow}>
-            <Sparkles size={20} color="#1A3C40" strokeWidth={2} />
+            <Sparkles size={20} color={THEME.brand} strokeWidth={2} />
             <Text style={styles.headerTitle}>גלגל המזל</Text>
           </View>
           <Text style={styles.headerSubtitle}>לאן הגורל ייקח אותך?</Text>
@@ -550,7 +550,7 @@ setResult({
       <View style={styles.wheelArea}>
         {loadingDestinations ? (
           <View style={styles.wheelLoading}>
-            <ActivityIndicator size="large" color="#1A3C40" />
+            <ActivityIndicator size="large" color={THEME.brand} />
             <Text style={styles.emptyWheelText}>מחפשת יעדים מתאימים...</Text>
           </View>
         ) : destinations.length === 0 ? (
@@ -630,7 +630,7 @@ setResult({
           <View style={styles.bubble}>
             <View style={styles.bubbleHeader}>
               <View style={styles.bubbleIconCircle}>
-                <MapPin size={18} color="#fff" strokeWidth={2.2} />
+                <MapPin size={18} color={THEME.onBrand} strokeWidth={2.2} />
               </View>
               <Text style={styles.bubbleTitle}>נוסעים ל{result.name}!</Text>
             </View>
@@ -638,7 +638,7 @@ setResult({
             <View style={styles.bubbleDivider} />
             {/* פרטי הפרטנר */}
             <View style={styles.bubblePartnerRow}>
-              <User size={16} color="#1A3C40" strokeWidth={1.8} />
+              <User size={16} color={THEME.brand} strokeWidth={1.8} />
               <Text style={styles.bubblePartner}>{result.partner}</Text>
             </View>
 
@@ -696,7 +696,7 @@ setResult({
         >
           <RotateCw
             size={18}
-            color="#1A3C40"
+            color={THEME.brand}
             strokeWidth={2.2}
             style={isSpinning && { opacity: 0.6 }}
           />
@@ -750,7 +750,7 @@ const styles = StyleSheet.create({
   // המיכל הראשי של המסך
   container: {
     flex: 1,
-    backgroundColor: "#F0F2F5", // אפור-ירוק עדין
+    backgroundColor: THEME.background, // אפור-ירוק עדין
     paddingHorizontal: 18,
   },
 
@@ -767,7 +767,7 @@ const styles = StyleSheet.create({
     width: 38,
     height: 38,
     borderRadius: 19, // עיגול מושלם
-    backgroundColor: "#fff",
+    backgroundColor: THEME.surface,
     justifyContent: "center",
     alignItems: "center",
     ...SHADOW, // פיזור הצל המשותף
@@ -792,13 +792,13 @@ const styles = StyleSheet.create({
   headerTitle: {
     fontSize: 20,
     fontFamily: FONTS.extraBold,
-    color: "#1A3C40",
+    color: THEME.brand,
   },
   // טקסט תת-כותרת (מתחת לכותרת)
   headerSubtitle: {
     fontSize: 13,
     fontFamily: FONTS.regular,
-    color: "#7A8B8E",
+    color: THEME.textMuted,
     marginTop: 2,
   },
 
@@ -818,7 +818,7 @@ const styles = StyleSheet.create({
   // טקסט מצב ריק — כשאין יעדים אמיתיים מטיולים של משתמשים מתאימים
   emptyWheelText: {
     textAlign: "center",
-    color: "#1A3C40",
+    color: THEME.brand,
     fontSize: 15,
     paddingVertical: 40,
     paddingHorizontal: 24,
@@ -837,7 +837,7 @@ const styles = StyleSheet.create({
     borderRadius: WHEEL_SIZE / 2,
     overflow: "hidden",
     position: "relative",
-    backgroundColor: "#fff",
+    backgroundColor: THEME.surface,
     ...SHADOW,
     shadowOpacity: 0.18,
     shadowRadius: 10,
@@ -849,7 +849,7 @@ const styles = StyleSheet.create({
     width: 36,
     height: 36,
     borderRadius: 18,
-    backgroundColor: "#fff",
+    backgroundColor: THEME.surface,
     justifyContent: "center",
     alignItems: "center",
     zIndex: 10, // מעל הגלגל
@@ -860,7 +860,7 @@ const styles = StyleSheet.create({
     width: 14,
     height: 14,
     borderRadius: 7,
-    backgroundColor: "#1A3C40",
+    backgroundColor: THEME.brand,
   },
   // הסמן (משולש) שמצביע על המקטע הזוכה
   // משולש נוצר באמצעות border-style — טריק קלאסי ב-CSS
@@ -875,7 +875,7 @@ const styles = StyleSheet.create({
     borderTopWidth: 26,
     borderLeftColor: "transparent",
     borderRightColor: "transparent",
-    borderTopColor: "#1A3C40", // הצבע של המשולש
+    borderTopColor: THEME.brand, // הצבע של המשולש
   },
   // צל המשולש — משולש שני, גדול יותר ובהיר יותר, מאחורי הראשון
   pointerShadow: {
@@ -901,7 +901,7 @@ const styles = StyleSheet.create({
   },
   // הכרטיס עצמו (כשיש תוצאה)
   bubble: {
-    backgroundColor: "#fff",
+    backgroundColor: THEME.surface,
     paddingVertical: 14,
     paddingHorizontal: 16,
     borderRadius: 16,
@@ -920,7 +920,7 @@ const styles = StyleSheet.create({
     width: 32,
     height: 32,
     borderRadius: 16,
-    backgroundColor: "#1A3C40",
+    backgroundColor: THEME.brand,
     justifyContent: "center",
     alignItems: "center",
   },
@@ -928,14 +928,14 @@ const styles = StyleSheet.create({
   bubbleTitle: {
     fontFamily: FONTS.extraBold,
     fontSize: 18,
-    color: "#1A3C40",
+    color: THEME.brand,
     textAlign: "right",
     flex: 1,
   },
   // קו מפריד דק בכרטיס
   bubbleDivider: {
     height: 1,
-    backgroundColor: "#EEF1F2",
+    backgroundColor: THEME.divider,
     marginVertical: 10,
   },
   // שורת פרטי הפרטנר
@@ -949,14 +949,14 @@ const styles = StyleSheet.create({
   bubblePartner: {
     fontFamily: FONTS.bold,
     fontSize: 15,
-    color: "#1A3C40",
+    color: THEME.brand,
   },
   // טקסט המידע על הפרטנר
   bubbleInfo: {
     fontSize: 14,
     fontFamily: FONTS.regular,
     textAlign: "right",
-    color: "#5F6F72",
+    color: THEME.textSecondary,
     lineHeight: 20,
   },
   // ── פרטי הפרטנר המורחבים ──
@@ -970,17 +970,17 @@ const styles = StyleSheet.create({
     gap: 6,
   },
   partnerTag: {
-    backgroundColor: "#EEF6F6",
+    backgroundColor: THEME.brandLight,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: "#1A3C40",
+    borderColor: THEME.brand,
     paddingHorizontal: 10,
     paddingVertical: 4,
   },
   partnerTagText: {
     fontSize: 12,
     fontFamily: FONTS.regular,
-    color: "#1A3C40",
+    color: THEME.brand,
   },
   // ── רמז הסוויפ (במקום כפתור הסיבוב) ──
   swipeHint: {
@@ -992,7 +992,7 @@ const styles = StyleSheet.create({
     width: "100%",
   },
   swipeHintText: {
-    color: "#1A3C40",
+    color: THEME.brand,
     fontSize: 15,
     fontFamily: FONTS.bold,
   },
@@ -1006,7 +1006,7 @@ const styles = StyleSheet.create({
   placeholderText: {
     fontSize: 14,
     fontFamily: FONTS.regular,
-    color: "#9AABAD",
+    color: THEME.textMuted,
     textAlign: "center",
   },
 
@@ -1023,7 +1023,7 @@ const styles = StyleSheet.create({
   },
   // כפתור הסיבוב הראשי
   spinBtn: {
-    backgroundColor: "#1A3C40", // ירוק כהה
+    backgroundColor: THEME.brand, // ירוק כהה
     paddingVertical: 16,
     borderRadius: 30, // פינות מעוגלות לגמרי
     flexDirection: "row-reverse", // אייקון + טקסט בשורה אחת
@@ -1035,26 +1035,26 @@ const styles = StyleSheet.create({
   },
   // מצב מנוטרל של הכפתור (בזמן סיבוב)
   spinBtnDisabled: {
-    backgroundColor: "#7FB3B3",
+    backgroundColor: THEME.divider,
   },
   // טקסט הכפתור
   spinBtnText: {
-    color: "#fff",
+    color: THEME.surface,
     fontSize: 17,
     fontFamily: FONTS.bold,
   },
   // כפתור אישור — לבן עם מסגרת ירוקה
   confirmBtn: {
     width: "100%",
-    backgroundColor: "#fff",
+    backgroundColor: THEME.surface,
     paddingVertical: 16,
     borderRadius: 30,
     alignItems: "center",
     borderWidth: 1.5,
-    borderColor: "#1A3C40",
+    borderColor: THEME.brand,
   },
   confirmBtnText: {
-    color: "#1A3C40",
+    color: THEME.brand,
     fontSize: 17,
     fontFamily: FONTS.bold,
   },
@@ -1064,7 +1064,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14,
   },
   skipText: {
-    color: "#7A8B8E",
+    color: THEME.textMuted,
     fontSize: 14,
     fontFamily: FONTS.regular,
     textDecorationLine: "underline", // קו תחתון

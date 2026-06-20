@@ -2,7 +2,7 @@ import { useRouter } from "expo-router";
 import { useEffect, useRef } from "react";
 import { Animated, Image, StyleSheet, Text, View } from "react-native";
 import { getUser } from "./src/auth/authStore";
-import { FONTS } from "./src/theme/fonts";
+import { COLORS, FONTS } from "./src/theme";
 
 export default function SplashScreen() {
   const router = useRouter();
@@ -48,7 +48,7 @@ export default function SplashScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#1A3C40",
+    backgroundColor: COLORS.brand,
     justifyContent: "center",
     alignItems: "center",
   },

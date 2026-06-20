@@ -21,7 +21,7 @@ import { addUserInterest, getAllInterests, getUserInterests, removeUserInterest 
 import { getQuestionnaire, updateQuestionnaire } from "../src/api/questionnaireService";
 import { getUserProfile, updateUserProfile } from "../src/api/userProfileService";
 import { getUser } from "../src/auth/authStore";
-import { FONTS } from "../src/theme/fonts";
+import { COLORS, FONTS } from "../src/theme";
 
 const GENDER_OPTIONS = [
   { label: "זכר", value: "Male" },
@@ -178,7 +178,7 @@ export default function UpdateIntroQuizScreen() {
   const renderYesNo = (label, Icon, value, onChange) => (
     <View style={styles.yesNoCard}>
       <View style={styles.yesNoLabelRow}>
-        {Icon && <Icon size={20} color="#1A3C40" strokeWidth={2} />}
+        {Icon && <Icon size={20} color={COLORS.brand} strokeWidth={2} />}
         <Text style={styles.yesNoLabel}>{label}</Text>
       </View>
       <View style={styles.yesNoBtns}>
@@ -216,7 +216,7 @@ export default function UpdateIntroQuizScreen() {
   if (loading) {
     return (
       <SafeAreaView style={[styles.container, styles.center]}>
-        <ActivityIndicator size="large" color="#1A3C40" />
+        <ActivityIndicator size="large" color={COLORS.brand} />
       </SafeAreaView>
     );
   }
@@ -226,7 +226,7 @@ export default function UpdateIntroQuizScreen() {
       {/* Header עם חץ חזרה */}
       <View style={styles.header}>
         <TouchableOpacity onPress={() => router.back()}>
-          <Ionicons name="arrow-forward" size={26} color="#1A3C40" />
+          <Ionicons name="arrow-forward" size={26} color={COLORS.brand} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>עדכון שאלון היכרות</Text>
         <View style={{ width: 26 }} />
@@ -246,7 +246,7 @@ export default function UpdateIntroQuizScreen() {
           onChangeText={setFirstName}
           textAlign="right"
           placeholder="שם פרטי"
-          placeholderTextColor="#aaa"
+          placeholderTextColor={COLORS.textMuted}
         />
 
         <Text style={styles.label}>שם משפחה</Text>
@@ -256,12 +256,12 @@ export default function UpdateIntroQuizScreen() {
           onChangeText={setLastName}
           textAlign="right"
           placeholder="שם משפחה"
-          placeholderTextColor="#aaa"
+          placeholderTextColor={COLORS.textMuted}
         />
 
         <Text style={styles.label}>תאריך לידה</Text>
         <Pressable style={styles.dateBtn} onPress={() => setDatePickerOpen(true)}>
-          <Ionicons name="calendar-outline" size={20} color="#9AABAD" />
+          <Ionicons name="calendar-outline" size={20} color={COLORS.textMuted} />
           <Text style={[styles.dateText, !birthDate && styles.placeholder]}>
             {birthDate ? formatDate(birthDate) : "בחר/י תאריך"}
           </Text>
@@ -286,7 +286,7 @@ export default function UpdateIntroQuizScreen() {
           onChangeText={setCity}
           textAlign="right"
           placeholder="עיר מגורים"
-          placeholderTextColor="#aaa"
+          placeholderTextColor={COLORS.textMuted}
         />
 
         <Text style={styles.label}>מגדר</Text>
@@ -315,7 +315,7 @@ export default function UpdateIntroQuizScreen() {
             style={[styles.smokingBtn, isSmoker === true && styles.smokingBtnActive]}
             onPress={() => setIsSmoker(true)}
           >
-            <Cigarette size={22} color={isSmoker === true ? "#fff" : "#1A3C40"} />
+            <Cigarette size={22} color={isSmoker === true ? COLORS.onBrand : COLORS.brand} />
             <Text style={[styles.smokingText, isSmoker === true && styles.smokingTextActive]}>
               מעשן/ת
             </Text>
@@ -324,7 +324,7 @@ export default function UpdateIntroQuizScreen() {
             style={[styles.smokingBtn, isSmoker === false && styles.smokingBtnActive]}
             onPress={() => setIsSmoker(false)}
           >
-            <CigaretteOff size={22} color={isSmoker === false ? "#fff" : "#1A3C40"} />
+            <CigaretteOff size={22} color={isSmoker === false ? COLORS.onBrand : COLORS.brand} />
             <Text style={[styles.smokingText, isSmoker === false && styles.smokingTextActive]}>
               לא מעשן/ת
             </Text>
@@ -380,7 +380,7 @@ export default function UpdateIntroQuizScreen() {
           activeOpacity={0.85}
         >
           {saving ? (
-            <ActivityIndicator color="#fff" />
+            <ActivityIndicator color={COLORS.onBrand} />
           ) : (
             <Text style={styles.saveBtnText}>שמירת השינויים</Text>
           )}
@@ -391,7 +391,7 @@ export default function UpdateIntroQuizScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#F0F2F5" },
+  container: { flex: 1, backgroundColor: COLORS.background },
   center: { justifyContent: "center", alignItems: "center" },
 
   header: {
@@ -405,7 +405,7 @@ const styles = StyleSheet.create({
   headerTitle: {
     fontSize: 18,
     fontFamily: FONTS.bold,
-    color: "#1A3C40",
+    color: COLORS.brand,
   },
 
   scrollContent: { paddingHorizontal: 20, paddingBottom: 40 },
@@ -413,7 +413,7 @@ const styles = StyleSheet.create({
   section: {
     fontSize: 17,
     fontFamily: FONTS.bold,
-    color: "#1A3C40",
+    color: COLORS.brand,
     textAlign: "right",
     marginTop: 16,
     marginBottom: 12,
@@ -422,34 +422,34 @@ const styles = StyleSheet.create({
   label: {
     fontSize: 13,
     fontFamily: FONTS.regular,
-    color: "#7A7A7A",
+    color: COLORS.textMuted,
     textAlign: "right",
     marginBottom: 6,
     marginTop: 8,
   },
   helpText: {
     fontSize: 12,
-    color: "#9A9A9A",
+    color: COLORS.textMuted,
     fontFamily: FONTS.regular,
     textAlign: "right",
     marginBottom: 8,
   },
 
   input: {
-    backgroundColor: "#fff",
+    backgroundColor: COLORS.surface,
     paddingVertical: 14,
     paddingHorizontal: 16,
     borderRadius: 12,
     fontSize: 16,
     fontFamily: FONTS.regular,
-    color: "#222",
+    color: COLORS.text,
     marginBottom: 4,
   },
 
   dateBtn: {
     flexDirection: "row-reverse",
     alignItems: "center",
-    backgroundColor: "#fff",
+    backgroundColor: COLORS.surface,
     paddingVertical: 14,
     paddingHorizontal: 16,
     borderRadius: 12,
@@ -460,13 +460,13 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontFamily: FONTS.regular,
     textAlign: "right",
-    color: "#222",
+    color: COLORS.text,
   },
-  placeholder: { color: "#aaa" },
+  placeholder: { color: COLORS.textMuted },
 
   segmented: {
     flexDirection: "row-reverse",
-    backgroundColor: "#fff",
+    backgroundColor: COLORS.surface,
     borderRadius: 12,
     padding: 4,
   },
@@ -476,9 +476,9 @@ const styles = StyleSheet.create({
     alignItems: "center",
     borderRadius: 9,
   },
-  segmentActive: { backgroundColor: "#1A3C40" },
-  segmentText: { fontSize: 15, fontFamily: FONTS.regular, color: "#1A3C40" },
-  segmentTextActive: { color: "#fff", fontFamily: FONTS.bold },
+  segmentActive: { backgroundColor: COLORS.brand },
+  segmentText: { fontSize: 15, fontFamily: FONTS.regular, color: COLORS.brand },
+  segmentTextActive: { color: COLORS.onBrand, fontFamily: FONTS.bold },
 
   smokingRow: { flexDirection: "row-reverse", gap: 10, marginBottom: 12 },
   smokingBtn: {
@@ -487,36 +487,36 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     gap: 8,
-    backgroundColor: "#fff",
+    backgroundColor: COLORS.surface,
     paddingVertical: 16,
     borderRadius: 12,
   },
-  smokingBtnActive: { backgroundColor: "#1A3C40" },
-  smokingText: { fontSize: 15, fontFamily: FONTS.regular, color: "#1A3C40" },
-  smokingTextActive: { color: "#fff", fontFamily: FONTS.bold },
+  smokingBtnActive: { backgroundColor: COLORS.brand },
+  smokingText: { fontSize: 15, fontFamily: FONTS.regular, color: COLORS.brand },
+  smokingTextActive: { color: COLORS.onBrand, fontFamily: FONTS.bold },
 
   yesNoCard: {
     flexDirection: "row-reverse",
     alignItems: "center",
     justifyContent: "space-between",
-    backgroundColor: "#fff",
+    backgroundColor: COLORS.surface,
     paddingVertical: 14,
     paddingHorizontal: 16,
     borderRadius: 12,
     marginBottom: 12,
   },
   yesNoLabelRow: { flexDirection: "row-reverse", alignItems: "center", gap: 10 },
-  yesNoLabel: { fontSize: 15, fontFamily: FONTS.regular, color: "#1A3C40" },
+  yesNoLabel: { fontSize: 15, fontFamily: FONTS.regular, color: COLORS.brand },
   yesNoBtns: { flexDirection: "row", gap: 8 },
   smallBtn: {
     paddingVertical: 8,
     paddingHorizontal: 18,
     borderRadius: 8,
-    backgroundColor: "#F4F6F7",
+    backgroundColor: COLORS.background,
   },
-  smallBtnActive: { backgroundColor: "#1A3C40" },
-  smallBtnText: { fontSize: 14, fontFamily: FONTS.regular, color: "#1A3C40" },
-  smallBtnTextActive: { color: "#fff", fontFamily: FONTS.bold },
+  smallBtnActive: { backgroundColor: COLORS.brand },
+  smallBtnText: { fontSize: 14, fontFamily: FONTS.regular, color: COLORS.brand },
+  smallBtnTextActive: { color: COLORS.onBrand, fontFamily: FONTS.bold },
 
   ratingRow: { flexDirection: "row-reverse", justifyContent: "space-between", gap: 8 },
   ratingDot: {
@@ -524,13 +524,13 @@ const styles = StyleSheet.create({
     aspectRatio: 1,
     maxWidth: 56,
     borderRadius: 12,
-    backgroundColor: "#fff",
+    backgroundColor: COLORS.surface,
     alignItems: "center",
     justifyContent: "center",
   },
-  ratingDotActive: { backgroundColor: "#1A3C40" },
-  ratingNumber: { fontSize: 16, fontFamily: FONTS.bold, color: "#1A3C40" },
-  ratingNumberActive: { color: "#fff" },
+  ratingDotActive: { backgroundColor: COLORS.brand },
+  ratingNumber: { fontSize: 16, fontFamily: FONTS.bold, color: COLORS.brand },
+  ratingNumberActive: { color: COLORS.surface },
 
   tagsGrid: {
     flexDirection: "row-reverse",
@@ -541,27 +541,27 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     paddingHorizontal: 16,
     borderRadius: 20,
-    backgroundColor: "#fff",
+    backgroundColor: COLORS.surface,
     borderWidth: 1.5,
-    borderColor: "#DADDE1",
+    borderColor: COLORS.border,
   },
-  tagActive: { backgroundColor: "#1A3C40", borderColor: "#1A3C40" },
-  tagText: { fontSize: 14, fontFamily: FONTS.regular, color: "#1A3C40" },
-  tagTextActive: { color: "#fff", fontFamily: FONTS.bold },
+  tagActive: { backgroundColor: COLORS.brand, borderColor: COLORS.brand },
+  tagText: { fontSize: 14, fontFamily: FONTS.regular, color: COLORS.brand },
+  tagTextActive: { color: COLORS.onBrand, fontFamily: FONTS.bold },
 
   saveBar: {
     paddingHorizontal: 20,
     paddingVertical: 14,
-    backgroundColor: "#F0F2F5",
+    backgroundColor: COLORS.background,
     borderTopWidth: 1,
-    borderTopColor: "#DADDE1",
+    borderTopColor: COLORS.border,
   },
   saveBtn: {
-    backgroundColor: "#1A3C40",
+    backgroundColor: COLORS.brand,
     paddingVertical: 16,
     borderRadius: 14,
     alignItems: "center",
   },
   saveBtnDisabled: { opacity: 0.6 },
-  saveBtnText: { color: "#fff", fontSize: 16, fontFamily: FONTS.bold },
+  saveBtnText: { color: COLORS.surface, fontSize: 16, fontFamily: FONTS.bold },
 });

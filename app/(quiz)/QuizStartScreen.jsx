@@ -20,7 +20,7 @@ import {
 
 // מוודא שהתוכן לא נחסם על ידי notch או סרגל ניווט
 import { SafeAreaView } from "react-native-safe-area-context";
-import { FONTS } from "../src/theme/fonts";
+import { COLORS, FONTS } from "../src/theme";
 
 // שומר את רוחב המסך — ישמש לחישוב גדלים יחסיים
 const { width } = Dimensions.get("window");
@@ -230,7 +230,7 @@ const styles = StyleSheet.create({
   // מיכל ראשי — מלא את כל המסך, ממרכז אלמנטים
   safe: {
     flex: 1,
-    backgroundColor: "#EBF5F6", // כחול-ירקרק בהיר — צבע הרקע של האפליקציה
+    backgroundColor: COLORS.background,
     alignItems: "center",       // מרכז אופקית
     justifyContent: "center",   // מרכז אנכית
   },
@@ -256,7 +256,7 @@ const styles = StyleSheet.create({
   dotActive: {
     width: 26, height: 8,    // רחבה יותר — כמו pill
     borderRadius: 4,
-    backgroundColor: "#1A3C40", // כהה יותר
+    backgroundColor: COLORS.brand,
     opacity: 1,              // גלוי לגמרי
   },
 
@@ -282,7 +282,7 @@ const styles = StyleSheet.create({
   quoteText: {
     fontSize: 22,
     fontFamily: FONTS.bold,
-    color: "#1A3C40",    // ירוק-כהה — צבע ראשי של האפליקציה
+    color: COLORS.brand,
     textAlign: "center",
     lineHeight: 34,      // גובה שורה — נותן נשימה לטקסט
   },
@@ -306,7 +306,7 @@ const styles = StyleSheet.create({
   progressFill: {
     height: "100%",
     borderRadius: 3,
-    backgroundColor: "#1A3C40", // צבע ראשי כהה
+    backgroundColor: COLORS.brand,
   },
 
   // הטקסט מתחת ל-Progress bar
