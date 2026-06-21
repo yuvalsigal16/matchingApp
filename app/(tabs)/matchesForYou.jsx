@@ -17,6 +17,7 @@ import { getUser } from "../src/auth/authStore";
 
 import {
   ActivityIndicator,
+  Alert,
   Image,
   ScrollView,
   StyleSheet,
@@ -269,13 +270,21 @@ export default function MatchesScreen() {
 
   // ✔ אישור בקשה - יוצר Match בשרת ופותח צ'אט
   const handleAccept = async (requestId) => {
-    const result = await approveRequest(requestId);
-    setRequests((prev) => prev.filter((r) => r.requestID !== requestId));
-    if (result?.matchID) {
-      router.push({
-        pathname: "/chat/[matchId]",
-        params: { matchId: result.matchID },
-      });
+    try {
+      const result = await approveRequest(requestId);
+      // מסירים מהרשימה רק אחרי אישור מוצלח
+      setRequests((prev) => prev.filter((r) => r.requestID !== requestId));
+
+      if (result?.matchID) {
+        router.push({
+          pathname: "/chat/[matchId]",
+          params: { matchId: result.matchID },
+        });
+      } else {
+        Alert.alert("שגיאה", "הבקשה אושרה אך לא התקבל מזהה התאמה לפתיחת הצ'אט.");
+      }
+    } catch (err) {
+      Alert.alert("שגיאה באישור", err.message || "לא ניתן לאשר את הבקשה כעת.");
     }
   };
 

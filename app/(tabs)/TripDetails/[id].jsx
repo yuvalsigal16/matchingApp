@@ -118,8 +118,6 @@ err
 }
 }
 
-        // 🔥 MATCHES מהשירות (לא fetch ישיר)
-        const matchesData = await getMatchesByTrip(id);
         // טעינת פרטי יוצר הטיול
         const creatorId = tripData.createdByUserID ?? tripData.CreatedByUserID;
         if (creatorId) {
@@ -131,7 +129,7 @@ err
 
         // משתתפים — כשלון לא קורס את המסך
         try {
-          const participantsRes = await fetch(`${BASE_URL}/Trip/${id}/participants`, { headers });
+          const participantsRes = await fetch(`${BASE_URL}/TripParticipant/trip/${id}`, { headers });
           if (participantsRes.ok) setParticipants(await participantsRes.json() || []);
         } catch { /* אין משתתפים — לא נורא */ }
 

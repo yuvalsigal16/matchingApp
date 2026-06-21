@@ -24,14 +24,46 @@ export async function getPendingRequests(userId) {
   }
 }
 
-// משיכת ההתאמות (Matches) הפעילות של המשתמש — אלו הצ'אטים הפעילים
+// משיכת ההתאמות הפעילות (הצ'אטים) של המשתמש, מועשרות בשם/תמונה/הודעה אחרונה.
+// משתמשים ב-MatchDetails (ולא ב-/Match/user) כי הוא מחזיר את כל מה שרשימת צ'אטים צריכה,
+// וגם תומך כעת בהתאמות בלי טיול (אחרי תיקון ה-LEFT JOIN בשרת).
 export async function getMyMatches(userId) {
   try {
-    const res = await fetch(`${BASE_URL}/Match/user/${userId}`, {
+    const res = await fetch(`${BASE_URL}/MatchDetails/user/${userId}`, {
       headers: authHeaders(),
     });
     if (!res.ok) return [];
-    return await res.json();
+
+    const list = (await res.json()) || [];
+    return list.map((m) => {
+      const iAmUser1 = m.user1ID === userId;
+      const otherName = (
+        iAmUser1
+          ? [m.user2FirstName, m.user2LastName]
+          : [m.user1FirstName, m.user1LastName]
+      )
+        .filter(Boolean)
+        .join(" ")
+        .trim();
+
+      // השרת מחזיר זמן UTC בלי סימון אזור-זמן → מוסיפים "Z" כדי שיוצג נכון מקומית.
+      const lastTime = m.lastMessageTime
+        ? (/[zZ]|[+-]\d{2}:?\d{2}$/.test(m.lastMessageTime)
+            ? m.lastMessageTime
+            : `${m.lastMessageTime}Z`)
+        : null;
+
+      return {
+        matchID: m.matchID,
+        status: m.matchStatus,
+        otherUserID: iAmUser1 ? m.user2ID : m.user1ID,
+        otherUserName: otherName || "משתמש",
+        otherUserImage: iAmUser1 ? m.user2Image : m.user1Image,
+        tripName: m.destination, // עשוי להיות null בצ'אט בלי טיול
+        lastMessage: m.lastMessage,
+        lastMessageTime: lastTime,
+      };
+    });
   } catch (err) {
     console.error("getMyMatches:", err);
     return [];
@@ -68,14 +100,20 @@ export async function sendChatRequest(fromUserId, toUserId) {
   return await res.json(); // RequestID
 }
 
-// אישור בקשה שקיבלתי. השרת יוצר Match + התראה לשולח, מחזיר { matchID }.
+// אישור בקשה שקיבלתי. השרת יוצר Match + MatchChat + התראה לשולח, מחזיר { matchID }.
+// במקום לבלוע שגיאה בשקט (שגרם ל"כלום לא קורה") — זורקים את הודעת השרת.
 export async function approveRequest(requestId) {
   const res = await fetch(`${BASE_URL}/MatchRequest/approve/${requestId}`, {
     method: "PUT",
     headers: authHeaders(),
   });
-  if (!res.ok) return null;
-  return await res.json();
+  const text = await res.text();
+  if (!res.ok) {
+    let msg = text;
+    try { msg = JSON.parse(text)?.message || text; } catch {}
+    throw new Error(msg || `שגיאה ${res.status} באישור הבקשה`);
+  }
+  try { return JSON.parse(text); } catch { return null; }
 }
 
 // שולף את ההתראות של המשתמש (Notifications)
