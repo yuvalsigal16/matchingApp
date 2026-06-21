@@ -159,7 +159,9 @@ GO
 CREATE TABLE dbo.Matches (
     MatchID    INT IDENTITY(1,1) PRIMARY KEY,
     RequestID  INT NOT NULL,
-    TripID     INT NOT NULL,
+    -- nullable: בקשות צ'אט חופשיות (מהגילוי/התאמות) נשלחות בלי טיול, ולכן ל-Match
+    -- שנוצר מהן אין TripID. בעבר העמודה הייתה NOT NULL וה-INSERT באישור נכשל בשקט.
+    TripID     INT NULL,
     User1ID    INT NOT NULL,
     User2ID    INT NOT NULL,
     CreatedAt  DATETIME2 NOT NULL DEFAULT SYSDATETIME(),
@@ -2280,10 +2282,12 @@ BEGIN
 
     FROM dbo.Matches M
 
-    INNER JOIN dbo.Trips T 
+    -- LEFT JOIN כדי לכלול גם התאמות בלי טיול (בקשות צ'אט חופשיות, TripID NULL).
+    -- עם INNER JOIN הן נעלמו לגמרי מרשימת הצ'אטים הפעילים.
+    LEFT JOIN dbo.Trips T
         ON M.TripID = T.TripID
 
-    INNER JOIN dbo.MatchChats C 
+    INNER JOIN dbo.MatchChats C
         ON C.MatchID = M.MatchID
 
     INNER JOIN dbo.Users U1 

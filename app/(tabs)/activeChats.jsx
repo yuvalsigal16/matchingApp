@@ -1,34 +1,59 @@
-import React, { useEffect, useState } from "react";
+import React, { useCallback, useState } from "react";
 import {
   ActivityIndicator,
-  ScrollView,
+  FlatList,
+  Image,
+  RefreshControl,
   StyleSheet,
   Text,
   TouchableOpacity,
   View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { useRouter } from "expo-router";
+import { useFocusEffect, useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 
+import { BASE_URL } from "../src/api/config";
 import { COLORS, FONTS } from "../src/theme";
 import { getUser } from "../src/auth/authStore";
 import { getMyMatches } from "../src/api/notificationService";
 import BottomNav from "../../components/BottomNav";
 
+// בונה URI מלא לתמונת פרופיל
+function buildImageUri(raw) {
+  if (!raw) return null;
+  const value = String(raw).trim();
+  if (!value) return null;
+  if (/^(https?:|data:|file:)/i.test(value)) return value;
+  const origin = BASE_URL.replace(/\/api\/?$/, "");
+  return value.startsWith("/") ? `${origin}${value}` : `${origin}/${value}`;
+}
+
+// זמן יחסי לרשימת הצ'אטים: היום → HH:MM, אתמול, אחרת DD/MM/YYYY
+function formatChatTime(iso) {
+  if (!iso) return "";
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return "";
+  const k = (x) => `${x.getFullYear()}-${x.getMonth()}-${x.getDate()}`;
+  const today = new Date();
+  const yesterday = new Date();
+  yesterday.setDate(today.getDate() - 1);
+  if (k(d) === k(today)) {
+    return `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
+  }
+  if (k(d) === k(yesterday)) return "אתמול";
+  return `${String(d.getDate()).padStart(2, "0")}/${String(d.getMonth() + 1).padStart(2, "0")}/${d.getFullYear()}`;
+}
+
 export default function ActiveChatsScreen() {
   const router = useRouter();
 
-  const [matches, setMatches] = useState([]);
+  const [chats, setChats] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
 
-  useEffect(() => {
-    loadMatches();
-  }, []);
-
-  const loadMatches = async () => {
-    setLoading(true);
-
+  const loadChats = async (silent = false) => {
+    if (!silent) setLoading(true);
     const userId = getUser()?.userID;
     if (!userId) {
       setLoading(false);
@@ -37,41 +62,85 @@ export default function ActiveChatsScreen() {
 
     const data = await getMyMatches(userId);
 
-    // רק התאמות פעילות (אפשר לשנות בעתיד אם רוצים גם סגורות)
-    const active = data.filter((m) => m.status !== "Closed");
+    // רק צ'אטים פעילים, ממוינים מהאחרון שדובר בו
+    const active = (data || [])
+      .filter((m) => m.status !== "Closed")
+      .sort((a, b) => {
+        const ta = a.lastMessageTime ? new Date(a.lastMessageTime).getTime() : 0;
+        const tb = b.lastMessageTime ? new Date(b.lastMessageTime).getTime() : 0;
+        return tb - ta;
+      });
 
-    // 🔥 קיבוץ לפי טיול
-    const grouped = groupByTrip(active);
-
-    setMatches(grouped);
-    setLoading(false);
+    setChats(active);
+    if (!silent) setLoading(false);
   };
 
-  // קיבוץ לפי tripId
-  const groupByTrip = (matches) => {
-    const grouped = {};
+  // טעינה בכל כניסה למסך — מרענן גם אחרי חזרה מצ'אט
+  useFocusEffect(
+    useCallback(() => {
+      loadChats();
+    }, []),
+  );
 
-    matches.forEach((m) => {
-      if (!grouped[m.tripId]) {
-        grouped[m.tripId] = {
-          tripId: m.tripId,
-          tripName: m.tripName || `טיול #${m.tripId}`,
-          tripEndDate: m.tripEndDate,
-          chats: [],
-        };
-      }
-
-      grouped[m.tripId].chats.push(m);
-    });
-
-    return Object.values(grouped);
+  const onRefresh = async () => {
+    setRefreshing(true);
+    await loadChats(true);
+    setRefreshing(false);
   };
 
-  // מציאת המשתמש השני בצ'אט
-  const getOtherUserId = (match) => {
-    const me = getUser()?.userID;
-    return match.user1ID === me ? match.user2ID : match.user1ID;
+  const openChat = (matchId) =>
+    router.push({ pathname: "/chat/[matchId]", params: { matchId } });
+
+  const renderAvatar = (chat) => {
+    const uri = buildImageUri(chat.otherUserImage);
+    if (uri) return <Image source={{ uri }} style={styles.avatar} />;
+    const initials =
+      (chat.otherUserName || "")
+        .split(" ")
+        .map((s) => s[0])
+        .filter(Boolean)
+        .slice(0, 2)
+        .join("")
+        .toUpperCase() || "";
+    return (
+      <View style={[styles.avatar, styles.avatarFallback]}>
+        {initials ? (
+          <Text style={styles.avatarInitials}>{initials}</Text>
+        ) : (
+          <Ionicons name="person" size={24} color={COLORS.onBrand} />
+        )}
+      </View>
+    );
   };
+
+  const renderChat = ({ item }) => (
+    <TouchableOpacity
+      style={styles.chatRow}
+      activeOpacity={0.7}
+      onPress={() => openChat(item.matchID)}
+    >
+      {renderAvatar(item)}
+
+      <View style={styles.chatInfo}>
+        <View style={styles.chatTopRow}>
+          <Text style={styles.chatName} numberOfLines={1}>
+            {item.otherUserName}
+          </Text>
+          {item.lastMessageTime ? (
+            <Text style={styles.chatTime}>{formatChatTime(item.lastMessageTime)}</Text>
+          ) : null}
+        </View>
+
+        <Text style={styles.chatPreview} numberOfLines={1}>
+          {item.lastMessage
+            ? item.lastMessage
+            : item.tripName
+              ? `טיול משותף: ${item.tripName}`
+              : "התחילו לשוחח 👋"}
+        </Text>
+      </View>
+    </TouchableOpacity>
+  );
 
   if (loading) {
     return (
@@ -83,7 +152,6 @@ export default function ActiveChatsScreen() {
 
   return (
     <SafeAreaView style={styles.container}>
-      {/* Header */}
       <View style={styles.headerRow}>
         <TouchableOpacity
           onPress={() => router.back()}
@@ -93,84 +161,39 @@ export default function ActiveChatsScreen() {
         >
           <Ionicons name="arrow-forward" size={26} color={COLORS.brand} />
         </TouchableOpacity>
-
         <Text style={styles.header}>צ'אטים</Text>
-
         <View style={{ width: 26 }} />
       </View>
 
-      <ScrollView contentContainerStyle={styles.content}>
-        {matches.length === 0 ? (
-          <View style={styles.emptyBox}>
-            <Ionicons name="chatbubbles-outline" size={40} color={COLORS.textMuted} />
-            <Text style={styles.emptyText}>אין צ'אטים עדיין</Text>
+      <FlatList
+        data={chats}
+        keyExtractor={(item) => String(item.matchID)}
+        renderItem={renderChat}
+        contentContainerStyle={
+          chats.length === 0 ? styles.emptyListContent : styles.listContent
+        }
+        showsVerticalScrollIndicator={false}
+        ItemSeparatorComponent={() => <View style={styles.separator} />}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            colors={[COLORS.brand]}
+            tintColor={COLORS.brand}
+          />
+        }
+        ListEmptyComponent={
+          <View style={styles.emptyState}>
+            <View style={styles.emptyIconCircle}>
+              <Ionicons name="chatbubbles-outline" size={40} color={COLORS.brand} />
+            </View>
+            <Text style={styles.emptyTitle}>אין צ'אטים עדיין</Text>
+            <Text style={styles.emptySub}>
+              כשתאשרו בקשת צ'אט, השיחה תופיע כאן
+            </Text>
           </View>
-        ) : (
-          matches.map((trip) => {
-            const isPast =
-              trip.tripEndDate &&
-              new Date(trip.tripEndDate) < new Date();
-
-            return (
-              <View key={trip.tripId} style={{ marginBottom: 20 }}>
-                
-                {/* 🔹 כותרת טיול */}
-                <Text
-                  style={[
-                    styles.tripTitle,
-                    isPast && { color: COLORS.textMuted },
-                  ]}
-                >
-                  {trip.tripName}
-                </Text>
-
-                {/* 🔹 רשימת צ'אטים של הטיול */}
-                {trip.chats.map((match) => {
-                  const otherId = getOtherUserId(match);
-
-                  return (
-                    <TouchableOpacity
-                      key={match.matchID}
-                      style={[
-                        styles.card,
-                        isPast && styles.cardPast,
-                      ]}
-                      activeOpacity={0.85}
-                      onPress={() =>
-                        router.push({
-                          pathname: "/chat/[matchId]",
-                          params: { matchId: match.matchID },
-                        })
-                      }
-                    >
-                      {/* אווטר */}
-                      <View style={styles.avatar}>
-                        <Ionicons name="person" size={24} color={COLORS.onBrand} />
-                      </View>
-
-                      {/* טקסט */}
-                      <View style={styles.cardText}>
-                        <Text style={styles.name}>
-                          משתמש #{otherId}
-                        </Text>
-                        <Text style={styles.lastMsg}>
-                          לחץ כדי להמשיך צ'אט
-                        </Text>
-                      </View>
-
-                      <Ionicons
-                        name="chevron-back"
-                        size={20}
-                        color={COLORS.brand}
-                      />
-                    </TouchableOpacity>
-                  );
-                })}
-              </View>
-            );
-          })
-        )}
-      </ScrollView>
+        }
+      />
 
       <BottomNav active="notifications" />
     </SafeAreaView>
@@ -179,7 +202,6 @@ export default function ActiveChatsScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: COLORS.background },
-
   center: {
     flex: 1,
     justifyContent: "center",
@@ -195,80 +217,98 @@ const styles = StyleSheet.create({
     paddingTop: 20,
     paddingBottom: 10,
   },
-
   header: {
     fontSize: 20,
     fontFamily: FONTS.bold,
     color: COLORS.brand,
   },
 
-  content: {
-    paddingHorizontal: 20,
-    paddingBottom: 40,
+  listContent: { paddingTop: 4, paddingBottom: 20 },
+
+  separator: {
+    height: 1,
+    backgroundColor: COLORS.divider,
+    marginRight: 84, // מתחיל אחרי האווטר (כמו וואטסאפ)
   },
 
-  tripTitle: {
-    fontSize: 18,
-    fontFamily: FONTS.bold,
-    color: COLORS.brand,
-    marginBottom: 8,
-    textAlign: "right",
-  },
-
-  card: {
+  chatRow: {
     flexDirection: "row-reverse",
     alignItems: "center",
+    paddingVertical: 11,
+    paddingHorizontal: 16,
     backgroundColor: COLORS.surface,
-    padding: 14,
-    borderRadius: 16,
-    marginBottom: 10,
-    shadowColor: COLORS.shadow,
-    shadowOpacity: 0.05,
-    shadowRadius: 6,
-    elevation: 2,
-  },
-
-  cardPast: {
-    backgroundColor: COLORS.divider,
   },
 
   avatar: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
+    width: 54,
+    height: 54,
+    borderRadius: 27,
+    backgroundColor: COLORS.divider,
+    marginLeft: 14,
+  },
+  avatarFallback: {
     backgroundColor: COLORS.brand,
     justifyContent: "center",
     alignItems: "center",
   },
-
-  cardText: {
-    flex: 1,
-    marginHorizontal: 12,
-    alignItems: "flex-end",
+  avatarInitials: {
+    fontSize: 20,
+    fontFamily: FONTS.bold,
+    color: COLORS.onBrand,
   },
 
-  name: {
+  chatInfo: {
+    flex: 1,
+    justifyContent: "center",
+  },
+  chatTopRow: {
+    flexDirection: "row-reverse",
+    alignItems: "center",
+    justifyContent: "space-between",
+    marginBottom: 3,
+  },
+  chatName: {
+    flex: 1,
     fontSize: 16,
     fontFamily: FONTS.bold,
-    color: COLORS.brand,
+    color: COLORS.text,
+    textAlign: "right",
   },
-
-  lastMsg: {
-    fontSize: 13,
+  chatTime: {
+    fontSize: 12,
+    fontFamily: FONTS.regular,
+    color: COLORS.textMuted,
+    marginRight: 8,
+  },
+  chatPreview: {
+    fontSize: 14,
     fontFamily: FONTS.regular,
     color: COLORS.textSecondary,
-    marginTop: 2,
+    textAlign: "right",
   },
 
-  emptyBox: {
-    marginTop: 80,
+  // ── Empty ──
+  emptyListContent: { flexGrow: 1, justifyContent: "center", alignItems: "center" },
+  emptyState: { alignItems: "center", paddingHorizontal: 40 },
+  emptyIconCircle: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    backgroundColor: COLORS.surface,
+    justifyContent: "center",
     alignItems: "center",
+    marginBottom: 14,
+    shadowColor: COLORS.shadow,
+    shadowOpacity: 0.08,
+    shadowRadius: 8,
+    elevation: 2,
   },
-
-  emptyText: {
-    marginTop: 10,
-    fontSize: 16,
-    color: COLORS.textMuted,
+  emptyTitle: { fontFamily: FONTS.bold, fontSize: 16, color: COLORS.text },
+  emptySub: {
     fontFamily: FONTS.regular,
+    fontSize: 13,
+    color: COLORS.textSecondary,
+    textAlign: "center",
+    marginTop: 6,
   },
 });

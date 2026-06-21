@@ -1,7 +1,7 @@
 import { Ionicons } from "@expo/vector-icons";
 import * as ImagePicker from "expo-image-picker";
 import { useRouter } from "expo-router";
-import { ChevronLeft, FileText, Heart, LogOut, Settings, Users } from "lucide-react-native";
+import { ChevronLeft, FileText, Heart, LogOut, Settings } from "lucide-react-native";
 import React, { useEffect, useState } from "react";
 import {
   ActivityIndicator,
@@ -72,7 +72,7 @@ export default function ProfileScreen() {
           await Promise.all([
             fetch(`${BASE_URL}/UserProfile/${userId}`, { headers }),
             fetch(`${BASE_URL}/UserProfile/image/${userId}`, { headers }),
-            fetch(`${BASE_URL}/Matches/user/${userId}`, { headers }),
+            fetch(`${BASE_URL}/Match/user/${userId}`, { headers }),
             fetch(`${BASE_URL}/Trip/user/${userId}`, { headers }),
           ]);
 
@@ -254,12 +254,6 @@ export default function ProfileScreen() {
 
   // route = ה-path אליו הכפתור מנווט (null = לא לחיץ עדיין)
   const MENU = [
-    {
-      title: "גילוי וקהילה",
-      Icon: Users,
-      route: "/discovery",
-      iconBg: "#E3EFE5",
-    },
     {
       title: "הגדרות",
       Icon: Settings,
