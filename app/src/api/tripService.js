@@ -276,6 +276,77 @@ export async function addTripPreferenceInterest(tripPreferenceId, interestId) {
 }
 
 
+// מחזיר את דירוג חשיבות הגורמים של העדפת טיול
+// (GET /api/TripPreferencePriorities/{tripPreferenceID}).
+// כל פריט: { tripPreferenceID, factor, priorityRank }, ממוין לפי priorityRank.
+export async function getTripPreferencePriorities(tripPreferenceId) {
+  const url = `${BASE_URL}/TripPreferencePriorities/${tripPreferenceId}`;
+  console.log(`[trip-pref-prio] → GET ${url}`);
+
+  let res;
+  try {
+    res = await fetch(url);
+  } catch (networkErr) {
+    console.error(`[trip-pref-prio] ✖ network error:`, networkErr);
+    throw new Error(`לא ניתן להתחבר לשרת. פרטים: ${networkErr.message}`);
+  }
+
+  const text = await res.text();
+  console.log(`[trip-pref-prio] ← ${res.status}`);
+  if (!res.ok) {
+    let msg = text;
+    try { msg = JSON.parse(text)?.message || msg; } catch {}
+    throw new Error(msg || `שגיאה ${res.status} מהשרת`);
+  }
+  return safeParse(text) || [];
+}
+
+// מוסיף שורת דירוג אחת (POST query string, כמו addTripPreferenceInterest).
+export async function addTripPreferencePriority(tripPreferenceId, factor, priorityRank) {
+  const url = `${BASE_URL}/TripPreferencePriorities?tripPreferenceID=${tripPreferenceId}&factor=${encodeURIComponent(factor)}&priorityRank=${priorityRank}`;
+  console.log(`[trip-pref-prio] → POST ${url}`);
+
+  let res;
+  try {
+    res = await fetch(url, { method: "POST" });
+  } catch (networkErr) {
+    console.error(`[trip-pref-prio] ✖ network error:`, networkErr);
+    throw new Error(`לא ניתן להתחבר לשרת. פרטים: ${networkErr.message}`);
+  }
+
+  const text = await res.text();
+  console.log(`[trip-pref-prio] ← ${res.status}`, text);
+  if (!res.ok) {
+    let msg = text;
+    try { msg = JSON.parse(text)?.message || msg; } catch {}
+    throw new Error(msg || `שגיאה ${res.status} מהשרת`);
+  }
+  return safeParse(text);
+}
+
+// מנקה את כל דירוגי החשיבות של העדפת טיול (DELETE /api/TripPreferencePriorities/{id}).
+export async function clearTripPreferencePriorities(tripPreferenceId) {
+  const url = `${BASE_URL}/TripPreferencePriorities/${tripPreferenceId}`;
+  console.log(`[trip-pref-prio] → DELETE ${url}`);
+
+  let res;
+  try {
+    res = await fetch(url, { method: "DELETE" });
+  } catch (networkErr) {
+    console.error(`[trip-pref-prio] ✖ network error:`, networkErr);
+    throw new Error(`לא ניתן להתחבר לשרת. פרטים: ${networkErr.message}`);
+  }
+
+  const text = await res.text();
+  console.log(`[trip-pref-prio] ← ${res.status}`, text);
+  if (!res.ok) {
+    let msg = text;
+    try { msg = JSON.parse(text)?.message || msg; } catch {}
+    throw new Error(msg || `שגיאה ${res.status} מהשרת`);
+  }
+  return safeParse(text);
+}
+
 export async function saveWheelSelection(
   userId,
   destinationId,
