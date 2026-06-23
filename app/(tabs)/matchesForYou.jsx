@@ -13,6 +13,7 @@ import {
 import { getQuestionnaire } from "../src/api/questionnaireService";
 import { getUserProfile } from "../src/api/userProfileService";
 import { getAllUsers } from "../src/api/userService";
+import { getEngagementPairs, logInteraction } from "../src/api/interactionService";
 import { getUser } from "../src/auth/authStore";
 
 import {
@@ -33,6 +34,8 @@ import { COLORS, FONTS } from "../src/theme";
 const { width: SCREEN_W } = Dimensions.get("window");
 // רוחב כרטיס בגריד 2 עמודות (תואם paddingHorizontal:16 + מרווח 12).
 const GRID_CARD_W = (SCREEN_W - 16 * 2 - 12) / 2;
+// רוחב כרטיס בשורת הקטגוריה ההתנהגותית (גלילה אופקית).
+const CARD_W = 150;
 
 // חישוב גיל מתאריך לידה (ISO string או Date)
 function computeAge(birthDate) {
@@ -96,6 +99,9 @@ export default function MatchesScreen() {
 
   const [loading, setLoading] = useState(true);
   const [dismissed, setDismissed] = useState(new Set());
+
+  // זוגות התעניינות מהשרת — הבסיס למנוע ההתנהגותי (סינון שיתופי).
+  const [engagementPairs, setEngagementPairs] = useState([]);
 
   // =========================
   // LOAD USERS FROM DB
@@ -164,12 +170,14 @@ export default function MatchesScreen() {
         myInterestsRes,
         myQuestRes,
         pendingRes,
+        pairsRes,
       ] = await Promise.allSettled([
         getAllUsers(myId),
         getUserProfile(myId),
         getUserInterests(myId),
         getQuestionnaire(myId),
         getPendingRequests(myId),
+        getEngagementPairs(),
       ]);
 
       // משתמשים מועשרים מהשרת. מסננים פריטים null/undefined ליתר ביטחון.
@@ -192,6 +200,10 @@ export default function MatchesScreen() {
         pendingRes.status === "fulfilled" ? pendingRes.value || [] : [];
       const incoming = allPending.filter((r) => r.toUserID === myId);
       setRequests(incoming);
+
+      setEngagementPairs(
+        pairsRes.status === "fulfilled" ? pairsRes.value || [] : [],
+      );
     } catch (err) {
       console.log("Failed loading users:", err);
     } finally {
@@ -297,6 +309,71 @@ export default function MatchesScreen() {
   }, [users, currentUser, dismissed]);
 
 
+  // =========================================
+  // BEHAVIORAL ALGORITHM (Collaborative Filtering)
+  // "אנשים שאולי מתאימים לך" — לפי התנהגות באפליקציה, לא לפי תכונות.
+  // הרעיון: מוצאים משתמשים שהתנהגו כמוני (התעניינו באותם פרופילים),
+  // ומציעים לי את מי *שהם* התעניינו בו ואני עוד לא.
+  // =========================================
+  const behavioralMatches = useMemo(() => {
+    if (!currentUser || users.length === 0 || engagementPairs.length === 0) {
+      return [];
+    }
+    const myId = currentUser.userID;
+
+    // שלב 1: לכל משתמש, מפה של "במי התעניין" → משקל.
+    // engagement[userId] = { [targetId]: weight }
+    const engagement = {};
+    for (const p of engagementPairs) {
+      if (!engagement[p.fromUserID]) engagement[p.fromUserID] = {};
+      engagement[p.fromUserID][p.toUserID] = p.weight;
+    }
+
+    const myTargets = engagement[myId] || {};
+    if (Object.keys(myTargets).length === 0) return []; // Cold Start — עוד אין לי פעילות
+
+    // עזר: דמיון קוסינוס בין שתי מפות התעניינות (0 = שונה, 1 = זהה).
+    const cosine = (a, b) => {
+      let dot = 0, magA = 0, magB = 0;
+      for (const t in a) {
+        magA += a[t] * a[t];
+        if (b[t]) dot += a[t] * b[t];
+      }
+      for (const t in b) magB += b[t] * b[t];
+      return magA && magB ? dot / (Math.sqrt(magA) * Math.sqrt(magB)) : 0;
+    };
+
+    // שלב 2: לכל מועמד-מטרה, צובר ניקוד ממשתמשים דומים אליי שהתעניינו בו
+    // (ושאני עוד לא התעניינתי בו).
+    const scores = {}; // targetId -> ניקוד גולמי
+    for (const otherId in engagement) {
+      if (Number(otherId) === myId) continue;
+      const sim = cosine(myTargets, engagement[otherId]);
+      if (sim <= 0) continue;
+      for (const targetId in engagement[otherId]) {
+        if (Number(targetId) === myId || myTargets[targetId]) continue;
+        scores[targetId] =
+          (scores[targetId] || 0) + sim * engagement[otherId][targetId];
+      }
+    }
+
+    // שלב 3: נרמול ל-0-100 (יחסית לגבוה ביותר), מיפוי למשתמשים, מיון.
+    const max = Math.max(0, ...Object.values(scores));
+    if (max === 0) return [];
+
+    const usersById = new Map(users.map((u) => [String(u.userID), u]));
+    return Object.entries(scores)
+      .map(([targetId, raw]) => {
+        const u = usersById.get(String(targetId));
+        if (!u) return null; // לא ברשימת המוצגים (חסום/לא קיים)
+        return { ...u, behavioralScore: Math.round((raw / max) * 100) };
+      })
+      .filter(Boolean)
+      .filter((u) => !dismissed.has(u.userID))
+      .sort((a, b) => b.behavioralScore - a.behavioralScore);
+  }, [users, currentUser, engagementPairs, dismissed]);
+
+
   // ✔ אישור בקשה - יוצר Match בשרת ופותח צ'אט
   const handleAccept = async (requestId) => {
     try {
@@ -325,14 +402,57 @@ export default function MatchesScreen() {
     }
   };
 
-  // 👤 מעבר לפרופיל
+  // 👤 מעבר לפרופיל — מתעד צפייה למנוע ההתנהגותי (fire and forget).
   const openProfile = (user) => {
+    logInteraction(user.userID, "View");
     router.push({
       pathname: "/MatchProfileDetails",
       params: {
         user: JSON.stringify(user),
       },
     });
+  };
+
+  // כרטיס התאמה אחיד — משמש גם בגריד וגם בשורת הקטגוריה ההתנהגותית.
+  const renderMatchCard = (user, score, cardWidth, inRow = false) => {
+    const imageUri = buildImageUri(user.profileImage);
+    return (
+      <TouchableOpacity
+        key={user.userID}
+        style={[styles.card, { width: cardWidth }, inRow && styles.cardFlipped]}
+        activeOpacity={0.9}
+        onPress={() => openProfile(user)}
+      >
+        <View style={styles.cardImageWrap}>
+          {imageUri ? (
+            <Image source={{ uri: imageUri }} style={styles.cardImage} />
+          ) : (
+            <View style={[styles.cardImage, styles.cardImageFallback]}>
+              <Ionicons name="person" size={44} color={COLORS.onBrand} />
+            </View>
+          )}
+
+          <View style={styles.scoreBadge}>
+            <Ionicons name="sparkles" size={12} color={COLORS.amberDark} />
+            <Text style={styles.scoreBadgeText}>{score}%</Text>
+          </View>
+
+          <View style={styles.cardNameBand}>
+            <Text style={styles.cardName} numberOfLines={1}>
+              {user.name}{user.age != null ? `, ${user.age}` : ""}
+            </Text>
+          </View>
+        </View>
+
+        <View style={styles.cardMetaRow}>
+          <Text style={styles.cardMeta} numberOfLines={1}>
+            {user.interests.length > 0
+              ? user.interests.slice(0, 2).join(" · ")
+              : "אין תחומי עניין"}
+          </Text>
+        </View>
+      </TouchableOpacity>
+    );
   };
 
   if (loading || !currentUser) {
@@ -426,55 +546,42 @@ export default function MatchesScreen() {
           })
         )}
 
-        {/* התאמות חכמות */}
-        <Text style={styles.sectionTitle}>התאמות חכמות עבורך</Text>
+        {/* קטגוריה התנהגותית — "אנשים שאולי מתאימים לך" (מוסתרת אם ריקה) */}
+        {behavioralMatches.length > 0 && (
+          <View style={styles.behavioralSection}>
+            <View style={styles.sectionHeaderRow}>
+              <Text style={styles.sectionTitleInline}>אנשים שאולי מתאימים לך</Text>
+              <Ionicons name="people-outline" size={18} color={COLORS.brand} />
+            </View>
+            <Text style={styles.sectionSubtitle}>
+              על סמך הפעילות שלך באפליקציה
+            </Text>
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              style={styles.rowScroll}
+              contentContainerStyle={styles.rowContent}
+            >
+              {behavioralMatches.map((user) =>
+                renderMatchCard(user, user.behavioralScore, CARD_W, true),
+              )}
+            </ScrollView>
+          </View>
+        )}
+
+        {/* התאמות חכמות (מבוסס-תוכן) */}
+        <View style={styles.sectionHeaderRow}>
+          <Text style={styles.sectionTitleInline}>התאמות חכמות עבורך</Text>
+          <Ionicons name="sparkles-outline" size={18} color={COLORS.brand} />
+        </View>
 
         {smartMatches.length === 0 ? (
           <Text style={styles.placeholder}>אין משתמשים להציג כרגע</Text>
         ) : (
           <View style={styles.grid}>
-            {smartMatches.map((user) => {
-              const imageUri = buildImageUri(user.profileImage);
-              return (
-                <TouchableOpacity
-                  key={user.userID}
-                  style={styles.card}
-                  activeOpacity={0.9}
-                  onPress={() => openProfile(user)}
-                >
-                  <View style={styles.cardImageWrap}>
-                    {imageUri ? (
-                      <Image source={{ uri: imageUri }} style={styles.cardImage} />
-                    ) : (
-                      <View style={[styles.cardImage, styles.cardImageFallback]}>
-                        <Ionicons name="person" size={44} color={COLORS.onBrand} />
-                      </View>
-                    )}
-
-                    {/* באדג' ציון */}
-                    <View style={styles.scoreBadge}>
-                      <Ionicons name="sparkles" size={12} color={COLORS.amberDark} />
-                      <Text style={styles.scoreBadgeText}>{user.matchScore}%</Text>
-                    </View>
-
-                    {/* פס שם תחתון */}
-                    <View style={styles.cardNameBand}>
-                      <Text style={styles.cardName} numberOfLines={1}>
-                        {user.name}{user.age != null ? `, ${user.age}` : ""}
-                      </Text>
-                    </View>
-                  </View>
-
-                  <View style={styles.cardMetaRow}>
-                    <Text style={styles.cardMeta} numberOfLines={1}>
-                      {user.interests.length > 0
-                        ? user.interests.slice(0, 2).join(" · ")
-                        : "אין תחומי עניין"}
-                    </Text>
-                  </View>
-                </TouchableOpacity>
-              );
-            })}
+            {smartMatches.map((user) =>
+              renderMatchCard(user, user.matchScore, GRID_CARD_W),
+            )}
           </View>
         )}
       </ScrollView>
@@ -569,7 +676,7 @@ const styles = StyleSheet.create({
   },
 
   avatarFallback: {
-    backgroundColor: COLORS.primary,
+    backgroundColor: COLORS.brand,
     justifyContent: "center",
     alignItems: "center",
   },
@@ -578,16 +685,60 @@ const styles = StyleSheet.create({
   // SMART MATCHES (modern grid cards)
   // =========================
 
+  // כותרת קטע עם אייקון (במקום אמוג'י בטקסט).
+  sectionHeaderRow: {
+    flexDirection: "row-reverse",
+    alignItems: "center",
+    gap: 6,
+    marginTop: 18,
+    marginBottom: 10,
+  },
+
+  sectionTitleInline: {
+    fontSize: 17,
+    fontFamily: FONTS.bold,
+    color: COLORS.brand,
+    textAlign: "right",
+  },
+
   grid: {
     flexDirection: "row-reverse",
     flexWrap: "wrap",
-    justifyContent: "space-between",
+    justifyContent: "flex-start",
     gap: 12,
     marginTop: 4,
   },
 
+  // ── Behavioral category row ──
+  behavioralSection: {
+    marginTop: 6,
+    marginBottom: 8,
+  },
+
+  // היפוך אופקי כדי שהשורה ה"נטפליקסית" תתחיל מימין (RTL).
+  rowScroll: {
+    transform: [{ scaleX: -1 }],
+  },
+  cardFlipped: {
+    transform: [{ scaleX: -1 }],
+  },
+
+  sectionSubtitle: {
+    fontSize: 12,
+    color: COLORS.textMuted,
+    textAlign: "right",
+    marginTop: -6,
+    marginBottom: 10,
+    fontFamily: FONTS.regular,
+  },
+
+  rowContent: {
+    flexDirection: "row",
+    gap: 12,
+    paddingVertical: 2,
+  },
+
   card: {
-    width: GRID_CARD_W,
     backgroundColor: COLORS.surface,
     borderRadius: 18,
     overflow: "hidden",
@@ -611,7 +762,7 @@ const styles = StyleSheet.create({
   },
 
   cardImageFallback: {
-    backgroundColor: COLORS.primary,
+    backgroundColor: COLORS.brand,
     justifyContent: "center",
     alignItems: "center",
   },

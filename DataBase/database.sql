@@ -1235,6 +1235,64 @@ BEGIN
 END
 GO
 
+/* =========================================
+   USER PROFILE INTERACTIONS — לוגינג + מנוע התנהגותי (סינון שיתופי).
+   הטבלה dbo.UserProfileInteractions כבר קיימת (View/Like/ChatRequest).
+========================================= */
+
+-- רישום אינטראקציה. שומרים שורה אחת לכל (From, To, Type) — בלי כפילויות.
+CREATE OR ALTER PROCEDURE dbo.AddUserProfileInteraction
+    @FromUserID INT,
+    @ToUserID INT,
+    @InteractionType NVARCHAR(20)
+AS
+BEGIN
+    SET NOCOUNT ON;
+
+    IF @FromUserID = @ToUserID RETURN; -- אין לתעד אינטראקציה עם עצמך
+
+    IF NOT EXISTS (
+        SELECT 1 FROM dbo.UserProfileInteractions
+        WHERE FromUserID = @FromUserID
+          AND ToUserID = @ToUserID
+          AND InteractionType = @InteractionType
+    )
+    BEGIN
+        INSERT INTO dbo.UserProfileInteractions (FromUserID, ToUserID, InteractionType)
+        VALUES (@FromUserID, @ToUserID, @InteractionType);
+    END
+
+    SELECT @@ROWCOUNT AS RowsAffected;
+END
+GO
+
+-- זוגות "מי התעניין במי" משני מקורות (אינטראקציות + בקשות התאמה),
+-- עם משקל לפי עוצמת הפעולה: צפייה=1, לייק=3, בקשת צ'אט/התאמה=4.
+-- מאוחד ומסוכם לשורה אחת לכל (From, To) — בדיוק מה שהמנוע ההתנהגותי צריך.
+CREATE OR ALTER PROCEDURE dbo.GetEngagementPairs
+AS
+BEGIN
+    SET NOCOUNT ON;
+
+    SELECT FromUserID, ToUserID, SUM(Weight) AS Weight
+    FROM (
+        SELECT FromUserID, ToUserID,
+            CASE InteractionType
+                WHEN 'Like' THEN 3
+                WHEN 'ChatRequest' THEN 4
+                ELSE 1            -- 'View'
+            END AS Weight
+        FROM dbo.UserProfileInteractions
+
+        UNION ALL
+
+        SELECT FromUserID, ToUserID, 4 AS Weight
+        FROM dbo.MatchRequests
+    ) AS combined
+    GROUP BY FromUserID, ToUserID;
+END
+GO
+
 
 /* =========================================
    MATCH REQUESTS + MATCHES
@@ -2239,6 +2297,10 @@ BEGIN
 
         DELETE FROM dbo.Trips
         WHERE CreatedByUserID = @UserID;
+
+        -- אינטראקציות שבהן המשתמש הוא הצופה או המטרה (FK ל-Users).
+        DELETE FROM dbo.UserProfileInteractions
+        WHERE FromUserID = @UserID OR ToUserID = @UserID;
 
         DELETE FROM dbo.Users
         WHERE UserID = @UserID;

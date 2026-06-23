@@ -133,8 +133,8 @@ export default function Home() {
       key: "matches",
       title: "התאמות עבורך",
       Icon: MessageCircle,
-      bg: "#E7F3FF",
-      iconBorder: "#1877F2",
+      bg: "#E3EFEF",
+      iconBorder: "#2F6E72",
       route: "/matchesForYou",
     },
     {
