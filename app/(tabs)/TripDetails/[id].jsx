@@ -324,6 +324,20 @@ err
           </ScrollView>
         )}
 
+        {/* מעבר למסך ההתאמות החכמות לטיול (דירוג מועמדים לפי העדפות הטיול) */}
+        <TouchableOpacity
+          style={styles.findMatchesBtn}
+          onPress={() =>
+            router.push({
+              pathname: "/TripMatches/[id]",
+              params: { id },
+            })
+          }
+        >
+          <Ionicons name="sparkles" size={18} color={COLORS.onBrand} />
+          <Text style={styles.findMatchesText}>מצא התאמות לטיול</Text>
+        </TouchableOpacity>
+
         {/* CHATS */}
         <Text style={styles.sectionTitle}>צ'אטים</Text>
 
@@ -641,6 +655,23 @@ const styles = StyleSheet.create({
     marginLeft: 10,
     alignItems: "center",
     width: 100,
+  },
+
+  findMatchesBtn: {
+    flexDirection: "row-reverse",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+    backgroundColor: COLORS.brand,
+    padding: 14,
+    borderRadius: 12,
+    marginTop: 12,
+  },
+
+  findMatchesText: {
+    color: COLORS.onBrand,
+    fontFamily: FONTS.bold,
+    fontSize: 15,
   },
 
   avatar: {

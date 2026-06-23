@@ -134,6 +134,30 @@ ADD CONSTRAINT CK_TripPref_LifestyleLevel
 CHECK (LifestyleLevel IS NULL OR LifestyleLevel BETWEEN 1 AND 5);
 GO
 
+-- =========================================
+-- TripPreferencePriorities: דירוג חשיבות הגורמים להתאמה, לכל העדפת טיול.
+-- שורה לכל גורם (gender/interests/age/...), PriorityRank=1 הוא הכי חשוב.
+-- מנורמל (ערך בודד בכל תא) - אותה תבנית כמו TripPreferenceInterests.
+-- IF OBJECT_ID ... IS NULL כדי שבטוח להריץ גם על DB קיים.
+-- =========================================
+IF OBJECT_ID('dbo.TripPreferencePriorities', 'U') IS NULL
+BEGIN
+    CREATE TABLE dbo.TripPreferencePriorities (
+        TripPreferenceID INT NOT NULL,
+        Factor           NVARCHAR(50) NOT NULL,
+        PriorityRank     TINYINT NOT NULL,
+        CONSTRAINT PK_TripPreferencePriorities
+            PRIMARY KEY (TripPreferenceID, Factor),
+        CONSTRAINT FK_TPP_TripPreference
+            FOREIGN KEY (TripPreferenceID)
+            REFERENCES dbo.TripPreferences(TripPreferenceID),
+        CONSTRAINT UQ_TPP_Rank UNIQUE (TripPreferenceID, PriorityRank),
+        CONSTRAINT CK_TPP_Factor CHECK (Factor IN
+            ('gender','interests','age','smoker','kosher','shabbat','spontaneity','lifestyle'))
+    );
+END
+GO
+
 CREATE TABLE dbo.MatchRequests (
     RequestID    INT IDENTITY(1,1) PRIMARY KEY,
     FromUserID   INT NOT NULL,
@@ -987,6 +1011,13 @@ BEGIN
             WHERE TripID = @TripID
         );
 
+        DELETE FROM dbo.TripPreferencePriorities
+        WHERE TripPreferenceID IN (
+            SELECT TripPreferenceID
+            FROM dbo.TripPreferences
+            WHERE TripID = @TripID
+        );
+
         DELETE FROM dbo.TripPreferences
         WHERE TripID = @TripID;
 
@@ -1148,6 +1179,59 @@ BEGIN
         ON TPI.InterestID = I.InterestID
     WHERE TPI.TripPreferenceID = @TripPreferenceID
     ORDER BY I.InterestName;
+END
+GO
+
+/* =========================================
+   TRIP PREFERENCE PRIORITIES
+   דירוג חשיבות הגורמים — שמירה/ניקוי/קריאה.
+   העדכון נעשה בדרך של ניקוי-הכל ואז הוספה מחדש (כמו תחומי העניין).
+========================================= */
+
+CREATE OR ALTER PROCEDURE dbo.AddTripPreferencePriority
+    @TripPreferenceID INT,
+    @Factor NVARCHAR(50),
+    @PriorityRank TINYINT
+AS
+BEGIN
+    SET NOCOUNT ON;
+
+    IF NOT EXISTS (SELECT 1 FROM dbo.TripPreferences WHERE TripPreferenceID = @TripPreferenceID)
+    BEGIN
+        RAISERROR('Trip preference does not exist.', 16, 1);
+        RETURN;
+    END
+
+    INSERT INTO dbo.TripPreferencePriorities (TripPreferenceID, Factor, PriorityRank)
+    VALUES (@TripPreferenceID, @Factor, @PriorityRank);
+
+    SELECT @@ROWCOUNT AS RowsAffected;
+END
+GO
+
+CREATE OR ALTER PROCEDURE dbo.ClearTripPreferencePriorities
+    @TripPreferenceID INT
+AS
+BEGIN
+    SET NOCOUNT ON;
+
+    DELETE FROM dbo.TripPreferencePriorities
+    WHERE TripPreferenceID = @TripPreferenceID;
+
+    SELECT @@ROWCOUNT AS RowsAffected;
+END
+GO
+
+CREATE OR ALTER PROCEDURE dbo.GetTripPreferencePriorities
+    @TripPreferenceID INT
+AS
+BEGIN
+    SET NOCOUNT ON;
+
+    SELECT TripPreferenceID, Factor, PriorityRank
+    FROM dbo.TripPreferencePriorities
+    WHERE TripPreferenceID = @TripPreferenceID
+    ORDER BY PriorityRank;
 END
 GO
 
@@ -2129,6 +2213,15 @@ BEGIN
         );
 
         DELETE FROM dbo.TripPreferenceInterests
+        WHERE TripPreferenceID IN (
+            SELECT TP.TripPreferenceID
+            FROM dbo.TripPreferences TP
+            INNER JOIN dbo.Trips T
+                ON TP.TripID = T.TripID
+            WHERE T.CreatedByUserID = @UserID
+        );
+
+        DELETE FROM dbo.TripPreferencePriorities
         WHERE TripPreferenceID IN (
             SELECT TP.TripPreferenceID
             FROM dbo.TripPreferences TP

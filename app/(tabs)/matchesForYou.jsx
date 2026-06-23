@@ -18,6 +18,7 @@ import { getUser } from "../src/auth/authStore";
 import {
   ActivityIndicator,
   Alert,
+  Dimensions,
   Image,
   ScrollView,
   StyleSheet,
@@ -28,6 +29,10 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 import BottomNav from "../../components/BottomNav";
 import { COLORS, FONTS } from "../src/theme";
+
+const { width: SCREEN_W } = Dimensions.get("window");
+// רוחב כרטיס בגריד 2 עמודות (תואם paddingHorizontal:16 + מרווח 12).
+const GRID_CARD_W = (SCREEN_W - 16 * 2 - 12) / 2;
 
 // חישוב גיל מתאריך לידה (ISO string או Date)
 function computeAge(birthDate) {
@@ -64,6 +69,21 @@ function parseInterestNames(raw) {
     .map((it) => (typeof it === "string" ? it : it?.interestName || it?.InterestName))
     .filter(Boolean);
 }
+
+// משקלים לאלגוריתם ההתאמה — מרוכזים במקום אחד לכוונון קל.
+// הערך של כל קטגוריה הוא הניקוד המקסימלי שהיא יכולה לתרום.
+const WEIGHTS = {
+  age: 20,
+  interests: 30,
+  smoker: 10,
+  kosher: 10,
+  shabbat: 10,
+  spontaneity: 15,
+  lifestyle: 15,
+};
+
+// טווח ערכי הרמות בשאלון (1-5) → הפרש מקסימלי אפשרי הוא 4.
+const LEVEL_RANGE = 4;
 
 export default function MatchesScreen() {
   const router = useRouter();
@@ -190,78 +210,87 @@ export default function MatchesScreen() {
       return [];
     }
 
+    // תחומי העניין שלי (case-insensitive) — מחושב פעם אחת לכל ההתאמות.
+    const myInterests = (currentUser.interests || []).map((s) =>
+      String(s).toLowerCase(),
+    );
+
     return (
       users
         .filter((user) => user.name && user.name.trim().length > 0)
         .filter((user) => !dismissed.has(user.userID))
         .map((user) => {
-          let score = 0;
+          let earned = 0; // נקודות שנצברו בפועל
+          let maxPossible = 0; // מקסימום נקודות על סמך הקטגוריות שניתן להשוות
 
-          // גיל — קרבה בגילים
-          if (user.age && currentUser.age) {
+          // גיל — קרבה בגילים. נספר רק אם לשניהם יש גיל.
+          if (user.age != null && currentUser.age != null) {
+            maxPossible += WEIGHTS.age;
             const ageDiff = Math.abs(user.age - currentUser.age);
-            if (ageDiff <= 2) score += 20;
-            else if (ageDiff <= 5) score += 10;
+            if (ageDiff <= 2) earned += WEIGHTS.age;
+            else if (ageDiff <= 5) earned += WEIGHTS.age * 0.5;
           }
 
-          // תחומי עניין משותפים (השוואה case-insensitive)
-          const myInterests = (currentUser.interests || []).map((s) =>
-            String(s).toLowerCase(),
-          );
+          // תחומי עניין — דמיון Jaccard (חיתוך חלקי איחוד), יחסי ולא חסום.
+          // נספר רק אם לשני הצדדים יש לפחות תחום עניין אחד.
           const theirInterests = (user.interests || []).map((s) =>
             String(s).toLowerCase(),
           );
-          const shared = theirInterests.filter((i) => myInterests.includes(i));
-          score += shared.length * 15;
-
-          // שאלון — התאמת אורח חיים
-          if (
-            user.isSmoker !== null &&
-            currentUser.isSmoker !== null &&
-            user.isSmoker === currentUser.isSmoker
-          ) {
-            score += 10;
-          }
-          if (
-            user.keepsKosher !== null &&
-            currentUser.keepsKosher !== null &&
-            user.keepsKosher === currentUser.keepsKosher
-          ) {
-            score += 10;
-          }
-          if (
-            user.keepsShabbat !== null &&
-            currentUser.keepsShabbat !== null &&
-            user.keepsShabbat === currentUser.keepsShabbat
-          ) {
-            score += 10;
+          if (myInterests.length > 0 && theirInterests.length > 0) {
+            maxPossible += WEIGHTS.interests;
+            const mySet = new Set(myInterests);
+            const shared = theirInterests.filter((i) => mySet.has(i)).length;
+            const union = new Set([...myInterests, ...theirInterests]).size;
+            const jaccard = union > 0 ? shared / union : 0;
+            earned += jaccard * WEIGHTS.interests;
           }
 
-          // רמת ספונטניות — ככל שקרוב יותר, ניקוד גבוה יותר (טווח 1-5)
+          // שאלון — התאמות בוליאניות. נספרות רק כששני הצדדים ענו.
+          if (user.isSmoker != null && currentUser.isSmoker != null) {
+            maxPossible += WEIGHTS.smoker;
+            if (user.isSmoker === currentUser.isSmoker) earned += WEIGHTS.smoker;
+          }
+          if (user.keepsKosher != null && currentUser.keepsKosher != null) {
+            maxPossible += WEIGHTS.kosher;
+            if (user.keepsKosher === currentUser.keepsKosher)
+              earned += WEIGHTS.kosher;
+          }
+          if (user.keepsShabbat != null && currentUser.keepsShabbat != null) {
+            maxPossible += WEIGHTS.shabbat;
+            if (user.keepsShabbat === currentUser.keepsShabbat)
+              earned += WEIGHTS.shabbat;
+          }
+
+          // רמת ספונטניות (1-5) — ככל שקרוב יותר, ניקוד גבוה יותר (לינארי על הטווח).
           if (
             user.spontaneityLevel != null &&
             currentUser.spontaneityLevel != null
           ) {
+            maxPossible += WEIGHTS.spontaneity;
             const diff = Math.abs(
               user.spontaneityLevel - currentUser.spontaneityLevel,
             );
-            if (diff === 0) score += 15;
-            else if (diff === 1) score += 8;
+            earned += WEIGHTS.spontaneity * Math.max(0, 1 - diff / LEVEL_RANGE);
           }
 
-          // רמת אורח חיים — דומה
+          // רמת אורח חיים (1-5) — דומה.
           if (
             user.lifestyleLevel != null &&
             currentUser.lifestyleLevel != null
           ) {
+            maxPossible += WEIGHTS.lifestyle;
             const diff = Math.abs(
               user.lifestyleLevel - currentUser.lifestyleLevel,
             );
-            if (diff === 0) score += 15;
-            else if (diff === 1) score += 8;
+            earned += WEIGHTS.lifestyle * Math.max(0, 1 - diff / LEVEL_RANGE);
           }
 
-          return { ...user, matchScore: Math.min(score, 100) };
+          // נרמול לאחוז על סמך הקטגוריות שבאמת היה אפשר להשוות —
+          // כך פרופיל חלקי לא נענש על שדות חסרים.
+          const matchScore =
+            maxPossible > 0 ? Math.round((earned / maxPossible) * 100) : 0;
+
+          return { ...user, matchScore };
         })
         .sort((a, b) => b.matchScore - a.matchScore)
     );
@@ -403,47 +432,50 @@ export default function MatchesScreen() {
         {smartMatches.length === 0 ? (
           <Text style={styles.placeholder}>אין משתמשים להציג כרגע</Text>
         ) : (
-          smartMatches.map((user) => {
-            const imageUri = buildImageUri(user.profileImage);
-            return (
-              <TouchableOpacity
-                key={user.userID}
-                style={styles.matchCard}
-                onPress={() => openProfile(user)}
-              >
-                {imageUri ? (
-                  <Image
-                    source={{ uri: imageUri }}
-                    style={styles.matchAvatar}
-                  />
-                ) : (
-                  <View style={[styles.matchAvatar, styles.avatarFallback]}>
-                    <Ionicons name="person" size={32} color={COLORS.onBrand} />
+          <View style={styles.grid}>
+            {smartMatches.map((user) => {
+              const imageUri = buildImageUri(user.profileImage);
+              return (
+                <TouchableOpacity
+                  key={user.userID}
+                  style={styles.card}
+                  activeOpacity={0.9}
+                  onPress={() => openProfile(user)}
+                >
+                  <View style={styles.cardImageWrap}>
+                    {imageUri ? (
+                      <Image source={{ uri: imageUri }} style={styles.cardImage} />
+                    ) : (
+                      <View style={[styles.cardImage, styles.cardImageFallback]}>
+                        <Ionicons name="person" size={44} color={COLORS.onBrand} />
+                      </View>
+                    )}
+
+                    {/* באדג' ציון */}
+                    <View style={styles.scoreBadge}>
+                      <Ionicons name="sparkles" size={12} color={COLORS.amberDark} />
+                      <Text style={styles.scoreBadgeText}>{user.matchScore}%</Text>
+                    </View>
+
+                    {/* פס שם תחתון */}
+                    <View style={styles.cardNameBand}>
+                      <Text style={styles.cardName} numberOfLines={1}>
+                        {user.name}{user.age != null ? `, ${user.age}` : ""}
+                      </Text>
+                    </View>
                   </View>
-                )}
 
-                <View style={styles.matchInfo}>
-                  <Text style={styles.matchName}>{user.name}</Text>
-
-                  {user.age != null && (
-                    <Text style={styles.matchDetails}>גיל {user.age}</Text>
-                  )}
-
-                  <Text style={styles.matchDetails}>
-                    {user.interests.length > 0
-                      ? user.interests.slice(0, 3).join(" • ")
-                      : "אין תחומי עניין"}
-                  </Text>
-                </View>
-
-                {/* ציון התאמה */}
-                <View style={styles.scoreContainer}>
-                  <Ionicons name="sparkles" size={18} color={COLORS.amber} />
-                  <Text style={styles.scoreText}>{user.matchScore}%</Text>
-                </View>
-              </TouchableOpacity>
-            );
-          })
+                  <View style={styles.cardMetaRow}>
+                    <Text style={styles.cardMeta} numberOfLines={1}>
+                      {user.interests.length > 0
+                        ? user.interests.slice(0, 2).join(" · ")
+                        : "אין תחומי עניין"}
+                    </Text>
+                  </View>
+                </TouchableOpacity>
+              );
+            })}
+          </View>
         )}
       </ScrollView>
 
@@ -536,70 +568,102 @@ const styles = StyleSheet.create({
     fontFamily: FONTS.regular,
   },
 
-  // =========================
-  // SMART MATCHES
-  // =========================
-
-  matchCard: {
-    flexDirection: "row-reverse",
-    alignItems: "center",
-    backgroundColor: COLORS.surface,
-    padding: 14,
-    borderRadius: 18,
-    marginBottom: 12,
-    shadowColor: COLORS.shadow,
-    shadowOpacity: 0.06,
-    shadowRadius: 8,
-    elevation: 3,
-  },
-
-  matchAvatar: {
-    width: 58,
-    height: 58,
-    borderRadius: 29,
-    backgroundColor: COLORS.divider,
-    marginLeft: 12,
-  },
-
   avatarFallback: {
     backgroundColor: COLORS.primary,
     justifyContent: "center",
     alignItems: "center",
   },
 
-  matchInfo: {
-    flex: 1,
-    alignItems: "flex-end",
+  // =========================
+  // SMART MATCHES (modern grid cards)
+  // =========================
+
+  grid: {
+    flexDirection: "row-reverse",
+    flexWrap: "wrap",
+    justifyContent: "space-between",
+    gap: 12,
+    marginTop: 4,
   },
 
-  matchName: {
-    fontSize: 16,
+  card: {
+    width: GRID_CARD_W,
+    backgroundColor: COLORS.surface,
+    borderRadius: 18,
+    overflow: "hidden",
+    marginBottom: 12,
+    shadowColor: COLORS.shadow,
+    shadowOpacity: 0.1,
+    shadowRadius: 10,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 4,
+  },
+
+  cardImageWrap: {
+    width: "100%",
+    height: 180,
+    backgroundColor: COLORS.divider,
+  },
+
+  cardImage: {
+    width: "100%",
+    height: "100%",
+  },
+
+  cardImageFallback: {
+    backgroundColor: COLORS.primary,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+
+  scoreBadge: {
+    position: "absolute",
+    top: 10,
+    right: 10,
+    flexDirection: "row-reverse",
+    alignItems: "center",
+    gap: 3,
+    backgroundColor: COLORS.amberLight,
+    paddingVertical: 4,
+    paddingHorizontal: 8,
+    borderRadius: 12,
+  },
+
+  scoreBadgeText: {
+    fontSize: 12,
     fontFamily: FONTS.bold,
-    color: COLORS.brand,
+    color: COLORS.amberDark,
   },
 
-  matchDetails: {
-    fontSize: 13,
-    color: COLORS.textSecondary,
-    marginTop: 3,
-    fontFamily: FONTS.regular,
+  cardNameBand: {
+    position: "absolute",
+    left: 0,
+    right: 0,
+    bottom: 0,
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+    backgroundColor: "rgba(0,0,0,0.45)",
+  },
+
+  cardName: {
+    color: "#FFFFFF",
+    fontSize: 15,
+    fontFamily: FONTS.bold,
     textAlign: "right",
   },
 
-  scoreContainer: {
+  cardMetaRow: {
+    flexDirection: "row-reverse",
     alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: COLORS.amberLight,
-    paddingVertical: 8,
     paddingHorizontal: 10,
-    borderRadius: 14,
-    minWidth: 60,
+    paddingVertical: 10,
   },
 
-  scoreText: {
-    marginTop: 2,
-    fontSize: 14,
-    color: COLORS.amberDark,
-    fontFamily: FONTS.bold,
+  cardMeta: {
+    fontSize: 12,
+    fontFamily: FONTS.regular,
+    color: COLORS.textSecondary,
+    textAlign: "right",
+    flex: 1,
   },
 });
