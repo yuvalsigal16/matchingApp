@@ -360,6 +360,6 @@ const styles = StyleSheet.create({
   interestText: {
     fontSize: 13,
     fontFamily: FONTS.regular,
-    color: "#7C3AED",
+    color: "#7E76A6",
   },
 });

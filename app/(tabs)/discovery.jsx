@@ -20,7 +20,7 @@ export default function DiscoveryScreen() {
       sub: "לפי תחומי עניין",
       Icon: Users,
       iconBg: "#EDE9FE",
-      iconColor: "#7C3AED",
+      iconColor: "#7E76A6",
       route: "/community",
     },
     {

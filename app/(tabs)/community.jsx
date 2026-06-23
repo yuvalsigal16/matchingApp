@@ -27,7 +27,7 @@ const ICON_COLORS = [
   { bg: "#DBEAFE", icon: "#2563EB" },
   { bg: "#FCE7F3", icon: "#DB2777" },
   { bg: "#FEF3C7", icon: "#D97706" },
-  { bg: "#EDE9FE", icon: "#7C3AED" },
+  { bg: "#EDE9FE", icon: "#7E76A6" },
   { bg: "#FFE4E6", icon: "#E11D48" },
 ];
 

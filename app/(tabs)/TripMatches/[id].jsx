@@ -22,6 +22,7 @@ import {
   getTripPreferences,
   getUserTrips,
 } from "../../src/api/tripService";
+import { logInteraction } from "../../src/api/interactionService";
 import { getToken, getUser } from "../../src/auth/authStore";
 import { COLORS, FONTS } from "../../src/theme";
 
@@ -305,14 +306,14 @@ export default function TripMatchesScreen() {
             datesOverlap(myStart, myEnd, toDate(c.trip.startDate), toDate(c.trip.endDate)),
         ),
       );
-      cats.push({ key: "perfect", title: "✨ התאמה מושלמת לטיול שלך", items });
+      cats.push({ key: "perfect", icon: "star", title: "התאמה מושלמת לטיול שלך", items });
     }
 
     if (myDest) {
       const items = dedupeByUser(
         tripCandidates.filter((c) => sameDestination(c.trip.destination, myDest)),
       );
-      cats.push({ key: "destination", title: `🌍 טסים ל${myDest}`, items });
+      cats.push({ key: "destination", icon: "airplane", title: `טסים ל${myDest}`, items });
     }
 
     if (myStart || myEnd) {
@@ -321,7 +322,7 @@ export default function TripMatchesScreen() {
           datesOverlap(myStart, myEnd, toDate(c.trip.startDate), toDate(c.trip.endDate)),
         ),
       );
-      cats.push({ key: "dates", title: "📅 טסים בתאריכים שלך", items });
+      cats.push({ key: "dates", icon: "calendar", title: "טסים בתאריכים שלך", items });
     }
 
     // התאמה אישית גבוהה — לפי הציון בלבד (גם למי שעדיין אין לו טיול פעיל).
@@ -332,13 +333,14 @@ export default function TripMatchesScreen() {
       })
       .filter((c) => c.user.name && c.score > 0)
       .sort((a, b) => b.score - a.score);
-    cats.push({ key: "personality", title: "💫 התאמה אישית גבוהה", items: personality });
+    cats.push({ key: "personality", icon: "sparkles", title: "התאמה אישית גבוהה", items: personality });
 
     // משאירים רק קטגוריות לא ריקות.
     return cats.filter((c) => c.items.length > 0);
   }, [users, tripsByUser, scoreByUser, myTrip]);
 
   const openProfile = (user) => {
+    logInteraction(user.userID, "View"); // מתעד צפייה למנוע ההתנהגותי
     router.push({
       pathname: "/MatchProfileDetails",
       params: { user: JSON.stringify(user) },
@@ -361,7 +363,11 @@ export default function TripMatchesScreen() {
     return (
       <TouchableOpacity
         key={`${user.userID}-${trip?.tripID ?? "x"}`}
-        style={[styles.card, { width: inGrid ? GRID_CARD_W : CARD_W }]}
+        style={[
+          styles.card,
+          { width: inGrid ? GRID_CARD_W : CARD_W },
+          !inGrid && styles.cardFlipped,
+        ]}
         activeOpacity={0.9}
         onPress={() => openProfile(user)}
       >
@@ -475,6 +481,10 @@ export default function TripMatchesScreen() {
           categories.map((cat) => (
             <View key={cat.key} style={styles.section}>
               <View style={styles.sectionHeader}>
+                <View style={styles.sectionTitleRow}>
+                  <Text style={styles.sectionTitle}>{cat.title}</Text>
+                  <Ionicons name={cat.icon} size={18} color={COLORS.brand} />
+                </View>
                 {cat.items.length > 3 && (
                   <TouchableOpacity
                     onPress={() => setExpanded(cat.key)}
@@ -483,12 +493,12 @@ export default function TripMatchesScreen() {
                     <Text style={styles.seeAll}>ראה הכל ›</Text>
                   </TouchableOpacity>
                 )}
-                <Text style={styles.sectionTitle}>{cat.title}</Text>
               </View>
 
               <ScrollView
                 horizontal
                 showsHorizontalScrollIndicator={false}
+                style={styles.rowScroll}
                 contentContainerStyle={styles.rowContent}
               >
                 {cat.items.map((item) => renderCard(item, false))}
@@ -553,12 +563,18 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     marginBottom: 12,
   },
+  // כותרת קטע: אייקון + טקסט (במקום אמוג'י).
+  sectionTitleRow: {
+    flexDirection: "row-reverse",
+    alignItems: "center",
+    gap: 6,
+    flex: 1,
+  },
   sectionTitle: {
     fontSize: 17,
     fontFamily: FONTS.bold,
     color: COLORS.text,
     textAlign: "right",
-    flex: 1,
   },
   seeAll: {
     fontSize: 13,
@@ -566,10 +582,17 @@ const styles = StyleSheet.create({
     color: COLORS.brand,
     marginLeft: 8,
   },
+  // היפוך אופקי כדי שהשורה תתחיל מימין (RTL).
+  rowScroll: {
+    transform: [{ scaleX: -1 }],
+  },
+  cardFlipped: {
+    transform: [{ scaleX: -1 }],
+  },
   rowContent: {
     paddingHorizontal: 16,
     gap: 12,
-    flexDirection: "row-reverse",
+    flexDirection: "row",
   },
 
   // ── Grid (see-all) ──
@@ -581,7 +604,7 @@ const styles = StyleSheet.create({
   grid: {
     flexDirection: "row-reverse",
     flexWrap: "wrap",
-    justifyContent: "space-between",
+    justifyContent: "flex-start",
     gap: 12,
   },
 
@@ -607,7 +630,7 @@ const styles = StyleSheet.create({
     height: "100%",
   },
   cardImageFallback: {
-    backgroundColor: COLORS.primary,
+    backgroundColor: COLORS.brand,
     justifyContent: "center",
     alignItems: "center",
   },
