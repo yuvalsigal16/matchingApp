@@ -526,6 +526,46 @@ COLORS.amber
 )
 }
 
+{
+trip.status?.toLowerCase() === "matched"
+&& (
+<>
+<Text style={styles.sectionTitle}>
+🗓️ תכנון הטיול
+</Text>
+
+<View style={styles.card}>
+
+<Text style={styles.value}>
+שתפו אחד עם השני את התכנון היומי לטיול
+</Text>
+
+<TouchableOpacity
+style={styles.plannerBtn}
+onPress={() =>
+router.push({
+pathname:"/TripPlanner/[id]",
+params:{id}
+})
+}
+>
+
+<Ionicons
+name="calendar-outline"
+size={22}
+color="#fff"
+/>
+
+<Text style={styles.btnText}>
+פתח יומן טיול
+</Text>
+
+</TouchableOpacity>
+
+</View>
+</>
+)
+}
 
         {/* DELETE */}
         {/* ACTIONS */}
@@ -733,4 +773,17 @@ const styles = StyleSheet.create({
     marginBottom: 4,
     textAlign: "right",
   },
+
+  plannerBtn:{
+backgroundColor:"#4B7BEC",
+padding:14,
+borderRadius:12,
+marginTop:12,
+
+flexDirection:"row-reverse",
+justifyContent:"center",
+alignItems:"center",
+
+gap:8
+},
 });
