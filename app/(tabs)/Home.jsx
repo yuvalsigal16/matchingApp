@@ -7,6 +7,7 @@ import { Bell, ChevronLeft, MapPin, MessageCircle, Users } from "lucide-react-na
 import { COLORS, FONTS } from "../src/theme";
 import { getToken, getUser } from "../src/auth/authStore";
 import { BASE_URL } from "../src/api/config";
+import { fetchWithTimeout } from "../src/api/fetchWithTimeout";
 import BottomNav from "../../components/BottomNav";
 
 // בונה URI שלם לתמונת פרופיל. השרת עשוי להחזיר URL מלא, נתיב יחסי, או שם קובץ —
@@ -52,9 +53,9 @@ export default function Home() {
         // קריאה במקביל: פרטי פרופיל, תמונה ושאלון היכרות — שלוש קריאות נפרדות
         // כדי שכל אחד יוכל להצליח/להיכשל לחוד מבלי לחסום את השני.
         const [profileRes, imageRes, questionnaireRes] = await Promise.all([
-          fetch(`${BASE_URL}/UserProfile/${userId}`, { method: "GET", headers }),
-          fetch(`${BASE_URL}/UserProfile/image/${userId}`, { method: "GET", headers }),
-          fetch(`${BASE_URL}/Questionnaire/${userId}`, { method: "GET", headers }),
+          fetchWithTimeout(`${BASE_URL}/UserProfile/${userId}`, { method: "GET", headers }),
+          fetchWithTimeout(`${BASE_URL}/UserProfile/image/${userId}`, { method: "GET", headers }),
+          fetchWithTimeout(`${BASE_URL}/Questionnaire/${userId}`, { method: "GET", headers }),
         ]);
 
         let firstName = "";

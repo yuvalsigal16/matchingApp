@@ -46,7 +46,7 @@ export default function UserProfileScreen() {
         const headers = { Authorization: `Bearer ${token}` };
 
         const [userRes, tripsRes] = await Promise.allSettled([
-          fetch(`${BASE_URL}/Users/${userId}`, { headers }),
+          fetch(`${BASE_URL}/User/${userId}`, { headers }),
           fetch(`${BASE_URL}/Trip/user/${userId}`, { headers }),
         ]);
 

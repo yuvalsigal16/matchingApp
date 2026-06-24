@@ -161,7 +161,7 @@ export default function ActiveChatsScreen() {
         >
           <Ionicons name="arrow-forward" size={26} color={COLORS.brand} />
         </TouchableOpacity>
-        <Text style={styles.header}>צ'אטים</Text>
+        <Text style={styles.header}>{"צ'אטים"}</Text>
         <View style={{ width: 26 }} />
       </View>
 
@@ -187,9 +187,9 @@ export default function ActiveChatsScreen() {
             <View style={styles.emptyIconCircle}>
               <Ionicons name="chatbubbles-outline" size={40} color={COLORS.brand} />
             </View>
-            <Text style={styles.emptyTitle}>אין צ'אטים עדיין</Text>
+            <Text style={styles.emptyTitle}>{"אין צ'אטים עדיין"}</Text>
             <Text style={styles.emptySub}>
-              כשתאשרו בקשת צ'אט, השיחה תופיע כאן
+              {"כשתאשרו בקשת צ'אט, השיחה תופיע כאן"}
             </Text>
           </View>
         }

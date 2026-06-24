@@ -62,7 +62,7 @@ export default function MatchProfile() {
         const userId = matchUser.userID;
 
         const [userRes, tripsRes] = await Promise.allSettled([
-          fetch(`${BASE_URL}/Users/${userId}`, { headers }),
+          fetch(`${BASE_URL}/User/${userId}`, { headers }),
           fetch(`${BASE_URL}/Trip/user/${userId}`, { headers }),
         ]);
 

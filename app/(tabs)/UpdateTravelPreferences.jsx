@@ -389,7 +389,7 @@ export default function UpdateTravelPreferencesScreen() {
             {/* ── אורח חיים מועדף לפרטנר/ית ── */}
             <Text style={styles.section}>אורח החיים שאני מחפש/ת</Text>
             <Text style={styles.lifestyleIntro}>
-              הכל אופציונלי — בחרי "אין העדפה" אם זה לא חשוב לך
+              {'הכל אופציונלי — בחרי "אין העדפה" אם זה לא חשוב לך'}
             </Text>
 
             {renderLifestyleCard(
