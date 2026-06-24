@@ -64,6 +64,14 @@ const GEOAPIFY_URL = "https://api.geoapify.com/v1/geocode/autocomplete";
 //שומר תוצאות שכבר חיפשת כדי לא לשלוח שוב בקשות
 const cityCache = new Map();
 
+// רשימת ערים מקומית ל-fallback כשחיפוש ה-API נכשל (graceful degradation).
+const ISRAELI_CITIES = [
+  "תל אביב", "ירושלים", "חיפה", "ראשון לציון", "פתח תקווה",
+  "אשדוד", "נתניה", "באר שבע", "בני ברק", "חולון",
+  "רמת גן", "אשקלון", "רחובות", "בת ים", "הרצליה",
+  "כפר סבא", "מודיעין", "נצרת", "רעננה", "אילת",
+];
+
 //פונקציה שמביאה ערים לפי מה שהמשתמש מקליד
 async function fetchCitySuggestions(query, signal) {
   //אם כבר חיפשו את המילה הזאת → תחזיר מהזיכרון
@@ -111,8 +119,12 @@ async function fetchCitySuggestions(query, signal) {
     return results;
   } catch (e) {
     if (e.name === "AbortError") throw e;
-    // Network / API failure → local fallback so the field always works
-    return ISRAELI_CITIES.filter((c) => c.includes(query))
+
+    // כשל רשת/API → graceful degradation בלי לשבור UX:
+    // 1) מנסים לסנן מהרשימה המקומית לפי הקלט.
+    const trimmed = query.trim();
+    const local = ISRAELI_CITIES
+      .filter((c) => c.includes(trimmed))
       .slice(0, 5)
       .map((name) => ({
         label: name,
@@ -121,6 +133,21 @@ async function fetchCitySuggestions(query, signal) {
         lat: 0,
         lon: 0,
       }));
+
+    if (local.length > 0) return local;
+
+    // 2) אין התאמה מקומית → מחזירים את הקלט עצמו כעיר חופשית,
+    //    כדי שהמשתמש תמיד יוכל להמשיך (ולא להיחסם).
+    if (!trimmed) return [];
+    return [
+      {
+        label: trimmed,
+        city: trimmed,
+        country: "",
+        lat: 0,
+        lon: 0,
+      },
+    ];
   }
 }
 

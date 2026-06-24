@@ -111,7 +111,7 @@ export default function MatchingSuccess() {
         </View>
 
         <Text style={styles.title}>
-          🎉 It's a Match!
+          {"🎉 It's a Match!"}
         </Text>
 
         <Text style={styles.subtitle}>

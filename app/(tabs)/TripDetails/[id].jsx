@@ -52,7 +52,7 @@ const [rating, setRating] = useState(0);
 
   const openProfile = (userId) => {
     router.push({
-      pathname: "/profile/UserProfile",
+      pathname: "/profile/[userId]",
       params: { userId },
     });
   };
@@ -339,11 +339,11 @@ err
         </TouchableOpacity>
 
         {/* CHATS */}
-        <Text style={styles.sectionTitle}>צ'אטים</Text>
+        <Text style={styles.sectionTitle}>{"צ'אטים"}</Text>
 
         <View style={styles.card}>
           {chats.length === 0 ? (
-            <Text style={styles.value}>אין צ'אטים עדיין</Text>
+            <Text style={styles.value}>{"אין צ'אטים עדיין"}</Text>
           ) : (
             chats.map((c) => (
               <TouchableOpacity
