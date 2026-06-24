@@ -20,8 +20,8 @@ import {
   ActivityIndicator,
   Alert,
   Dimensions,
+  FlatList,
   Image,
-  ScrollView,
   StyleSheet,
   Text,
   TouchableOpacity,
@@ -114,9 +114,17 @@ export default function MatchesScreen() {
   useFocusEffect(
     useCallback(() => {
       AsyncStorage.getItem("dismissed_matches").then((raw) => {
-        if (raw) {
-          try { setDismissed(new Set(JSON.parse(raw))); } catch {}
-        }
+        if (!raw) return;
+        try {
+          const ids = JSON.parse(raw);
+          // עדכון רק אם התוכן באמת השתנה — כך ה-Set שומר על reference יציב
+          // ו-useMemo לא רץ מחדש מיותר בכל focus.
+          setDismissed((prev) =>
+            prev.size === ids.length && ids.every((id) => prev.has(id))
+              ? prev
+              : new Set(ids),
+          );
+        } catch {}
       });
     }, [])
   );
@@ -403,7 +411,7 @@ export default function MatchesScreen() {
   };
 
   // 👤 מעבר לפרופיל — מתעד צפייה למנוע ההתנהגותי (fire and forget).
-  const openProfile = (user) => {
+  const openProfile = useCallback((user) => {
     logInteraction(user.userID, "View");
     router.push({
       pathname: "/MatchProfileDetails",
@@ -411,10 +419,10 @@ export default function MatchesScreen() {
         user: JSON.stringify(user),
       },
     });
-  };
+  }, [router]);
 
   // כרטיס התאמה אחיד — משמש גם בגריד וגם בשורת הקטגוריה ההתנהגותית.
-  const renderMatchCard = (user, score, cardWidth, inRow = false) => {
+  const renderMatchCard = useCallback((user, score, cardWidth, inRow = false) => {
     const imageUri = buildImageUri(user.profileImage);
     return (
       <TouchableOpacity
@@ -453,7 +461,18 @@ export default function MatchesScreen() {
         </View>
       </TouchableOpacity>
     );
-  };
+  }, [openProfile]);
+
+  // renderItem + keyExtractor יציבים ל-FlatList — מונעים רינדור מיותר של כרטיסים.
+  const keyExtractor = useCallback((item) => String(item.userID), []);
+  const renderSmartItem = useCallback(
+    ({ item }) => renderMatchCard(item, item.matchScore, GRID_CARD_W),
+    [renderMatchCard],
+  );
+  const renderBehavioralItem = useCallback(
+    ({ item }) => renderMatchCard(item, item.behavioralScore, CARD_W, true),
+    [renderMatchCard],
+  );
 
   if (loading || !currentUser) {
     return (
@@ -491,100 +510,103 @@ export default function MatchesScreen() {
         <View style={{ width: 26 }} />
       </View>
 
-      <ScrollView contentContainerStyle={styles.content}>
-        {/* בקשות */}
-        <Text style={styles.sectionTitle}>בקשות לשיחה</Text>
+      <FlatList
+        data={smartMatches}
+        numColumns={2}
+        keyExtractor={keyExtractor}
+        renderItem={renderSmartItem}
+        columnWrapperStyle={styles.gridRow}
+        contentContainerStyle={styles.content}
+        showsVerticalScrollIndicator={false}
+        ListHeaderComponent={
+          <>
+            {/* בקשות */}
+            <Text style={styles.sectionTitle}>בקשות לשיחה</Text>
 
-        {requests.length === 0 ? (
-          <Text style={styles.placeholder}>אין בקשות חדשות</Text>
-        ) : (
-          requests.map((req) => {
-            const name =
-              [req.fromFirstName, req.fromLastName]
-                .filter(Boolean)
-                .join(" ")
-                .trim() || `משתמש #${req.fromUserID}`;
-            const age = computeAge(req.fromBirthDate);
-            const imageUri = buildImageUri(req.fromProfileImage);
+            {requests.length === 0 ? (
+              <Text style={styles.placeholder}>אין בקשות חדשות</Text>
+            ) : (
+              requests.map((req) => {
+                const name =
+                  [req.fromFirstName, req.fromLastName]
+                    .filter(Boolean)
+                    .join(" ")
+                    .trim() || `משתמש #${req.fromUserID}`;
+                const age = computeAge(req.fromBirthDate);
+                const imageUri = buildImageUri(req.fromProfileImage);
 
-            return (
-              <View key={req.requestID} style={styles.requestCard}>
-                {imageUri ? (
-                  <Image source={{ uri: imageUri }} style={styles.avatar} />
-                ) : (
-                  <View style={[styles.avatar, styles.avatarFallback]}>
-                    <Ionicons name="person" size={24} color={COLORS.onBrand} />
+                return (
+                  <View key={req.requestID} style={styles.requestCard}>
+                    {imageUri ? (
+                      <Image source={{ uri: imageUri }} style={styles.avatar} />
+                    ) : (
+                      <View style={[styles.avatar, styles.avatarFallback]}>
+                        <Ionicons name="person" size={24} color={COLORS.onBrand} />
+                      </View>
+                    )}
+
+                    <View style={{ flex: 1 }}>
+                      <Text style={styles.name}>{name}</Text>
+                      {age != null && <Text style={styles.age}>גיל {age}</Text>}
+                    </View>
+
+                    <View style={styles.actions}>
+                      <TouchableOpacity
+                        onPress={() => handleAccept(req.requestID)}
+                        hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                        accessibilityRole="button"
+                        accessibilityLabel={`אישור בקשה מ-${name}`}
+                      >
+                        <Ionicons name="checkmark-circle" size={30} color={COLORS.success} />
+                      </TouchableOpacity>
+
+                      <TouchableOpacity
+                        onPress={() => handleReject(req.requestID)}
+                        hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                        accessibilityRole="button"
+                        accessibilityLabel={`דחיית בקשה מ-${name}`}
+                      >
+                        <Ionicons name="close-circle" size={30} color={COLORS.danger} />
+                      </TouchableOpacity>
+                    </View>
                   </View>
-                )}
-
-                <View style={{ flex: 1 }}>
-                  <Text style={styles.name}>{name}</Text>
-                  {age != null && <Text style={styles.age}>גיל {age}</Text>}
-                </View>
-
-                <View style={styles.actions}>
-                  <TouchableOpacity
-                    onPress={() => handleAccept(req.requestID)}
-                    hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-                    accessibilityRole="button"
-                    accessibilityLabel={`אישור בקשה מ-${name}`}
-                  >
-                    <Ionicons name="checkmark-circle" size={30} color={COLORS.success} />
-                  </TouchableOpacity>
-
-                  <TouchableOpacity
-                    onPress={() => handleReject(req.requestID)}
-                    hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-                    accessibilityRole="button"
-                    accessibilityLabel={`דחיית בקשה מ-${name}`}
-                  >
-                    <Ionicons name="close-circle" size={30} color={COLORS.danger} />
-                  </TouchableOpacity>
-                </View>
-              </View>
-            );
-          })
-        )}
-
-        {/* קטגוריה התנהגותית — "אנשים שאולי מתאימים לך" (מוסתרת אם ריקה) */}
-        {behavioralMatches.length > 0 && (
-          <View style={styles.behavioralSection}>
-            <View style={styles.sectionHeaderRow}>
-              <Text style={styles.sectionTitleInline}>אנשים שאולי מתאימים לך</Text>
-              <Ionicons name="people-outline" size={18} color={COLORS.brand} />
-            </View>
-            <Text style={styles.sectionSubtitle}>
-              על סמך הפעילות שלך באפליקציה
-            </Text>
-            <ScrollView
-              horizontal
-              showsHorizontalScrollIndicator={false}
-              style={styles.rowScroll}
-              contentContainerStyle={styles.rowContent}
-            >
-              {behavioralMatches.map((user) =>
-                renderMatchCard(user, user.behavioralScore, CARD_W, true),
-              )}
-            </ScrollView>
-          </View>
-        )}
-
-        {/* התאמות חכמות (מבוסס-תוכן) */}
-        <View style={styles.sectionHeaderRow}>
-          <Text style={styles.sectionTitleInline}>התאמות חכמות עבורך</Text>
-          <Ionicons name="sparkles-outline" size={18} color={COLORS.brand} />
-        </View>
-
-        {smartMatches.length === 0 ? (
-          <Text style={styles.placeholder}>אין משתמשים להציג כרגע</Text>
-        ) : (
-          <View style={styles.grid}>
-            {smartMatches.map((user) =>
-              renderMatchCard(user, user.matchScore, GRID_CARD_W),
+                );
+              })
             )}
-          </View>
-        )}
-      </ScrollView>
+
+            {/* קטגוריה התנהגותית — "אנשים שאולי מתאימים לך" (מוסתרת אם ריקה) */}
+            {behavioralMatches.length > 0 && (
+              <View style={styles.behavioralSection}>
+                <View style={styles.sectionHeaderRow}>
+                  <Text style={styles.sectionTitleInline}>אנשים שאולי מתאימים לך</Text>
+                  <Ionicons name="people-outline" size={18} color={COLORS.brand} />
+                </View>
+                <Text style={styles.sectionSubtitle}>
+                  על סמך הפעילות שלך באפליקציה
+                </Text>
+                <FlatList
+                  horizontal
+                  data={behavioralMatches}
+                  keyExtractor={keyExtractor}
+                  renderItem={renderBehavioralItem}
+                  showsHorizontalScrollIndicator={false}
+                  style={styles.rowScroll}
+                  contentContainerStyle={styles.rowContent}
+                />
+              </View>
+            )}
+
+            {/* התאמות חכמות (מבוסס-תוכן) */}
+            <View style={styles.sectionHeaderRow}>
+              <Text style={styles.sectionTitleInline}>התאמות חכמות עבורך</Text>
+              <Ionicons name="sparkles-outline" size={18} color={COLORS.brand} />
+            </View>
+          </>
+        }
+        ListEmptyComponent={
+          <Text style={styles.placeholder}>אין משתמשים להציג כרגע</Text>
+        }
+      />
 
       <BottomNav active="home" />
     </SafeAreaView>
@@ -707,6 +729,15 @@ const styles = StyleSheet.create({
     justifyContent: "flex-start",
     gap: 12,
     marginTop: 4,
+  },
+
+  // שורת ה-FlatList (numColumns=2) — משחזרת את פריסת ה-grid הקודמת:
+  // RTL, מרווח אופקי 12 בין העמודות, ומרווח 12 בין השורות (יחד עם marginBottom של card).
+  gridRow: {
+    flexDirection: "row-reverse",
+    justifyContent: "flex-start",
+    gap: 12,
+    marginBottom: 12,
   },
 
   // ── Behavioral category row ──

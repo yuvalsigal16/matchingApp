@@ -84,64 +84,59 @@ const [rating, setRating] = useState(0);
         const tripData = await tripRes.json();
         setTrip(tripData);
 
-        // המלצות לטיולים שיוצאים לדרך
-if (
-tripData.status?.toLowerCase() === "matched"
-) {
-try {
+        // ארבע הקריאות הבאות עצמאיות זו מזו (אף אחת לא תלויה בתוצאת רעותה) —
+        // מריצים במקביל כדי לקצר את זמן הטעינה. כל אחת שומרת על התנאי
+        // וה-try/catch המקוריים שלה, כך שההתנהגות והנתונים המוצגים זהים.
+        await Promise.all([
+          // המלצות לטיולים שיוצאים לדרך
+          (async () => {
+            if (tripData.status?.toLowerCase() === "matched") {
+              try {
+                const interests = tripData.interests
+                  ?.map((i) => i.interestName)
+                  .join(",");
+                const suggestions = await getTripSuggestions(
+                  tripData.destination,
+                  interests,
+                );
+                setPlaces(suggestions || []);
+              } catch (err) {
+                console.log("Suggestions error", err);
+              }
+            }
+          })(),
 
-const interests =
-tripData.interests
-?.map(
-(i)=>i.interestName
-)
-.join(",");
+          // טעינת פרטי יוצר הטיול
+          (async () => {
+            const creatorId = tripData.createdByUserID ?? tripData.CreatedByUserID;
+            if (creatorId) {
+              try {
+                const profile = await getUserProfile(creatorId);
+                if (profile) setCreator(profile);
+              } catch { /* לא נורא אם נכשל */ }
+            }
+          })(),
 
-const suggestions =
-await getTripSuggestions(
-tripData.destination,
-interests
-);
+          // משתתפים — כשלון לא קורס את המסך
+          (async () => {
+            try {
+              const participantsRes = await fetch(`${BASE_URL}/TripParticipant/trip/${id}`, { headers });
+              if (participantsRes.ok) setParticipants(await participantsRes.json() || []);
+            } catch { /* אין משתתפים — לא נורא */ }
+          })(),
 
-setPlaces(
-suggestions || []
-);
-
-}
-catch(err){
-
-console.log(
-"Suggestions error",
-err
-);
-
-}
-}
-
-        // טעינת פרטי יוצר הטיול
-        const creatorId = tripData.createdByUserID ?? tripData.CreatedByUserID;
-        if (creatorId) {
-          try {
-            const profile = await getUserProfile(creatorId);
-            if (profile) setCreator(profile);
-          } catch { /* לא נורא אם נכשל */ }
-        }
-
-        // משתתפים — כשלון לא קורס את המסך
-        try {
-          const participantsRes = await fetch(`${BASE_URL}/TripParticipant/trip/${id}`, { headers });
-          if (participantsRes.ok) setParticipants(await participantsRes.json() || []);
-        } catch { /* אין משתתפים — לא נורא */ }
-
-        // התאמות
-        try {
-          const matchesData = await getMatchesByTrip(id);
-          setMatches(matchesData || []);
-          setChats((matchesData || []).map((m) => ({
-            matchID: m.matchID,
-            name: m.name || `משתמש ${m.userId}`,
-          })));
-        } catch { /* אין התאמות — לא נורא */ }
+          // התאמות
+          (async () => {
+            try {
+              const matchesData = await getMatchesByTrip(id);
+              setMatches(matchesData || []);
+              setChats((matchesData || []).map((m) => ({
+                matchID: m.matchID,
+                name: m.name || `משתמש ${m.userId}`,
+              })));
+            } catch { /* אין התאמות — לא נורא */ }
+          })(),
+        ]);
 
       } catch (err) {
         console.log(err);

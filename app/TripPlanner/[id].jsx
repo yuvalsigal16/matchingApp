@@ -19,7 +19,7 @@ StyleSheet,
 import {
 subscribePlanner,
 addPlannerEvent,
-} from "../../src/api/tripPlannerService";
+} from "../src/api/tripPlannerService";
 
 export default function TripPlanner() {
 

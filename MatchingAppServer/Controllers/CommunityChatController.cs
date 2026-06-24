@@ -28,7 +28,16 @@ namespace MatchingAppServer.Controllers
         {
             try
             {
-                return Ok(msgBL.SendMessage(msg));
+                if (msg == null)
+                    return BadRequest("Message is null");
+
+                int messageId = msgBL.SendMessage(msg);
+
+                return Ok(new
+                {
+                    MessageID = messageId,
+                    Status = "Message sent successfully"
+                });
             }
             catch (Exception ex)
             {
@@ -41,7 +50,12 @@ namespace MatchingAppServer.Controllers
         {
             try
             {
-                return Ok(msgBL.GetMessagesByChatID(chatID));
+                var messages = msgBL.GetMessagesByChatID(chatID);
+
+                if (messages == null || messages.Count == 0)
+                    return NotFound("No messages found");
+
+                return Ok(messages);
             }
             catch (Exception ex)
             {
