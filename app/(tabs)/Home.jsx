@@ -52,32 +52,49 @@ export default function Home() {
 
         // קריאה במקביל: פרטי פרופיל, תמונה ושאלון היכרות — שלוש קריאות נפרדות
         // כדי שכל אחד יוכל להצליח/להיכשל לחוד מבלי לחסום את השני.
-        const [profileRes, imageRes, questionnaireRes] = await Promise.all([
-          fetchWithTimeout(`${BASE_URL}/UserProfile/${userId}`, { method: "GET", headers }),
-          fetchWithTimeout(`${BASE_URL}/UserProfile/image/${userId}`, { method: "GET", headers }),
-          fetchWithTimeout(`${BASE_URL}/Questionnaire/${userId}`, { method: "GET", headers }),
+        // allSettled: כשל של endpoint אחד (למשל התמונה) לא מפיל את כל המסך —
+        // מציגים את מה שכן נטען בהצלחה.
+        const settled = await Promise.allSettled([
+          fetchWithTimeout(`${BASE_URL}/UserProfile/${userId}`, { method: "GET", headers }, 30000),
+          fetchWithTimeout(`${BASE_URL}/UserProfile/image/${userId}`, { method: "GET", headers }, 30000),
+          fetchWithTimeout(`${BASE_URL}/Questionnaire/${userId}`, { method: "GET", headers }, 30000),
         ]);
+
+        // לא מסתירים שגיאות אמיתיות: לוג עדין ל-timeout, console.error לשאר.
+        settled.forEach((r) => {
+          if (r.status === "rejected") {
+            if (r.reason?.name === "AbortError") {
+              console.log("[HomeScreen] קריאה הופסקה (timeout) — מוצגים נתונים חלקיים");
+            } else {
+              console.error("[HomeScreen] שגיאת רשת בטעינת נתון:", r.reason);
+            }
+          }
+        });
+
+        const profileRes = settled[0].status === "fulfilled" ? settled[0].value : null;
+        const imageRes = settled[1].status === "fulfilled" ? settled[1].value : null;
+        const questionnaireRes = settled[2].status === "fulfilled" ? settled[2].value : null;
 
         let firstName = "";
         let profileImage = "";
 
-        if (profileRes.ok) {
+        if (profileRes?.ok) {
           const data = await profileRes.json();
           console.log("[HomeScreen] תשובת פרופיל:", data);
           firstName = data.firstName || data.FirstName || "";
           // fallback: אם endpoint התמונה ייכשל, ניקח את הנתיב מתוך הפרופיל
           profileImage = data.profileImage || data.ProfileImage || "";
-        } else {
+        } else if (profileRes) {
           console.warn(`[HomeScreen] קריאת פרופיל החזירה ${profileRes.status}`);
         }
 
-        if (imageRes.ok) {
+        if (imageRes?.ok) {
           const imgData = await imageRes.json();
           console.log("[HomeScreen] תשובת תמונה:", imgData);
           if (imgData?.imagePath) {
             profileImage = imgData.imagePath;
           }
-        } else if (imageRes.status !== 404) {
+        } else if (imageRes && imageRes.status !== 404) {
           console.warn(`[HomeScreen] קריאת תמונה החזירה ${imageRes.status}`);
         }
 
@@ -86,11 +103,18 @@ export default function Home() {
         // בדיקה האם המשתמש השלים את שאלון ההיכרות.
         // אם לא — מסמנים להצגת באנר עדין במסך (במקום Alert חוסם שקופץ בכל כניסה).
         // 404 = אין שאלון, וזו הסיבה ש-PUT למסך עדכון נכשל.
-        const hasProfile = profileRes.ok;
-        const hasQuestionnaire = questionnaireRes.ok;
-        setNeedsQuiz(!hasProfile || !hasQuestionnaire);
+        // קובעים רק כששתי הקריאות הרלוונטיות נטענו (כמו בהתנהגות המקורית).
+        if (profileRes && questionnaireRes) {
+          setNeedsQuiz(!profileRes.ok || !questionnaireRes.ok);
+        }
       } catch (error) {
-        console.error("[HomeScreen] שגיאה בטעינת פרופיל:", error);
+        // AbortError = timeout (השרת איטי/מתעורר) — לא שגיאה אמיתית.
+        // מסתפקים בנתונים מהמטמון, בלי להבהיל את המשתמש / LogBox האדום.
+        if (error?.name === "AbortError") {
+          console.log("[HomeScreen] טעינת הפרופיל הופסקה (timeout) — מוצגים נתונים מהמטמון");
+        } else {
+          console.error("[HomeScreen] שגיאה בטעינת פרופיל:", error);
+        }
       } finally {
         setLoading(false);
       }

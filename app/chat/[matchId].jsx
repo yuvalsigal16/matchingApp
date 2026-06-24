@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
@@ -21,6 +21,7 @@ import Animated, {
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { useLocalSearchParams, useRouter } from "expo-router";
+import { useFocusEffect } from "@react-navigation/native";
 
 import {
   getChatMessages,
@@ -62,6 +63,22 @@ function formatDayLabel(iso) {
   if (dayKey(d) === dayKey(today)) return "היום";
   if (dayKey(d) === dayKey(yesterday)) return "אתמול";
   return `${String(d.getDate()).padStart(2, "0")}/${String(d.getMonth() + 1).padStart(2, "0")}/${d.getFullYear()}`;
+}
+
+// מריץ הבטחה עם תקרת זמן — מונע "תקיעה" כשהשרת איטי/לא מגיב.
+function withTimeout(promise, ms) {
+  let timeoutId;
+  const timeout = new Promise((_, reject) => {
+    timeoutId = setTimeout(() => reject(new Error("timeout")), ms);
+  });
+  return Promise.race([promise, timeout]).finally(() => clearTimeout(timeoutId));
+}
+
+// משווה אם "זנב" הרשימה זהה (אורך + ההודעה האחרונה) — לדילוג על עדכון מיותר ב-polling.
+function sameTail(a, b) {
+  if (a.length !== b.length) return false;
+  if (a.length === 0) return true;
+  return a[a.length - 1].messageID === b[b.length - 1].messageID;
 }
 
 // ── רקע צ'אט דמוי-וואטסאפ: דגם עדין של אייקוני טיולים ──
@@ -111,10 +128,14 @@ export default function ChatScreen() {
   const [messages, setMessages] = useState([]); // ישן→חדש
   const [text, setText] = useState("");
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState(false);
   const [matchData, setMatchData] = useState(null);
 
   const flatListRef = useRef(null);
   const insets = useSafeAreaInsets();
+  const chatIdRef = useRef(null); // chatID זמין ל-polling בלי תלות ב-state אסינכרוני
+  const fetchingRef = useRef(false); // מונע חפיפת בקשות polling
+  const mountedRef = useRef(true); // מונע setState אחרי יציאה מהמסך
 
   // גובה המקלדת — shared value שמתחיל ב-0 בכל כניסה למסך (מונע "תקיעה" למעלה).
   const kb = useSharedValue(0);
@@ -141,26 +162,69 @@ export default function ChatScreen() {
     };
   }, []);
 
+  // ניקוי בעת יציאה מהמסך — חוסם setState על קומפוננטה לא-מורכבת.
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => {
+      mountedRef.current = false;
+    };
+  }, []);
+
+  // טעינה ראשונית: התאמה + הודעות, עטוף ב-timeout עדין כדי לא להיתקע.
+  const initChat = useCallback(async () => {
+    if (!matchId) return;
+    try {
+      const match = await withTimeout(getMatchById(matchId), 15000);
+      if (!mountedRef.current) return;
+      setMatchData(match);
+      chatIdRef.current = match?.chatID ?? null;
+      const msgs = await withTimeout(getChatMessages(match.chatID), 15000);
+      if (!mountedRef.current) return;
+      setMessages(msgs);
+      setLoadError(false);
+    } catch {
+      if (mountedRef.current) setLoadError(true); // הודעה עדינה במסך, בלי Alert ובלי יציאה
+    } finally {
+      if (mountedRef.current) setLoading(false);
+    }
+  }, [matchId]);
+
   useEffect(() => {
     if (!currentUser?.userID) {
       router.replace("/Login");
       return;
     }
-    loadChat();
-  }, []);
+    setLoading(true);
+    initChat();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [initChat]);
 
-  const loadChat = async () => {
-    try {
-      const match = await getMatchById(matchId);
-      setMatchData(match);
-      const msgs = await getChatMessages(match.chatID);
-      setMessages(msgs);
-    } catch (err) {
-      Alert.alert("שגיאה", "טעינת הצ'אט נכשלה");
-    } finally {
-      setLoading(false);
-    }
-  };
+  // ── Polling: רענון הודעות כל 4 שניות בזמן שהמסך בפוקוס בלבד ──
+  // useFocusEffect מפעיל בכניסה ומנקה (clearInterval) ביציאה — אפס ריצה ברקע.
+  useFocusEffect(
+    useCallback(() => {
+      const tick = async () => {
+        if (fetchingRef.current) return; // לא מתחילים בקשה אם הקודמת עדיין רצה
+        fetchingRef.current = true;
+        try {
+          if (!chatIdRef.current) {
+            await initChat(); // עוד אין צ'אט (טעינה נכשלה/לא הסתיימה) → ניסיון חוזר
+          } else {
+            const msgs = await getChatMessages(chatIdRef.current);
+            if (mountedRef.current) {
+              setMessages((prev) => (sameTail(prev, msgs) ? prev : msgs));
+            }
+          }
+        } catch {
+          // כשל ברענון רקע — מתעלמים בשקט; ההודעות הקיימות נשארות, הטיק הבא ינסה שוב
+        } finally {
+          fetchingRef.current = false;
+        }
+      };
+      const id = setInterval(tick, 4000);
+      return () => clearInterval(id);
+    }, [initChat]),
+  );
 
   const send = async () => {
     const t = text.trim();
@@ -222,6 +286,7 @@ export default function ChatScreen() {
     return (
       <SafeAreaView style={styles.center}>
         <ActivityIndicator size="large" color={COLORS.brand} />
+        <Text style={styles.loadingText}>טוען הודעות…</Text>
       </SafeAreaView>
     );
   }
@@ -257,36 +322,48 @@ export default function ChatScreen() {
           <Text style={styles.headerName} numberOfLines={1}>
             {matchData?.otherUserName || "צ'אט"}
           </Text>
-          <Text style={styles.headerSub} numberOfLines={1}>
-            {matchData?.tripName || "טיול"}
-          </Text>
+          {matchData?.tripName && matchData.tripName !== "טיול" ? (
+            <Text style={styles.headerSub} numberOfLines={1}>
+              {matchData.tripName}
+            </Text>
+          ) : null}
         </View>
       </View>
 
       {/* ── אזור הצ'אט (עולה עם המקלדת) ── */}
       <Animated.View style={areaStyle}>
-        <FlatList
-          ref={flatListRef}
-          data={messages}
-          keyExtractor={(item) => String(item.messageID)}
-          renderItem={renderMessage}
-          contentContainerStyle={
-            messages.length === 0 ? styles.emptyListContent : styles.listContent
-          }
-          showsVerticalScrollIndicator={false}
-          onContentSizeChange={() =>
-            messages.length > 0 && flatListRef.current?.scrollToEnd({ animated: false })
-          }
-          ListEmptyComponent={
-            <View style={styles.emptyState}>
-              <View style={styles.emptyIconCircle}>
-                <Ionicons name="chatbubbles-outline" size={40} color={COLORS.brand} />
-              </View>
-              <Text style={styles.emptyTitle}>אין עדיין הודעות</Text>
-              <Text style={styles.emptySub}>שלחו הודעה ראשונה כדי לפתוח את השיחה ✈️</Text>
+        {loadError ? (
+          <View style={styles.errorState}>
+            <View style={styles.emptyIconCircle}>
+              <Ionicons name="cloud-offline-outline" size={40} color={COLORS.brand} />
             </View>
-          }
-        />
+            <Text style={styles.emptyTitle}>לא הצלחנו לטעון הודעות כרגע</Text>
+            <Text style={styles.emptySub}>ננסה שוב בקרוב…</Text>
+          </View>
+        ) : (
+          <FlatList
+            ref={flatListRef}
+            data={messages}
+            keyExtractor={(item) => String(item.messageID)}
+            renderItem={renderMessage}
+            contentContainerStyle={
+              messages.length === 0 ? styles.emptyListContent : styles.listContent
+            }
+            showsVerticalScrollIndicator={false}
+            onContentSizeChange={() =>
+              messages.length > 0 && flatListRef.current?.scrollToEnd({ animated: false })
+            }
+            ListEmptyComponent={
+              <View style={styles.emptyState}>
+                <View style={styles.emptyIconCircle}>
+                  <Ionicons name="chatbubbles-outline" size={40} color={COLORS.brand} />
+                </View>
+                <Text style={styles.emptyTitle}>אין עדיין הודעות</Text>
+                <Text style={styles.emptySub}>שלחו הודעה ראשונה כדי לפתוח את השיחה</Text>
+              </View>
+            }
+          />
+        )}
 
         {/* ── שורת ההקלדה ── */}
         <View style={styles.inputBar}>
@@ -322,6 +399,8 @@ const CHAT_BG = "#EDE7DD";
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: CHAT_BG },
   center: { flex: 1, justifyContent: "center", alignItems: "center", backgroundColor: CHAT_BG },
+  loadingText: { marginTop: 12, fontFamily: FONTS.regular, fontSize: 14, color: COLORS.textSecondary },
+  errorState: { flex: 1, justifyContent: "center", alignItems: "center", paddingHorizontal: 40 },
 
   // ── Header ──
   header: {
