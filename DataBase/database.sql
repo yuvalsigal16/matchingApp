@@ -1774,15 +1774,17 @@ AS
 BEGIN
     SET NOCOUNT ON;
 
-    SELECT 
-        U.UserID, 
-        U.Email, 
-        P.ProfileImage,   -- 👈 הועבר לכאן
+    SELECT
+        U.UserID,
+        P.FirstName,            -- מ-UserProfile (לא מ-Users)
+        P.LastName,             -- מ-UserProfile
+        P.ProfileImage,
         CM.JoinedAt
+        -- Email הוסר מהתגובה: מידע אישי שלא נדרש ל-UI
     FROM dbo.CommunityMembers CM
     INNER JOIN dbo.Users U
         ON CM.UserID = U.UserID
-    LEFT JOIN dbo.UserProfile P   -- 👈 הוספה
+    LEFT JOIN dbo.UserProfile P
         ON P.UserID = U.UserID
     WHERE CM.CommunityID = @CommunityID
     ORDER BY CM.JoinedAt;
@@ -1803,6 +1805,19 @@ BEGIN
     SELECT *
     FROM dbo.CommunityChats
     WHERE CommunityID = @CommunityID;
+END
+GO
+
+-- שליפת צ'אט לפי מזהה הצ'אט (כדי לאתר את הקהילה ולבדוק חברות לפני גישה להודעות)
+CREATE OR ALTER PROCEDURE dbo.GetCommunityChatById
+    @CommunityChatID INT
+AS
+BEGIN
+    SET NOCOUNT ON;
+
+    SELECT *
+    FROM dbo.CommunityChats
+    WHERE CommunityChatID = @CommunityChatID;
 END
 GO
 

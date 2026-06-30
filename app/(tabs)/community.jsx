@@ -1,20 +1,16 @@
-import React, { useEffect, useState } from "react";
+import React, { useCallback, useEffect, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
-  Modal,
-  Platform,
-  Pressable,
   RefreshControl,
   ScrollView,
   StyleSheet,
   Text,
-  TextInput,
   TouchableOpacity,
   View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { useRouter } from "expo-router";
+import { useFocusEffect, useRouter } from "expo-router";
 import { ChevronRight, Plus, Users } from "lucide-react-native";
 
 import { BASE_URL } from "../src/api/config";
@@ -42,15 +38,16 @@ export default function CommunityScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [joining, setJoining] = useState({});
 
-  // מצב מודל יצירת קהילה
-  const [createVisible, setCreateVisible] = useState(false);
-  const [newName, setNewName] = useState("");
-  const [newDesc, setNewDesc] = useState("");
-  const [creating, setCreating] = useState(false);
-
   useEffect(() => {
     loadCommunities();
   }, []);
+
+  // רענון הרשימה בכל חזרה למסך (למשל אחרי יצירת קהילה חדשה).
+  useFocusEffect(
+    useCallback(() => {
+      loadCommunities(true);
+    }, []),
+  );
 
   const onRefresh = async () => {
     setRefreshing(true);
@@ -76,55 +73,6 @@ export default function CommunityScreen() {
       console.error("loadCommunities:", err);
     } finally {
       if (!silent) setLoading(false);
-    }
-  };
-
-  const handleCreate = async () => {
-    if (!newName.trim()) {
-      if (Platform.OS === "web") {
-        window.alert("נא להזין שם קהילה");
-      } else {
-        Alert.alert("שגיאה", "נא להזין שם קהילה");
-      }
-      return;
-    }
-    setCreating(true);
-    try {
-      const token = getToken();
-      const user = getUser();
-      const res = await fetch(`${BASE_URL}/Community`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({
-          communityName: newName.trim(),
-          description: newDesc.trim(),
-          createdByUserID: user?.userID,
-        }),
-      });
-      if (res.ok) {
-        setCreateVisible(false);
-        setNewName("");
-        setNewDesc("");
-        loadCommunities();
-      } else {
-        const err = await res.text();
-        if (Platform.OS === "web") {
-          window.alert("לא הצלחנו ליצור את הקהילה");
-        } else {
-          Alert.alert("שגיאה", "לא הצלחנו ליצור את הקהילה");
-        }
-      }
-    } catch (err) {
-      if (Platform.OS === "web") {
-        window.alert("בעיית תקשורת. נסה שוב.");
-      } else {
-        Alert.alert("שגיאה", "בעיית תקשורת. נסה שוב.");
-      }
-    } finally {
-      setCreating(false);
     }
   };
 
@@ -197,7 +145,9 @@ export default function CommunityScreen() {
       <View style={styles.addRow}>
         <TouchableOpacity
           style={styles.addBtn}
-          onPress={() => setCreateVisible(true)}
+          onPress={() => router.push("/community-create")}
+          accessibilityRole="button"
+          accessibilityLabel="יצירת קהילה חדשה"
         >
           <Plus size={20} color={COLORS.onBrand} strokeWidth={2.5} />
         </TouchableOpacity>
@@ -227,7 +177,17 @@ export default function CommunityScreen() {
             const isJoined = c.isJoined;
 
             return (
-              <View key={c.communityID} style={styles.card}>
+              <TouchableOpacity
+                key={c.communityID}
+                style={styles.card}
+                activeOpacity={0.85}
+                onPress={() =>
+                  router.push({
+                    pathname: "/community-chat/[communityID]",
+                    params: { communityID: c.communityID, name: c.communityName },
+                  })
+                }
+              >
                 {/* כפתור הצטרף */}
                 <TouchableOpacity
                   style={[styles.joinBtn, isJoined && styles.joinBtnDone]}
@@ -256,72 +216,13 @@ export default function CommunityScreen() {
                 <View style={[styles.iconBox, { backgroundColor: color.bg }]}>
                   <Users size={22} color={color.icon} strokeWidth={2} />
                 </View>
-              </View>
+              </TouchableOpacity>
             );
           })
         )}
       </ScrollView>
 
       <BottomNav active="discovery" />
-
-      {/* מודל יצירת קהילה */}
-      <Modal
-        visible={createVisible}
-        transparent
-        animationType="fade"
-        onRequestClose={() => setCreateVisible(false)}
-      >
-        <Pressable
-          style={styles.modalBackdrop}
-          onPress={() => setCreateVisible(false)}
-        >
-          <Pressable style={styles.modalCard} onPress={() => {}}>
-            <Text style={styles.modalTitle}>יצירת קהילה חדשה</Text>
-
-            <Text style={styles.fieldLabel}>שם הקהילה *</Text>
-            <TextInput
-              style={styles.input}
-              placeholder="לדוגמה: טיולים בדרום אמריקה"
-              placeholderTextColor={COLORS.textMuted}
-              value={newName}
-              onChangeText={setNewName}
-              textAlign="right"
-              maxLength={60}
-            />
-
-            <Text style={styles.fieldLabel}>תיאור</Text>
-            <TextInput
-              style={[styles.input, styles.inputMulti]}
-              placeholder="ספרי על הקהילה..."
-              placeholderTextColor={COLORS.textMuted}
-              value={newDesc}
-              onChangeText={setNewDesc}
-              textAlign="right"
-              multiline
-              maxLength={200}
-            />
-
-            <TouchableOpacity
-              style={[styles.createBtn, creating && { opacity: 0.6 }]}
-              onPress={handleCreate}
-              disabled={creating}
-            >
-              {creating ? (
-                <ActivityIndicator color={COLORS.onBrand} size="small" />
-              ) : (
-                <Text style={styles.createBtnText}>צרי קהילה</Text>
-              )}
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={styles.cancelBtn}
-              onPress={() => setCreateVisible(false)}
-            >
-              <Text style={styles.cancelText}>ביטול</Text>
-            </TouchableOpacity>
-          </Pressable>
-        </Pressable>
-      </Modal>
     </SafeAreaView>
   );
 }
@@ -368,79 +269,6 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.15,
     shadowRadius: 4,
     elevation: 3,
-  },
-
-  modalBackdrop: {
-    flex: 1,
-    backgroundColor: "rgba(0,0,0,0.45)",
-    justifyContent: "center",
-    alignItems: "center",
-    paddingHorizontal: 24,
-  },
-
-  modalCard: {
-    width: "100%",
-    backgroundColor: COLORS.surface,
-    borderRadius: 20,
-    padding: 24,
-  },
-
-  modalTitle: {
-    fontSize: 18,
-    fontFamily: FONTS.bold,
-    color: COLORS.brand,
-    textAlign: "center",
-    marginBottom: 20,
-  },
-
-  fieldLabel: {
-    fontSize: 13,
-    fontFamily: FONTS.bold,
-    color: COLORS.textSecondary,
-    textAlign: "right",
-    marginBottom: 6,
-  },
-
-  input: {
-    backgroundColor: COLORS.background,
-    borderRadius: 12,
-    paddingHorizontal: 14,
-    paddingVertical: 12,
-    fontSize: 15,
-    fontFamily: FONTS.regular,
-    color: COLORS.text,
-    marginBottom: 14,
-    textAlign: "right",
-  },
-
-  inputMulti: {
-    minHeight: 90,
-    textAlignVertical: "top",
-  },
-
-  createBtn: {
-    backgroundColor: COLORS.brand,
-    borderRadius: 14,
-    paddingVertical: 14,
-    alignItems: "center",
-    marginBottom: 10,
-  },
-
-  createBtnText: {
-    color: COLORS.onBrand,
-    fontSize: 16,
-    fontFamily: FONTS.bold,
-  },
-
-  cancelBtn: {
-    alignItems: "center",
-    paddingVertical: 8,
-  },
-
-  cancelText: {
-    fontSize: 14,
-    fontFamily: FONTS.regular,
-    color: COLORS.textMuted,
   },
 
   addRow: {

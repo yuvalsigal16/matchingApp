@@ -17,6 +17,7 @@ import { ChevronRight, MapPin, Plane } from "lucide-react-native";
 import { BASE_URL } from "../src/api/config";
 import { getToken, getUser } from "../src/auth/authStore";
 import { sendChatRequest } from "../src/api/notificationService";
+import { blockUser } from "../src/api/blockService";
 import { COLORS, FONTS } from "../src/theme";
 
 const GENDER_DB_TO_HE = { Male: "זכר", Female: "נקבה", Other: "אחר" };
@@ -53,6 +54,7 @@ export default function MatchProfile() {
   const [trips, setTrips] = useState([]);
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
+  const [blocking, setBlocking] = useState(false);
 
   useEffect(() => {
     const load = async () => {
@@ -125,6 +127,53 @@ export default function MatchProfile() {
       Alert.alert("הסרה", "האם להסיר משתמש זה מהצעות ההתאמה?", [
         { text: "ביטול", style: "cancel" },
         { text: "הסר", style: "destructive", onPress: doRemove },
+      ]);
+    }
+  };
+
+  // חסימת המשתמש דרך ה-API הקיים (blockUser). אחרי הצלחה — חזרה למסך הקודם.
+  const performBlock = async () => {
+    if (blocking) return;
+    setBlocking(true);
+    try {
+      await blockUser(matchUser.userID);
+      // הסתרה מיידית מ-matchesForYou דרך מנגנון ה-dismissed הקיים
+      // (אותו מנגנון של "הסר מההצעות", שנטען מחדש ב-useFocusEffect).
+      try {
+        const raw = await AsyncStorage.getItem("dismissed_matches");
+        const ids = raw ? JSON.parse(raw) : [];
+        if (!ids.includes(matchUser.userID)) ids.push(matchUser.userID);
+        await AsyncStorage.setItem("dismissed_matches", JSON.stringify(ids));
+      } catch {}
+      if (Platform.OS === "web") {
+        window.alert(
+          "המשתמש נחסם בהצלחה.\nהוא לא יוכל לשלוח לך הודעות או להופיע בהתאמות שלך.",
+        );
+        router.back();
+      } else {
+        Alert.alert(
+          "המשתמש נחסם בהצלחה",
+          "הוא לא יוכל לשלוח לך הודעות או להופיע בהתאמות שלך.",
+          [{ text: "אישור", onPress: () => router.back() }],
+        );
+      }
+    } catch (err) {
+      if (Platform.OS === "web") window.alert(err.message || "חסימת המשתמש נכשלה");
+      else Alert.alert("שגיאה", err.message || "חסימת המשתמש נכשלה");
+    } finally {
+      setBlocking(false);
+    }
+  };
+
+  const handleBlock = () => {
+    const name = matchUser.name || "המשתמש הזה";
+    const msg = `האם לחסום את ${name}?\nלא תוכל/י לשלוח לו הודעות או לראות אותו בהתאמות.`;
+    if (Platform.OS === "web") {
+      if (window.confirm(msg)) performBlock();
+    } else {
+      Alert.alert("חסימת משתמש", msg, [
+        { text: "ביטול", style: "cancel" },
+        { text: "חסום", style: "destructive", onPress: performBlock },
       ]);
     }
   };
@@ -291,6 +340,19 @@ export default function MatchProfile() {
             <Text style={styles.removeBtnText}>הסר מההצעות</Text>
           </TouchableOpacity>
         </View>
+
+        {/* חסימת משתמש */}
+        <TouchableOpacity
+          style={[styles.blockBtn, blocking && { opacity: 0.6 }]}
+          onPress={handleBlock}
+          disabled={blocking}
+          accessibilityRole="button"
+          accessibilityLabel="חסום משתמש"
+        >
+          <Text style={styles.blockBtnText}>
+            {blocking ? "חוסם..." : "חסום משתמש"}
+          </Text>
+        </TouchableOpacity>
       </ScrollView>
     </SafeAreaView>
   );
@@ -517,6 +579,18 @@ const styles = StyleSheet.create({
   removeBtnText: {
     color: COLORS.textSecondary,
     fontSize: 16,
+    fontFamily: FONTS.bold,
+  },
+
+  blockBtn: {
+    alignItems: "center",
+    paddingVertical: 12,
+    marginHorizontal: 16,
+    marginBottom: 24,
+  },
+  blockBtnText: {
+    color: COLORS.danger,
+    fontSize: 15,
     fontFamily: FONTS.bold,
   },
 });

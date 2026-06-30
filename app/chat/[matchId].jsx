@@ -28,6 +28,7 @@ import {
   getMatchById,
   sendChatMessage,
 } from "../src/api/chatService";
+import { blockUser } from "../src/api/blockService";
 import { BASE_URL } from "../src/api/config";
 import { getUser } from "../src/auth/authStore";
 import { COLORS, FONTS } from "../src/theme";
@@ -245,6 +246,55 @@ export default function ChatScreen() {
     (matchData?.otherUserName || "")
       .split(" ").map((s) => s[0]).filter(Boolean).slice(0, 2).join("").toUpperCase() || "";
 
+  // ── תפריט אפשרויות (3 נקודות) — זמין רק כשיש מזהה למשתמש השני ──
+  const otherUserId = matchData?.otherUserID;
+  const otherName = matchData?.otherUserName || "המשתמש";
+
+  const goToOtherProfile = () => {
+    router.push({
+      pathname: "/MatchProfileDetails",
+      params: {
+        user: JSON.stringify({
+          userID: otherUserId,
+          name: otherName,
+          profileImage: matchData?.otherUserImage,
+        }),
+      },
+    });
+  };
+
+  const performBlock = async () => {
+    try {
+      await blockUser(otherUserId);
+      Alert.alert(
+        "המשתמש נחסם בהצלחה",
+        "הוא לא יוכל לשלוח לך הודעות או להופיע בהתאמות שלך.",
+        [{ text: "אישור", onPress: () => router.back() }],
+      );
+    } catch (err) {
+      Alert.alert("שגיאה", err.message || "חסימת המשתמש נכשלה");
+    }
+  };
+
+  const confirmBlock = () => {
+    Alert.alert(
+      "חסימת משתמש",
+      `האם לחסום את ${otherName}?\nלא תוכל/י לשלוח לו הודעות או לראות אותו בהתאמות.`,
+      [
+        { text: "ביטול", style: "cancel" },
+        { text: "חסום", style: "destructive", onPress: performBlock },
+      ],
+    );
+  };
+
+  const openMenu = () => {
+    Alert.alert(otherName, undefined, [
+      { text: "הצג פרופיל", onPress: goToOtherProfile },
+      { text: "חסום משתמש", style: "destructive", onPress: confirmBlock },
+      { text: "ביטול", style: "cancel" },
+    ]);
+  };
+
   const renderMessage = ({ item, index }) => {
     const isMine = item.senderID === currentUser?.userID;
     const prev = messages[index - 1];
@@ -328,6 +378,18 @@ export default function ChatScreen() {
             </Text>
           ) : null}
         </View>
+
+        {otherUserId ? (
+          <TouchableOpacity
+            style={styles.headerOptionsBtn}
+            onPress={openMenu}
+            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+            accessibilityRole="button"
+            accessibilityLabel="אפשרויות"
+          >
+            <Ionicons name="ellipsis-vertical" size={22} color={COLORS.brand} />
+          </TouchableOpacity>
+        ) : null}
       </View>
 
       {/* ── אזור הצ'אט (עולה עם המקלדת) ── */}
@@ -419,6 +481,7 @@ const styles = StyleSheet.create({
   headerText: { flex: 1, alignItems: "flex-end" },
   headerName: { fontSize: 16, fontFamily: FONTS.bold, color: COLORS.text },
   headerSub: { fontSize: 12, fontFamily: FONTS.regular, color: COLORS.textSecondary, marginTop: 1 },
+  headerOptionsBtn: { padding: 4 },
 
   // ── Messages ──
   listContent: { paddingHorizontal: 12, paddingVertical: 14 },
