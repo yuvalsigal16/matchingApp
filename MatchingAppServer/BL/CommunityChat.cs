@@ -14,5 +14,10 @@ namespace MatchingAppServer.BL
         {
             return dal.GetChatByCommunityID(communityID);
         }
+
+        public CommunityChat GetByChatID(int chatID)
+        {
+            return dal.GetChatByChatID(chatID);
+        }
     }
 }

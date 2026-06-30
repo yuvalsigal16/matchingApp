@@ -96,13 +96,48 @@ namespace MatchingAppServer.DAL
                     list.Add(new
                     {
                         UserID = Convert.ToInt32(reader["UserID"]),
-                        Email = reader["Email"].ToString(),
+                        FirstName = reader["FirstName"]?.ToString(),
+                        LastName = reader["LastName"]?.ToString(),
                         ProfileImage = reader["ProfileImage"]?.ToString(),
                         JoinedAt = Convert.ToDateTime(reader["JoinedAt"])
                     });
                 }
 
                 return list;
+            }
+            catch (Exception) { throw; }
+            finally
+            {
+                if (con != null)
+                    con.Close();
+            }
+        }
+
+        // IS MEMBER — בדיקת חברות לפי טבלת CommunityMembers (מבוססת על ה-SP הקיים, ללא SP חדש)
+        public bool IsMember(int communityID, int userID)
+        {
+            try
+            {
+                con = connect();
+            }
+            catch (Exception) { throw; }
+
+            var param = new Dictionary<string, object>()
+            {
+                { "@CommunityID", communityID }
+            };
+
+            cmd = CreateCommandWithStoredProcedureGeneral("GetCommunityMembers", con, param);
+
+            try
+            {
+                reader = cmd.ExecuteReader();
+                while (reader.Read())
+                {
+                    if (Convert.ToInt32(reader["UserID"]) == userID)
+                        return true;
+                }
+                return false;
             }
             catch (Exception) { throw; }
             finally

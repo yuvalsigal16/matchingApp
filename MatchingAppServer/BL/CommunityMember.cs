@@ -27,5 +27,10 @@ namespace MatchingAppServer.BL
         {
             return dal.GetMembers(communityID);
         }
+
+        public bool IsMember(int communityID, int userID)
+        {
+            return dal.IsMember(communityID, userID);
+        }
     }
 }
