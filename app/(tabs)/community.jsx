@@ -11,11 +11,13 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useFocusEffect, useRouter } from "expo-router";
-import { ChevronRight, Plus, Users } from "lucide-react-native";
+import { Ionicons } from "@expo/vector-icons";
+import { Check, Plus, Users } from "lucide-react-native";
 
 import { BASE_URL } from "../src/api/config";
 import { getToken, getUser } from "../src/auth/authStore";
 import { COLORS, FONTS } from "../src/theme";
+import { getCommunityMembers } from "../src/api/communityChatService";
 import BottomNav from "../../components/BottomNav";
 
 const ICON_COLORS = [
@@ -37,6 +39,8 @@ export default function CommunityScreen() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [joining, setJoining] = useState({});
+  // מזהי הקהילות שאני כבר חבר בהן (השרת לא מחזיר isJoined, אז מחשבים בצד לקוח).
+  const [joinedIds, setJoinedIds] = useState(new Set());
 
   useEffect(() => {
     loadCommunities();
@@ -66,13 +70,39 @@ export default function CommunityScreen() {
         },
       });
       if (res.ok) {
-        const data = await res.json();
-        setCommunities(data || []);
+        const data = (await res.json()) || [];
+        setCommunities(data);
+        computeMembership(data);
       }
     } catch (err) {
       console.error("loadCommunities:", err);
     } finally {
       if (!silent) setLoading(false);
+    }
+  };
+
+  // בדיקת חברות לכל קהילה: מושכים את החברים (endpoint קיים) ובודקים אם אני ברשימה.
+  // ה-endpoint מחזיר חברים רק לחברי הקהילה, אז לא-חבר מקבל רשימה ריקה → לא מסומן.
+  const computeMembership = async (list) => {
+    const myId = getUser()?.userID;
+    if (!myId) return;
+    try {
+      const results = await Promise.all(
+        (list || []).map(async (c) => {
+          try {
+            const members = await getCommunityMembers(c.communityID);
+            const joined = (members || []).some(
+              (m) => String(m.userID) === String(myId),
+            );
+            return joined ? c.communityID : null;
+          } catch {
+            return null;
+          }
+        }),
+      );
+      setJoinedIds(new Set(results.filter((x) => x != null)));
+    } catch {
+      // כשל בבדיקת חברות לא מפיל את הרשימה
     }
   };
 
@@ -96,16 +126,22 @@ export default function CommunityScreen() {
         }
       );
       if (res.ok) {
+        setJoinedIds((prev) => new Set(prev).add(communityId));
         setCommunities((prev) =>
           prev.map((c) =>
             c.communityID === communityId
-              ? { ...c, isJoined: true, membersCount: (c.membersCount || 0) + 1 }
+              ? { ...c, membersCount: (c.membersCount || 0) + 1 }
               : c
           )
         );
       } else {
         const msg = await res.text().catch(() => "");
-        Alert.alert("שגיאה", msg || "לא הצלחנו להצטרף לקהילה. נסה שוב.");
+        // אם השרת מדווח שכבר חבר — פשוט לסמן כחבר, בלי שגיאה מבלבלת.
+        if (/already/i.test(msg)) {
+          setJoinedIds((prev) => new Set(prev).add(communityId));
+        } else {
+          Alert.alert("שגיאה", msg || "לא הצלחנו להצטרף לקהילה. נסה שוב.");
+        }
       }
     } catch (err) {
       Alert.alert("שגיאה", "בעיית תקשורת. נסה שוב.");
@@ -133,7 +169,7 @@ export default function CommunityScreen() {
           accessibilityRole="button"
           accessibilityLabel="חזרה"
         >
-          <ChevronRight size={22} color={COLORS.brand} />
+          <Ionicons name="arrow-forward" size={26} color={COLORS.brand} />
         </TouchableOpacity>
         <Text style={styles.title}>קהילות</Text>
         <View style={{ width: 36 }} />
@@ -174,7 +210,7 @@ export default function CommunityScreen() {
           communities.map((c, index) => {
             const color = ICON_COLORS[index % ICON_COLORS.length];
             const isJoining = joining[c.communityID];
-            const isJoined = c.isJoined;
+            const isJoined = joinedIds.has(c.communityID);
 
             return (
               <TouchableOpacity
@@ -188,21 +224,26 @@ export default function CommunityScreen() {
                   })
                 }
               >
-                {/* כפתור הצטרף */}
-                <TouchableOpacity
-                  style={[styles.joinBtn, isJoined && styles.joinBtnDone]}
-                  onPress={() => !isJoined && handleJoin(c.communityID)}
-                  disabled={isJoining || isJoined}
-                  activeOpacity={0.8}
-                >
-                  {isJoining ? (
-                    <ActivityIndicator size="small" color={COLORS.onBrand} />
-                  ) : (
-                    <Text style={styles.joinText}>
-                      {isJoined ? "חבר" : "הצטרף"}
-                    </Text>
-                  )}
-                </TouchableOpacity>
+                {/* חבר בקהילה → חיווי סטטי (לא כפתור). אחרת → כפתור הצטרף. */}
+                {isJoined ? (
+                  <View style={styles.memberChip}>
+                    <Check size={14} color={COLORS.brand} strokeWidth={2.5} />
+                    <Text style={styles.memberChipText}>חבר</Text>
+                  </View>
+                ) : (
+                  <TouchableOpacity
+                    style={styles.joinBtn}
+                    onPress={() => handleJoin(c.communityID)}
+                    disabled={isJoining}
+                    activeOpacity={0.8}
+                  >
+                    {isJoining ? (
+                      <ActivityIndicator size="small" color={COLORS.onBrand} />
+                    ) : (
+                      <Text style={styles.joinText}>הצטרף</Text>
+                    )}
+                  </TouchableOpacity>
+                )}
 
                 {/* פרטי קהילה */}
                 <View style={styles.cardText}>
@@ -357,6 +398,24 @@ const styles = StyleSheet.create({
 
   joinText: {
     color: COLORS.onBrand,
+    fontSize: 14,
+    fontFamily: FONTS.bold,
+  },
+
+  // חיווי "חבר" — לא כפתור, רק אינדיקציה שכבר הצטרפת
+  memberChip: {
+    flexDirection: "row-reverse",
+    alignItems: "center",
+    gap: 4,
+    paddingHorizontal: 14,
+    paddingVertical: 9,
+    borderRadius: 20,
+    minWidth: 72,
+    justifyContent: "center",
+    backgroundColor: COLORS.brandLight,
+  },
+  memberChipText: {
+    color: COLORS.brand,
     fontSize: 14,
     fontFamily: FONTS.bold,
   },

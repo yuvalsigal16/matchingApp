@@ -6,22 +6,48 @@ import {
   Alert,
   Platform,
   ScrollView,
+  StyleSheet,
   Text,
   TouchableOpacity,
   View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+
 import { BASE_URL } from "../../src/api/config";
 import { getToken } from "../../src/auth/authStore";
-
-import { getMatchesByTrip } from "../../src/api/chatService";
-import {
-  getTripSuggestions,
-} from "../../src/api/chatService";
+import { getTripSuggestions } from "../../src/api/chatService";
 import { getUserProfile } from "../../src/api/userProfileService";
 import { COLORS, FONTS } from "../../src/theme";
+import HeaderMenu from "../../../components/HeaderMenu";
 
-import { StyleSheet } from "react-native";
+const STATUS_HE = {
+  active: "פעיל",
+  matched: "נמצאה התאמה",
+  inactive: "לא פעיל",
+  pending: "ממתין",
+};
+
+// כפתור־גלולה לניווט (סגנון האב): אייקון עגול בצד, כותרת, וחץ עדין.
+function HubButton({ icon, label, tint, bg, onPress }) {
+  return (
+    <TouchableOpacity
+      style={styles.hubBtn}
+      onPress={onPress}
+      activeOpacity={0.85}
+      accessibilityRole="button"
+      accessibilityLabel={label}
+    >
+      <View style={[styles.hubIcon, { backgroundColor: bg }]}>
+        <Ionicons name={icon} size={20} color={tint} />
+      </View>
+      <Text style={styles.hubLabel} numberOfLines={1}>
+        {label}
+      </Text>
+      <Ionicons name="chevron-back" size={20} color={COLORS.textMuted} />
+    </TouchableOpacity>
+  );
+}
+
 export default function TripDetails() {
   const router = useRouter();
   const { id } = useLocalSearchParams();
@@ -29,12 +55,11 @@ export default function TripDetails() {
   const [trip, setTrip] = useState(null);
   const [participants, setParticipants] = useState([]);
   const [creator, setCreator] = useState(null);
-  const [matches, setMatches] = useState([]);
-  const [chats, setChats] = useState([]);
   const [places, setPlaces] = useState([]);
-const [rating, setRating] = useState(0);
+  const [rating, setRating] = useState(0);
   const [loading, setLoading] = useState(true);
   const [deleting, setDeleting] = useState(false);
+  const [menuVisible, setMenuVisible] = useState(false);
 
   const formatDate = (dateStr) => {
     if (!dateStr) return "";
@@ -46,27 +71,9 @@ const [rating, setRating] = useState(0);
 
   const isPast = trip?.endDate && new Date(trip.endDate) < new Date();
 
-  /* =========================
-     NAVIGATION
-  ========================= */
+  /* ========================= NAVIGATION ========================= */
 
-  const openProfile = (userId) => {
-    router.push({
-      pathname: "/profile/[userId]",
-      params: { userId },
-    });
-  };
-
-  const openChat = (matchId) => {
-    router.push({
-      pathname: "/chat/[matchId]",
-      params: { matchId },
-    });
-  };
-
-  /* =========================
-     LOAD DATA
-  ========================= */
+  /* ========================= LOAD DATA ========================= */
 
   const showAlert = (title, msg) => {
     if (Platform.OS === "web") window.alert(`${title}\n${msg}`);
@@ -84,11 +91,9 @@ const [rating, setRating] = useState(0);
         const tripData = await tripRes.json();
         setTrip(tripData);
 
-        // ארבע הקריאות הבאות עצמאיות זו מזו (אף אחת לא תלויה בתוצאת רעותה) —
-        // מריצים במקביל כדי לקצר את זמן הטעינה. כל אחת שומרת על התנאי
-        // וה-try/catch המקוריים שלה, כך שההתנהגות והנתונים המוצגים זהים.
+        // ארבע קריאות עצמאיות — מריצים במקביל לקיצור זמן הטעינה.
         await Promise.all([
-          // המלצות לטיולים שיוצאים לדרך
+          // המלצות מקומות לטיולים שיצאו לדרך
           (async () => {
             if (tripData.status?.toLowerCase() === "matched") {
               try {
@@ -106,7 +111,7 @@ const [rating, setRating] = useState(0);
             }
           })(),
 
-          // טעינת פרטי יוצר הטיול
+          // פרטי יוצר הטיול
           (async () => {
             const creatorId = tripData.createdByUserID ?? tripData.CreatedByUserID;
             if (creatorId) {
@@ -117,27 +122,14 @@ const [rating, setRating] = useState(0);
             }
           })(),
 
-          // משתתפים — כשלון לא קורס את המסך
+          // משתתפים
           (async () => {
             try {
               const participantsRes = await fetch(`${BASE_URL}/TripParticipant/trip/${id}`, { headers });
-              if (participantsRes.ok) setParticipants(await participantsRes.json() || []);
+              if (participantsRes.ok) setParticipants((await participantsRes.json()) || []);
             } catch { /* אין משתתפים — לא נורא */ }
           })(),
-
-          // התאמות
-          (async () => {
-            try {
-              const matchesData = await getMatchesByTrip(id);
-              setMatches(matchesData || []);
-              setChats((matchesData || []).map((m) => ({
-                matchID: m.matchID,
-                name: m.name || `משתמש ${m.userId}`,
-              })));
-            } catch { /* אין התאמות — לא נורא */ }
-          })(),
         ]);
-
       } catch (err) {
         console.log(err);
         showAlert("שגיאה", "טעינת הטיול נכשלה");
@@ -149,9 +141,7 @@ const [rating, setRating] = useState(0);
     if (id) loadData();
   }, [id]);
 
-  /* =========================
-     DELETE TRIP
-  ========================= */
+  /* ========================= MANAGE (edit / deactivate / delete) ========================= */
 
   const confirmAndRun = (title, msg, action) => {
     if (Platform.OS === "web") {
@@ -207,9 +197,7 @@ const [rating, setRating] = useState(0);
     });
   };
 
-  /* =========================
-     LOADING
-  ========================= */
+  /* ========================= LOADING ========================= */
 
   if (loading) {
     return (
@@ -222,17 +210,41 @@ const [rating, setRating] = useState(0);
   if (!trip) {
     return (
       <SafeAreaView style={styles.center}>
-        <Text>לא נמצא טיול</Text>
+        <Text style={styles.value}>לא נמצא טיול</Text>
       </SafeAreaView>
     );
   }
 
-  /* =========================
-     UI
-  ========================= */
+  const statusKey = String(trip.status).toLowerCase();
+  const statusLabel = STATUS_HE[statusKey] || trip.status;
+  const isMatched = statusKey === "matched";
+  const destination = trip.destination ?? trip.Destination;
+
+  const otherParticipants = participants.filter((p) => {
+    const creatorId = trip?.createdByUserID ?? trip?.CreatedByUserID;
+    return p.userID !== creatorId && p.userId !== creatorId;
+  });
+
+  // פעולות ניהול — בתוך תפריט 3 הנקודות, כדי לשמור על מסך נקי.
+  const manageItems = [
+    {
+      label: "ערוך טיול",
+      onPress: () =>
+        router.push({
+          pathname: "/PreferencesQuiz",
+          params: { mode: "editTrip", tripId: id },
+        }),
+    },
+    ...(trip.status !== "Inactive"
+      ? [{ label: "השבת טיול", onPress: handleDeactivate }]
+      : []),
+    { label: "מחק טיול", destructive: true, onPress: handleDeleteTrip },
+  ];
+
+  /* ========================= UI ========================= */
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={styles.container} edges={["top", "left", "right"]}>
       {/* HEADER */}
       <View style={styles.header}>
         <TouchableOpacity
@@ -245,370 +257,195 @@ const [rating, setRating] = useState(0);
         </TouchableOpacity>
 
         <Text style={styles.headerTitle}>פרטי טיול</Text>
-        <View style={{ width: 26 }} />
+
+        <TouchableOpacity
+          onPress={() => setMenuVisible(true)}
+          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+          accessibilityRole="button"
+          accessibilityLabel="אפשרויות"
+          disabled={deleting}
+        >
+          <Ionicons name="ellipsis-vertical" size={24} color={COLORS.brand} />
+        </TouchableOpacity>
       </View>
 
-      <ScrollView contentContainerStyle={styles.content}>
-        {/* TRIP CARD */}
-        <View style={[styles.card, isPast && styles.cardPast]}>
-          <Text style={styles.label}>יעד</Text>
-          <Text style={styles.value}>{trip.destination ?? trip.Destination}</Text>
+      <HeaderMenu
+        visible={menuVisible}
+        onClose={() => setMenuVisible(false)}
+        items={manageItems}
+      />
 
-          <Text style={styles.label}>תאריכים</Text>
-          <Text style={styles.value}>
-            {formatDate(trip.startDate)} - {formatDate(trip.endDate)}
+      <ScrollView
+        contentContainerStyle={styles.content}
+        showsVerticalScrollIndicator={false}
+      >
+        {/* HERO */}
+        <View style={[styles.hero, isPast && styles.heroPast]}>
+          <View style={styles.heroTopRow}>
+            <View style={styles.statusChip}>
+              <Text style={styles.statusChipText}>{statusLabel}</Text>
+            </View>
+            <Ionicons name="airplane" size={26} color="rgba(255,255,255,0.55)" />
+          </View>
+
+          <Text style={styles.heroDest} numberOfLines={1}>
+            {destination}
           </Text>
 
-          <Text style={styles.label}>סטטוס</Text>
-          <Text style={styles.value}>{trip.status}</Text>
+          <View style={styles.heroDatesRow}>
+            <Ionicons name="calendar-outline" size={14} color="rgba(255,255,255,0.92)" />
+            <Text style={styles.heroDates}>
+              {formatDate(trip.startDate)} – {formatDate(trip.endDate)}
+            </Text>
+          </View>
         </View>
 
-        {/* PARTICIPANTS */}
-        <Text style={styles.sectionTitle}>משתתפים</Text>
+        {/* HUB — כפתורי ניווט */}
+        <HubButton
+          icon="people"
+          label="פרופילים עבורך"
+          tint={COLORS.primary}
+          bg={COLORS.primaryLight}
+          onPress={() =>
+            router.push({ pathname: "/TripMatches/[id]", params: { id } })
+          }
+        />
 
+        <HubButton
+          icon="checkmark-done"
+          label="רשימת משימות"
+          tint={COLORS.success}
+          bg={COLORS.successLight}
+          onPress={() =>
+            router.push({
+              pathname: "/TripToDo/[id]",
+              params: { id, name: destination },
+            })
+          }
+        />
+
+        <HubButton
+          icon="star"
+          label="המלצות"
+          tint={COLORS.coral}
+          bg={COLORS.coralLight}
+          onPress={() =>
+            router.push({
+              pathname: "/recommendations",
+              params: { tripId: id, tripName: destination },
+            })
+          }
+        />
+
+        {isMatched && (
+          <HubButton
+            icon="calendar"
+            label="יומן הטיול"
+            tint={COLORS.amberDark}
+            bg={COLORS.amberLight}
+            onPress={() =>
+              router.push({ pathname: "/TripPlanner/[id]", params: { id } })
+            }
+          />
+        )}
+
+        {/* משתתפים */}
+        <Text style={styles.sectionTitle}>משתתפים</Text>
         <View style={styles.card}>
-          {/* יוצר הטיול תמיד ראשון */}
           {creator && (
             <View style={styles.participant}>
-              <Ionicons name="person-circle" size={22} color={COLORS.brand} />
+              <View style={styles.pAvatar}>
+                <Ionicons name="person" size={18} color={COLORS.onBrand} />
+              </View>
               <View style={{ flex: 1, alignItems: "flex-end" }}>
-                <Text style={[styles.value, { fontWeight: "bold" }]}>
+                <Text style={styles.pName}>
                   {creator.firstName} {creator.lastName}
                 </Text>
                 <Text style={styles.label}>יוצר הטיול</Text>
               </View>
             </View>
           )}
-          {participants
-            .filter((p) => {
-              const creatorId = trip?.createdByUserID ?? trip?.CreatedByUserID;
-              return p.userID !== creatorId && p.userId !== creatorId;
-            })
-            .map((p, i) => (
-              <View key={i} style={styles.participant}>
-                <Ionicons name="person-circle-outline" size={22} color={COLORS.textSecondary} />
-                <Text style={styles.value}>
-                  {p.firstName} {p.lastName}
-                </Text>
+
+          {otherParticipants.map((p, i) => (
+            <View
+              key={i}
+              style={[styles.participant, (creator || i > 0) && styles.participantDivider]}
+            >
+              <View style={[styles.pAvatar, styles.pAvatarMuted]}>
+                <Ionicons name="person" size={18} color={COLORS.onBrand} />
               </View>
-            ))}
-          {!creator && participants.length === 0 && (
+              <Text style={styles.pName}>
+                {p.firstName} {p.lastName}
+              </Text>
+            </View>
+          ))}
+
+          {!creator && otherParticipants.length === 0 && (
             <Text style={styles.value}>אין משתתפים</Text>
           )}
         </View>
 
-        {/* MATCHES */}
-        <Text style={styles.sectionTitle}>התאמות עבורך</Text>
-
-        {matches.length === 0 ? (
-          <View style={styles.card}>
-            <Text style={styles.value}>אין התאמות</Text>
-          </View>
-        ) : (
-          <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-            {matches.map((m) => (
-              <TouchableOpacity
-                key={m.matchID}
-                style={styles.matchCard}
-                onPress={() => openProfile(m.userId)}
-              >
-                <View style={styles.avatar} />
-                <Text style={styles.name}>{m.name || "משתמש"}</Text>
-              </TouchableOpacity>
-            ))}
-          </ScrollView>
+        {/* מקומות מומלצים ביעד (כשיש התאמה) */}
+        {isMatched && places.length > 0 && (
+          <>
+            <Text style={styles.sectionTitle}>מקומות מומלצים ביעד</Text>
+            <View style={styles.card}>
+              {places.map((p, i) => (
+                <View
+                  key={i}
+                  style={[styles.placeRow, i > 0 && styles.participantDivider]}
+                >
+                  <View style={styles.placeIcon}>
+                    <Ionicons name="location" size={16} color={COLORS.coral} />
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.placeTitle} numberOfLines={1}>
+                      {p.name}
+                    </Text>
+                    {p.address ? (
+                      <Text style={styles.placeAddr} numberOfLines={1}>
+                        {p.address}
+                      </Text>
+                    ) : null}
+                  </View>
+                  {p.rating ? (
+                    <View style={styles.placeRating}>
+                      <Ionicons name="star" size={12} color={COLORS.amber} />
+                      <Text style={styles.placeRatingText}>{p.rating}</Text>
+                    </View>
+                  ) : null}
+                </View>
+              ))}
+            </View>
+          </>
         )}
 
-        {/* מעבר למסך ההתאמות החכמות לטיול (דירוג מועמדים לפי העדפות הטיול) */}
-        <TouchableOpacity
-          style={styles.findMatchesBtn}
-          onPress={() =>
-            router.push({
-              pathname: "/TripMatches/[id]",
-              params: { id },
-            })
-          }
-        >
-          <Ionicons name="sparkles" size={18} color={COLORS.onBrand} />
-          <Text style={styles.findMatchesText}>מצא התאמות לטיול</Text>
-        </TouchableOpacity>
-
-        {/* CHATS */}
-        <Text style={styles.sectionTitle}>{"צ'אטים"}</Text>
-
-        <View style={styles.card}>
-          {chats.length === 0 ? (
-            <Text style={styles.value}>{"אין צ'אטים עדיין"}</Text>
-          ) : (
-            chats.map((c) => (
-              <TouchableOpacity
-                key={c.matchID}
-                style={styles.chatRow}
-                onPress={() => openChat(c.matchID)}
-              >
-                <Ionicons name="chatbubble-outline" size={20} />
-                <Text style={styles.value}>{c.name}</Text>
-              </TouchableOpacity>
-            ))
-          )}
-        </View>
-
-{
-trip.status
-?.toLowerCase()
-===
-"matched"
-&&
-places.length
->
-0
-&&(
-
-<>
-
-<Text
-style={
-styles.sectionTitle
-}
->
-
-✨ המלצות בשבילכם
-
-</Text>
-
-<View
-style={
-styles.card
-}
->
-
-{
-
-places.map(
-(
-p,
-i
-)=>(
-
-<View
-key={i}
-style={{
-marginBottom:16
-}}
->
-
-<Text
-style={
-styles.placeTitle
-}
->
-
-📍 {p.name}
-
-</Text>
-
-<Text>
-
-⭐ {p.rating}
-
-</Text>
-
-<Text>
-
-{p.address}
-
-</Text>
-
-</View>
-
-)
-
-)
-
-}
-
-</View>
-
-</>
-
-)
-}
-
-{
-isPast
-&&(
-
-<>
-
-<Text
-style={
-styles.sectionTitle
-}
->
-
-⭐ דרגו את ההתאמה
-
-</Text>
-
-<View
-style={
-styles.card
-}
->
-
-<View
-style={{
-flexDirection:
-"row"
-}}
->
-
-{
-
-[
-1,
-2,
-3,
-4,
-5
-]
-.map(
-(
-star
-)=>(
-
-<TouchableOpacity
-key={star}
-onPress={()=>
-setRating(
-star
-)
-}
->
-
-<Ionicons
-name={
-rating
->=
-star
-?
-"star"
-:
-"star-outline"
-}
-size={
-34
-}
-color={
-COLORS.amber
-}
-/>
-
-</TouchableOpacity>
-
-)
-
-)
-
-}
-
-</View>
-
-</View>
-
-</>
-
-)
-}
-
-{
-trip.status?.toLowerCase() === "matched"
-&& (
-<>
-<Text style={styles.sectionTitle}>
-🗓️ תכנון הטיול
-</Text>
-
-<View style={styles.card}>
-
-<Text style={styles.value}>
-שתפו אחד עם השני את התכנון היומי לטיול
-</Text>
-
-<TouchableOpacity
-style={styles.plannerBtn}
-onPress={() =>
-router.push({
-pathname:"/TripPlanner/[id]",
-params:{id}
-})
-}
->
-
-<Ionicons
-name="calendar-outline"
-size={22}
-color="#fff"
-/>
-
-<Text style={styles.btnText}>
-פתח יומן טיול
-</Text>
-
-</TouchableOpacity>
-
-</View>
-</>
-)
-}
-
-        {/* DELETE */}
-        {/* ACTIONS */}
-        <View style={styles.actions}>
-          <TouchableOpacity
-            style={styles.editBtn}
-            onPress={() => router.push({
-              pathname: "/PreferencesQuiz",
-              params: { mode: "editTrip", tripId: id },
-            })}
-          >
-            <Text style={styles.btnText}>ערוך טיול</Text>
-          </TouchableOpacity>
-
-          {trip.status !== "Inactive" && (
-            <TouchableOpacity
-              style={styles.deactivateBtn}
-              onPress={handleDeactivate}
-              disabled={deleting}
-            >
-              <Text style={styles.btnText}>
-                {deleting ? "מעבד..." : "השבת טיול"}
-              </Text>
-            </TouchableOpacity>
-          )}
-          <TouchableOpacity
-            style={styles.deleteBtn}
-            onPress={handleDeleteTrip}
-            disabled={deleting}
-          >
-            <Text style={styles.btnText}>
-              {deleting ? "מוחק..." : "מחק טיול"}
-            </Text>
-          </TouchableOpacity>
-        </View>
+        {/* דירוג ההתאמה (לטיול שהסתיים) */}
+        {isPast && (
+          <>
+            <Text style={styles.sectionTitle}>דרגו את ההתאמה</Text>
+            <View style={styles.card}>
+              <View style={styles.starsRow}>
+                {[1, 2, 3, 4, 5].map((star) => (
+                  <TouchableOpacity key={star} onPress={() => setRating(star)}>
+                    <Ionicons
+                      name={rating >= star ? "star" : "star-outline"}
+                      size={34}
+                      color={COLORS.amber}
+                    />
+                  </TouchableOpacity>
+                ))}
+              </View>
+            </View>
+          </>
+        )}
       </ScrollView>
     </SafeAreaView>
   );
 }
 
-
-
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: COLORS.background,
-  },
-
+  container: { flex: 1, backgroundColor: COLORS.background },
   center: {
     flex: 1,
     justifyContent: "center",
@@ -620,46 +457,117 @@ const styles = StyleSheet.create({
     flexDirection: "row-reverse",
     justifyContent: "space-between",
     alignItems: "center",
+    paddingHorizontal: 20,
+    paddingTop: 16,
+    paddingBottom: 8,
+  },
+  headerTitle: { fontSize: 20, fontFamily: FONTS.bold, color: COLORS.brand },
+
+  content: { paddingHorizontal: 20, paddingBottom: 40 },
+
+  // ── Hero ──
+  hero: {
+    backgroundColor: COLORS.coral,
+    borderRadius: 22,
     padding: 20,
+    marginTop: 6,
+    marginBottom: 18,
+    overflow: "hidden",
+    shadowColor: COLORS.coral,
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.28,
+    shadowRadius: 12,
+    elevation: 5,
+  },
+  heroPast: { backgroundColor: COLORS.textSecondary, shadowColor: COLORS.textSecondary },
+  heroTopRow: {
+    flexDirection: "row-reverse",
+    justifyContent: "space-between",
+    alignItems: "center",
+  },
+  statusChip: {
+    backgroundColor: "rgba(255,255,255,0.22)",
+    paddingHorizontal: 12,
+    paddingVertical: 5,
+    borderRadius: 20,
+  },
+  statusChipText: { color: "#FFFFFF", fontSize: 12, fontFamily: FONTS.bold },
+  heroDest: {
+    fontSize: 25,
+    fontFamily: FONTS.bold,
+    color: "#FFFFFF",
+    textAlign: "right",
+    marginTop: 14,
+  },
+  heroDatesRow: {
+    flexDirection: "row-reverse",
+    alignItems: "center",
+    gap: 6,
+    marginTop: 8,
+  },
+  heroDates: {
+    fontSize: 14,
+    fontFamily: FONTS.regular,
+    color: "rgba(255,255,255,0.92)",
   },
 
-  headerTitle: {
-    fontSize: 20,
+  // ── Hub buttons ──
+  hubBtn: {
+    flexDirection: "row-reverse",
+    alignItems: "center",
+    gap: 12,
+    backgroundColor: COLORS.surface,
+    borderRadius: 16,
+    paddingVertical: 14,
+    paddingHorizontal: 16,
+    marginBottom: 10,
+    shadowColor: COLORS.shadow,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 6,
+    elevation: 2,
+  },
+  hubIcon: {
+    width: 42,
+    height: 42,
+    borderRadius: 21,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  hubLabel: {
+    flex: 1,
+    fontSize: 15,
+    fontFamily: FONTS.bold,
+    color: COLORS.text,
+    textAlign: "right",
+  },
+
+  // ── Sections / cards ──
+  sectionTitle: {
+    fontSize: 16,
     fontFamily: FONTS.bold,
     color: COLORS.brand,
+    textAlign: "right",
+    marginTop: 18,
+    marginBottom: 10,
   },
-
-  content: {
-    padding: 20,
-  },
-
   card: {
     backgroundColor: COLORS.surface,
     borderRadius: 16,
     padding: 16,
-    marginBottom: 15,
+    shadowColor: COLORS.shadow,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.04,
+    shadowRadius: 6,
+    elevation: 1,
   },
-
-  cardPast: {
-    opacity: 0.7,
-  },
-
-  title: {
-    fontSize: 22,
-    fontFamily: FONTS.bold,
-    color: COLORS.text,
-    textAlign: "right",
-    marginBottom: 10,
-  },
-
   label: {
     fontSize: 12,
     fontFamily: FONTS.regular,
     color: COLORS.textSecondary,
     textAlign: "right",
-    marginTop: 8,
+    marginTop: 2,
   },
-
   value: {
     fontSize: 15,
     fontFamily: FONTS.regular,
@@ -667,118 +575,94 @@ const styles = StyleSheet.create({
     textAlign: "right",
   },
 
-  sectionTitle: {
-    fontSize: 18,
-    fontFamily: FONTS.bold,
-    color: COLORS.brand,
-    textAlign: "right",
-    marginBottom: 10,
-    marginTop: 15,
-  },
-
+  // ── Participants ──
   participant: {
     flexDirection: "row-reverse",
     alignItems: "center",
     gap: 10,
-    marginBottom: 8,
+    paddingVertical: 8,
   },
-
-  matchCard: {
-    backgroundColor: COLORS.surface,
-    borderRadius: 12,
-    padding: 12,
-    marginLeft: 10,
-    alignItems: "center",
-    width: 100,
+  participantDivider: {
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: COLORS.border,
   },
-
-  findMatchesBtn: {
-    flexDirection: "row-reverse",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 8,
+  pAvatar: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
     backgroundColor: COLORS.brand,
-    padding: 14,
-    borderRadius: 12,
-    marginTop: 12,
+    justifyContent: "center",
+    alignItems: "center",
   },
+  pAvatarMuted: { backgroundColor: COLORS.textMuted },
+  pName: { fontSize: 15, fontFamily: FONTS.bold, color: COLORS.text, textAlign: "right" },
 
-  findMatchesText: {
-    color: COLORS.onBrand,
-    fontFamily: FONTS.bold,
-    fontSize: 15,
-  },
-
-  avatar: {
-    width: 50,
-    height: 50,
-    borderRadius: 25,
-    backgroundColor: COLORS.divider,
-    marginBottom: 8,
-  },
-
-  name: {
-    fontSize: 14,
-    fontFamily: FONTS.regular,
-    color: COLORS.text,
-  },
-
+  // ── Chats ──
   chatRow: {
     flexDirection: "row-reverse",
     alignItems: "center",
     gap: 10,
-    marginBottom: 10,
+    paddingVertical: 10,
   },
-
-  actions: {
-    marginTop: 20,
-    gap: 10,
-  },
-
-  editBtn: {
-    backgroundColor: COLORS.brand,
-    padding: 14,
-    borderRadius: 12,
+  chatAvatar: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: COLORS.primary,
+    justifyContent: "center",
     alignItems: "center",
   },
-
-  deactivateBtn: {
-    backgroundColor: COLORS.textSecondary,
-    padding: 14,
-    borderRadius: 12,
-    alignItems: "center",
-    marginBottom: 10,
-  },
-  deleteBtn: {
-    backgroundColor: COLORS.danger,
-    padding: 14,
-    borderRadius: 12,
-    alignItems: "center",
-  },
-
-  btnText: {
-    color: COLORS.onBrand,
-    fontFamily: FONTS.bold,
-  },
-
-  placeTitle: {
-    fontSize: 16,
-    fontFamily: FONTS.bold,
+  chatName: {
+    flex: 1,
+    fontSize: 15,
+    fontFamily: FONTS.regular,
     color: COLORS.text,
-    marginBottom: 4,
     textAlign: "right",
   },
 
-  plannerBtn:{
-backgroundColor:"#4B7BEC",
-padding:14,
-borderRadius:12,
-marginTop:12,
+  // ── Places ──
+  placeRow: {
+    flexDirection: "row-reverse",
+    alignItems: "center",
+    gap: 10,
+    paddingVertical: 10,
+  },
+  placeIcon: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: COLORS.coralLight,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  placeTitle: {
+    fontSize: 14,
+    fontFamily: FONTS.bold,
+    color: COLORS.text,
+    textAlign: "right",
+  },
+  placeAddr: {
+    fontSize: 12,
+    fontFamily: FONTS.regular,
+    color: COLORS.textMuted,
+    textAlign: "right",
+    marginTop: 2,
+  },
+  placeRating: {
+    flexDirection: "row-reverse",
+    alignItems: "center",
+    gap: 3,
+    backgroundColor: COLORS.amberLight,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 10,
+  },
+  placeRatingText: { fontSize: 12, fontFamily: FONTS.bold, color: COLORS.amberDark },
 
-flexDirection:"row-reverse",
-justifyContent:"center",
-alignItems:"center",
-
-gap:8
-},
+  // ── Rating ──
+  starsRow: {
+    flexDirection: "row-reverse",
+    justifyContent: "center",
+    gap: 6,
+  },
 });

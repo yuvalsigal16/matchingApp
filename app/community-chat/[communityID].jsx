@@ -6,27 +6,31 @@ import {
   ActivityIndicator,
   Alert,
   Animated,
+  Dimensions,
   FlatList,
   Image,
-  KeyboardAvoidingView,
-  Platform,
+  Keyboard,
   StyleSheet,
   Text,
   TextInput,
   TouchableOpacity,
   View,
 } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
+import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { BASE_URL } from "../src/api/config";
 import {
   getCommunityChat,
   getCommunityMembers,
   getCommunityMessages,
+  leaveCommunity,
   sendCommunityMessage,
 } from "../src/api/communityChatService";
 import { getUser } from "../src/auth/authStore";
 import { COLORS, FONTS } from "../src/theme";
+import HeaderMenu from "../../components/HeaderMenu";
+
+const SCREEN_H = Dimensions.get("window").height;
 
 // בונה URI לתמונת פרופיל מתוך נתיב יחסי/מלא — אותו עזר שבשאר האפליקציה.
 function buildImageUri(raw) {
@@ -104,6 +108,7 @@ function AnimatedMessageRow({ style, children }) {
 
 export default function CommunityChatScreen() {
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const { communityID, name } = useLocalSearchParams();
   const currentUser = getUser();
   const myId = currentUser?.userID;
@@ -117,6 +122,8 @@ export default function CommunityChatScreen() {
   const [avatarMap, setAvatarMap] = useState({}); // userID → profileImage URI
   const [showNewMessagesButton, setShowNewMessagesButton] = useState(false);
   const [newMessagesCount, setNewMessagesCount] = useState(0); // הודעות שהגיעו בזמן שהמשתמש לא בתחתית
+  const [menuVisible, setMenuVisible] = useState(false);
+  const [kbHeight, setKbHeight] = useState(0); // חפיפת המקלדת — כדי להרים את שורת הקלט
 
   const flatListRef = useRef(null);
   const seenCountRef = useRef(0); // כמות ההודעות שהמשתמש כבר "ראה" (בסיס לספירת חדשות)
@@ -131,6 +138,20 @@ export default function CommunityChatScreen() {
     mountedRef.current = true;
     return () => {
       mountedRef.current = false;
+    };
+  }, []);
+
+  // מעקב אחרי המקלדת — מרימים את שורת הקלט מעליה (עובד ב-iOS וב-Android).
+  // מחשבים חפיפה לפי ראש המקלדת (screenY), מדויק גם ב-edge-to-edge.
+  useEffect(() => {
+    const show = Keyboard.addListener("keyboardDidShow", (e) => {
+      const top = e.endCoordinates?.screenY ?? SCREEN_H;
+      setKbHeight(Math.max(SCREEN_H - top, 0));
+    });
+    const hide = Keyboard.addListener("keyboardDidHide", () => setKbHeight(0));
+    return () => {
+      show.remove();
+      hide.remove();
     };
   }, []);
 
@@ -337,6 +358,41 @@ export default function CommunityChatScreen() {
     setNewMessagesCount(0);
   }, [messages.length]);
 
+  // ── תפריט 3 נקודות ──
+  const goToMembers = () => {
+    router.push({
+      pathname: "/community-members/[communityID]",
+      params: { communityID, communityName: name || "" },
+    });
+  };
+
+  const performLeave = async () => {
+    try {
+      await leaveCommunity(communityID, myId);
+      Alert.alert("עזבת את הקהילה", "לא תקבל/י יותר הודעות מהקבוצה.", [
+        { text: "אישור", onPress: () => router.back() },
+      ]);
+    } catch {
+      Alert.alert("שגיאה", "לא ניתן לעזוב את הקהילה כרגע. נסו שוב.");
+    }
+  };
+
+  const confirmLeave = () => {
+    Alert.alert(
+      "עזיבת הקהילה",
+      `לעזוב את "${name || "הקהילה"}"?\nלא תראה/י יותר את הצ'אט הקבוצתי.`,
+      [
+        { text: "ביטול", style: "cancel" },
+        { text: "עזוב", style: "destructive", onPress: performLeave },
+      ],
+    );
+  };
+
+  const menuItems = [
+    { label: "צפייה במשתתפים", onPress: goToMembers },
+    { label: "צא מהקבוצה", destructive: true, onPress: confirmLeave },
+  ];
+
   if (loading) {
     return (
       <SafeAreaView style={styles.center}>
@@ -366,12 +422,7 @@ export default function CommunityChatScreen() {
         <TouchableOpacity
           style={styles.headerText}
           activeOpacity={0.7}
-          onPress={() =>
-            router.push({
-              pathname: "/community-members/[communityID]",
-              params: { communityID, communityName: name || "" },
-            })
-          }
+          onPress={goToMembers}
           accessibilityRole="button"
           accessibilityLabel="צפייה במשתתפי הקהילה"
         >
@@ -380,13 +431,25 @@ export default function CommunityChatScreen() {
           </Text>
           <Text style={styles.headerSub}>{"צ'אט קבוצתי"}</Text>
         </TouchableOpacity>
+
+        <TouchableOpacity
+          style={styles.headerOptionsBtn}
+          onPress={() => setMenuVisible(true)}
+          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+          accessibilityRole="button"
+          accessibilityLabel="אפשרויות"
+        >
+          <Ionicons name="ellipsis-vertical" size={22} color={COLORS.brand} />
+        </TouchableOpacity>
       </View>
 
-      <KeyboardAvoidingView
-        style={styles.flex}
-        behavior={Platform.OS === "ios" ? "padding" : undefined}
-        keyboardVerticalOffset={Platform.OS === "ios" ? 0 : 0}
-      >
+      <HeaderMenu
+        visible={menuVisible}
+        onClose={() => setMenuVisible(false)}
+        items={menuItems}
+      />
+
+      <View style={[styles.flex, { paddingBottom: kbHeight }]}>
         {loadError ? (
           <View style={styles.stateBox}>
             <View style={styles.stateIconCircle}>
@@ -451,7 +514,7 @@ export default function CommunityChatScreen() {
         )}
 
         {/* ── שורת הקלדה ── */}
-        <View style={styles.inputBar}>
+        <View style={[styles.inputBar, { paddingBottom: kbHeight > 0 ? 8 : insets.bottom + 8 }]}>
           <View style={styles.inputWrapper}>
             <TextInput
               value={text}
@@ -480,7 +543,7 @@ export default function CommunityChatScreen() {
             )}
           </TouchableOpacity>
         </View>
-      </KeyboardAvoidingView>
+      </View>
     </SafeAreaView>
   );
 }
@@ -530,6 +593,7 @@ const styles = StyleSheet.create({
     color: COLORS.textSecondary,
     marginTop: 1,
   },
+  headerOptionsBtn: { padding: 4 },
 
   // ── Messages ──
   listContent: { paddingHorizontal: 12, paddingVertical: 14 },

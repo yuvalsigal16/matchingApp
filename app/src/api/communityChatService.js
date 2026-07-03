@@ -63,6 +63,17 @@ export async function getCommunityMembers(communityID) {
   return (await res.json()) || [];
 }
 
+// עזיבת קהילה — מוחק את החברות דרך ה-endpoint הקיים (DELETE /CommunityMember).
+// השרת מאמת שה-userID תואם למשתמש שבטוקן (אפשר לעזוב רק בשם עצמך).
+export async function leaveCommunity(communityID, userID) {
+  const res = await fetch(
+    `${BASE_URL}/CommunityMember?communityID=${communityID}&userID=${userID}`,
+    { method: "DELETE", headers: authHeaders() },
+  );
+  if (!res.ok) throw new Error("leave failed");
+  return true;
+}
+
 // שליחת הודעה לקהילה. השרת מחזיר { MessageID, Status }.
 export async function sendCommunityMessage(chatID, senderID, content) {
   const res = await fetch(`${BASE_URL}/CommunityChat/send`, {
