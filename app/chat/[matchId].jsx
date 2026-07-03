@@ -32,6 +32,7 @@ import { blockUser } from "../src/api/blockService";
 import { BASE_URL } from "../src/api/config";
 import { getUser } from "../src/auth/authStore";
 import { COLORS, FONTS } from "../src/theme";
+import HeaderMenu from "../../components/HeaderMenu";
 
 // ── עזרי תצוגה ──
 function buildImageUri(raw) {
@@ -131,6 +132,7 @@ export default function ChatScreen() {
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState(false);
   const [matchData, setMatchData] = useState(null);
+  const [menuVisible, setMenuVisible] = useState(false);
 
   const flatListRef = useRef(null);
   const insets = useSafeAreaInsets();
@@ -287,13 +289,10 @@ export default function ChatScreen() {
     );
   };
 
-  const openMenu = () => {
-    Alert.alert(otherName, undefined, [
-      { text: "הצג פרופיל", onPress: goToOtherProfile },
-      { text: "חסום משתמש", style: "destructive", onPress: confirmBlock },
-      { text: "ביטול", style: "cancel" },
-    ]);
-  };
+  const menuItems = [
+    { label: "הצג פרופיל", onPress: goToOtherProfile },
+    { label: "חסום משתמש", destructive: true, onPress: confirmBlock },
+  ];
 
   const renderMessage = ({ item, index }) => {
     const isMine = item.senderID === currentUser?.userID;
@@ -382,7 +381,7 @@ export default function ChatScreen() {
         {otherUserId ? (
           <TouchableOpacity
             style={styles.headerOptionsBtn}
-            onPress={openMenu}
+            onPress={() => setMenuVisible(true)}
             hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
             accessibilityRole="button"
             accessibilityLabel="אפשרויות"
@@ -391,6 +390,12 @@ export default function ChatScreen() {
           </TouchableOpacity>
         ) : null}
       </View>
+
+      <HeaderMenu
+        visible={menuVisible}
+        onClose={() => setMenuVisible(false)}
+        items={menuItems}
+      />
 
       {/* ── אזור הצ'אט (עולה עם המקלדת) ── */}
       <Animated.View style={areaStyle}>

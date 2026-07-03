@@ -16,7 +16,7 @@ import {
   View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { useRouter } from "expo-router";
+import { useLocalSearchParams, useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 
 import { BASE_URL } from "../src/api/config";
@@ -62,6 +62,10 @@ function RecImage({ uri }) {
 
 export default function RecommendationsScreen() {
   const router = useRouter();
+  // כשמגיעים מההאב של הטיול — מקבלים tripId ומצמצמים לטיול הזה בלבד.
+  // בלי הפרמטר (מ"גילוי") — פיד גלובלי של כל הטיולים שלי.
+  const { tripId, tripName } = useLocalSearchParams();
+  const isTripScoped = !!tripId;
 
   const [recommendations, setRecommendations] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -144,6 +148,18 @@ export default function RecommendationsScreen() {
         return;
       }
 
+      // ── מצב טיול־ספציפי: המלצות של הטיול הנוכחי בלבד ──
+      if (isTripScoped) {
+        const recs = await getRecommendationsByTrip(tripId).catch(() => null);
+        if (recs == null) {
+          setLoadError(true);
+          return;
+        }
+        setRecommendations(recs.map((r) => ({ ...r, tripName: tripName || "" })));
+        return;
+      }
+
+      // ── מצב גלובלי: המלצות מכל הטיולים שלי ──
       const headers = { Authorization: `Bearer ${token}` };
 
       // ה-route בשרת הוא /Trip/user (יחיד). שימוש ב-/Trips גרם ל-404 וההמלצות לא נטענו.
@@ -212,13 +228,18 @@ export default function RecommendationsScreen() {
   }, [recommendations, query, tripFilter, sortByRating, myInterests]);
 
   const openModal = async () => {
-    try {
-      const userId = getUser()?.userID;
-      const userTrips = await getUserTrips(userId);
-      setTrips(userTrips || []);
-      setSelectedTripId(userTrips?.[0]?.tripID ?? null);
-    } catch {
-      setTrips([]);
+    if (isTripScoped) {
+      // במצב טיול — נעולים על הטיול הנוכחי, אין צורך לבחור.
+      setSelectedTripId(Number(tripId));
+    } else {
+      try {
+        const userId = getUser()?.userID;
+        const userTrips = await getUserTrips(userId);
+        setTrips(userTrips || []);
+        setSelectedTripId(userTrips?.[0]?.tripID ?? null);
+      } catch {
+        setTrips([]);
+      }
     }
     setPlaceName("");
     setDescription("");
@@ -281,7 +302,14 @@ export default function RecommendationsScreen() {
         >
           <Ionicons name="arrow-forward" size={26} color={COLORS.brand} />
         </TouchableOpacity>
-        <Text style={styles.header}>המלצות</Text>
+        <View style={styles.headerCenter}>
+          <Text style={styles.header} numberOfLines={1}>
+            {isTripScoped ? tripName || "המלצות לטיול" : "כל ההמלצות"}
+          </Text>
+          <Text style={styles.headerSub}>
+            {isTripScoped ? "המלצות לטיול הזה" : "גלו מקומות מטיולים שונים"}
+          </Text>
+        </View>
         <View style={{ width: 26 }} />
       </View>
 
@@ -314,7 +342,7 @@ export default function RecommendationsScreen() {
             </TouchableOpacity>
           </View>
 
-          {tripNames.length > 0 && (
+          {!isTripScoped && tripNames.length > 0 && (
             <ScrollView
               horizontal
               showsHorizontalScrollIndicator={false}
@@ -370,9 +398,11 @@ export default function RecommendationsScreen() {
         ) : recommendations.length === 0 ? (
           <View style={styles.emptyBox}>
             <Ionicons name="star-outline" size={40} color={COLORS.textMuted} />
-            <Text style={styles.emptyTitle}>עדיין אין המלצות</Text>
+            <Text style={styles.emptyTitle}>
+              {isTripScoped ? "עדיין אין המלצות לטיול הזה" : "עדיין אין המלצות"}
+            </Text>
             <Text style={styles.emptyText}>
-              שתפו מקום שאהבתם בטיול — לחצו על ה־＋ למטה כדי להוסיף את ההמלצה הראשונה
+              שתפו מקום שאהבתם — לחצו על ה־＋ למטה כדי להוסיף את ההמלצה הראשונה
             </Text>
           </View>
         ) : visibleRecommendations.length === 0 ? (
@@ -404,7 +434,7 @@ export default function RecommendationsScreen() {
                     {author ? (
                       <Text style={styles.author}>מאת: {author}</Text>
                     ) : null}
-                    {rec.tripName && (
+                    {!isTripScoped && rec.tripName && (
                       <Text style={styles.tripName}>בטיול: {rec.tripName}</Text>
                     )}
                     {rec.description ? (
@@ -447,9 +477,14 @@ export default function RecommendationsScreen() {
             </View>
 
             <ScrollView showsVerticalScrollIndicator={false}>
-              {/* בחירת טיול */}
+              {/* בחירת טיול — נעול לטיול הנוכחי במצב טיול־ספציפי */}
               <Text style={styles.label}>טיול</Text>
-              {trips.length === 0 ? (
+              {isTripScoped ? (
+                <View style={styles.lockedTrip}>
+                  <Ionicons name="airplane" size={14} color={COLORS.brand} />
+                  <Text style={styles.lockedTripText}>{tripName || "הטיול הנוכחי"}</Text>
+                </View>
+              ) : trips.length === 0 ? (
                 <Text style={styles.noTrips}>אין טיולים פעילים</Text>
               ) : (
                 <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.tripPicker}>
@@ -536,7 +571,7 @@ export default function RecommendationsScreen() {
         </KeyboardAvoidingView>
       </Modal>
 
-      <BottomNav active="discovery" />
+      {!isTripScoped && <BottomNav active="discovery" />}
     </SafeAreaView>
   );
 }
@@ -553,7 +588,14 @@ const styles = StyleSheet.create({
     paddingTop: 20,
     paddingBottom: 10,
   },
+  headerCenter: { flex: 1, alignItems: "center" },
   header: { fontSize: 20, fontFamily: FONTS.bold, color: COLORS.brand },
+  headerSub: {
+    fontSize: 12,
+    fontFamily: FONTS.regular,
+    color: COLORS.textMuted,
+    marginTop: 1,
+  },
 
   content: { paddingHorizontal: 20, paddingBottom: 120 },
 
@@ -721,6 +763,18 @@ const styles = StyleSheet.create({
     marginTop: 14,
   },
   noTrips: { fontSize: 13, color: COLORS.textMuted, fontFamily: FONTS.regular, textAlign: "right" },
+
+  lockedTrip: {
+    flexDirection: "row-reverse",
+    alignItems: "center",
+    gap: 6,
+    alignSelf: "flex-end",
+    backgroundColor: COLORS.brandLight,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 20,
+  },
+  lockedTripText: { fontSize: 13, fontFamily: FONTS.bold, color: COLORS.brand },
 
   tripPicker: { marginBottom: 4 },
   tripChip: {

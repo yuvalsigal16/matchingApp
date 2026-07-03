@@ -2,6 +2,7 @@ import React from "react";
 import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
+import { Ionicons } from "@expo/vector-icons";
 import { ChevronRight, Users, Star } from "lucide-react-native";
 
 import { COLORS, FONTS } from "../src/theme";
@@ -45,7 +46,7 @@ export default function DiscoveryScreen() {
             accessibilityRole="button"
             accessibilityLabel="חזרה"
           >
-            <ChevronRight size={22} color={COLORS.brand} />
+            <Ionicons name="arrow-forward" size={26} color={COLORS.brand} />
           </TouchableOpacity>
           <Text style={styles.title}>גילוי וקהילה</Text>
           {initials ? (
