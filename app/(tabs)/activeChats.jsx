@@ -12,12 +12,35 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useFocusEffect, useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 
 import { BASE_URL } from "../src/api/config";
 import { COLORS, FONTS } from "../src/theme";
 import { getUser } from "../src/auth/authStore";
 import { getMyMatches } from "../src/api/notificationService";
+import { getChatMessages } from "../src/api/chatService";
 import BottomNav from "../../components/BottomNav";
+
+// "נקרא לאחרונה" לכל צ'אט — נשמר מקומית (matchID → timestamp במילישניות).
+// משמש לספירת הודעות חדשות מהצד השני שהגיעו אחרי הכניסה האחרונה לצ'אט.
+const LAST_SEEN_KEY = "chat_last_seen";
+
+async function getLastSeenMap() {
+  try {
+    const raw = await AsyncStorage.getItem(LAST_SEEN_KEY);
+    return raw ? JSON.parse(raw) : {};
+  } catch {
+    return {};
+  }
+}
+
+async function markChatSeen(matchID) {
+  try {
+    const map = await getLastSeenMap();
+    map[matchID] = Date.now();
+    await AsyncStorage.setItem(LAST_SEEN_KEY, JSON.stringify(map));
+  } catch {}
+}
 
 // בונה URI מלא לתמונת פרופיל
 function buildImageUri(raw) {
@@ -43,6 +66,15 @@ function formatChatTime(iso) {
   }
   if (k(d) === k(yesterday)) return "אתמול";
   return `${String(d.getDate()).padStart(2, "0")}/${String(d.getMonth() + 1).padStart(2, "0")}/${d.getFullYear()}`;
+}
+
+// צבעי אווטר פסטליים — צבע יציב לכל משתמש לפי שמו (מראה מודרני כמו במוקאפ).
+const AVATAR_COLORS = ["#F5D9E0", "#D9E7F5", "#D6F0E6", "#F5EAD3", "#E7DCF5", "#F5DAD6", "#DCEFF0"];
+function avatarColor(name) {
+  const s = String(name || "");
+  let h = 0;
+  for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) % AVATAR_COLORS.length;
+  return AVATAR_COLORS[h];
 }
 
 export default function ActiveChatsScreen() {
@@ -71,7 +103,27 @@ export default function ActiveChatsScreen() {
         return tb - ta;
       });
 
-    setChats(active);
+    // ספירת הודעות שלא נקראו לכל צ'אט: הודעות מהצד השני שהגיעו אחרי הכניסה האחרונה.
+    const lastSeen = await getLastSeenMap();
+    const withUnread = await Promise.all(
+      active.map(async (c) => {
+        if (!c.chatID) return { ...c, unreadCount: 0 };
+        try {
+          const msgs = await getChatMessages(c.chatID);
+          const seenAt = lastSeen[c.matchID] || 0;
+          const unreadCount = (msgs || []).filter(
+            (m) =>
+              String(m.senderID) !== String(userId) &&
+              new Date(m.sentAt).getTime() > seenAt,
+          ).length;
+          return { ...c, unreadCount };
+        } catch {
+          return { ...c, unreadCount: 0 };
+        }
+      }),
+    );
+
+    setChats(withUnread);
     if (!silent) setLoading(false);
   };
 
@@ -88,8 +140,14 @@ export default function ActiveChatsScreen() {
     setRefreshing(false);
   };
 
-  const openChat = (matchId) =>
+  const openChat = (matchId) => {
+    // מסמנים כנקרא ומנקים את התג מיד (עוד לפני הרענון בחזרה למסך)
+    markChatSeen(matchId);
+    setChats((prev) =>
+      prev.map((c) => (c.matchID === matchId ? { ...c, unreadCount: 0 } : c)),
+    );
     router.push({ pathname: "/chat/[matchId]", params: { matchId } });
+  };
 
   const renderAvatar = (chat) => {
     const uri = buildImageUri(chat.otherUserImage);
@@ -103,44 +161,56 @@ export default function ActiveChatsScreen() {
         .join("")
         .toUpperCase() || "";
     return (
-      <View style={[styles.avatar, styles.avatarFallback]}>
+      <View style={[styles.avatar, styles.avatarFallback, { backgroundColor: avatarColor(chat.otherUserName) }]}>
         {initials ? (
           <Text style={styles.avatarInitials}>{initials}</Text>
         ) : (
-          <Ionicons name="person" size={24} color={COLORS.onBrand} />
+          <Ionicons name="person" size={24} color="rgba(0,0,0,0.4)" />
         )}
       </View>
     );
   };
 
-  const renderChat = ({ item }) => (
-    <TouchableOpacity
-      style={styles.chatRow}
-      activeOpacity={0.7}
-      onPress={() => openChat(item.matchID)}
-    >
-      {renderAvatar(item)}
+  const renderChat = ({ item }) => {
+    const preview = item.lastMessage
+      ? item.lastMessage
+      : item.tripName
+        ? `טיול משותף: ${item.tripName}`
+        : "התחילו לשוחח";
+    const time = item.lastMessageTime ? formatChatTime(item.lastMessageTime) : "";
+    const unread = item.unreadCount || 0; // מוצג רק אם קיים נתון (כרגע השרת לא מספק)
 
-      <View style={styles.chatInfo}>
-        <View style={styles.chatTopRow}>
+    return (
+      <TouchableOpacity
+        style={styles.chatRow}
+        activeOpacity={0.7}
+        onPress={() => openChat(item.matchID)}
+      >
+        {renderAvatar(item)}
+
+        <View style={styles.chatInfo}>
           <Text style={styles.chatName} numberOfLines={1}>
             {item.otherUserName}
           </Text>
-          {item.lastMessageTime ? (
-            <Text style={styles.chatTime}>{formatChatTime(item.lastMessageTime)}</Text>
-          ) : null}
+          <Text
+            style={[styles.chatPreview, unread > 0 && styles.chatPreviewUnread]}
+            numberOfLines={1}
+          >
+            {preview}
+          </Text>
         </View>
 
-        <Text style={styles.chatPreview} numberOfLines={1}>
-          {item.lastMessage
-            ? item.lastMessage
-            : item.tripName
-              ? `טיול משותף: ${item.tripName}`
-              : "התחילו לשוחח 👋"}
-        </Text>
-      </View>
-    </TouchableOpacity>
-  );
+        <View style={styles.chatMeta}>
+          {time ? <Text style={styles.chatTime}>{time}</Text> : null}
+          {unread > 0 ? (
+            <View style={styles.unreadBadge}>
+              <Text style={styles.unreadBadgeText}>{unread > 99 ? "99+" : unread}</Text>
+            </View>
+          ) : null}
+        </View>
+      </TouchableOpacity>
+    );
+  };
 
   if (loading) {
     return (
@@ -152,7 +222,7 @@ export default function ActiveChatsScreen() {
 
   return (
     <SafeAreaView style={styles.container}>
-      <View style={styles.headerRow}>
+      <View style={styles.topBar}>
         <TouchableOpacity
           onPress={() => router.back()}
           hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
@@ -161,9 +231,9 @@ export default function ActiveChatsScreen() {
         >
           <Ionicons name="arrow-forward" size={26} color={COLORS.brand} />
         </TouchableOpacity>
-        <Text style={styles.header}>{"צ'אטים"}</Text>
-        <View style={{ width: 26 }} />
       </View>
+
+      <Text style={styles.pageTitle}>{"צ'אטים פעילים"}</Text>
 
       <FlatList
         data={chats}
@@ -209,18 +279,20 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.background,
   },
 
-  headerRow: {
+  topBar: {
     flexDirection: "row-reverse",
-    justifyContent: "space-between",
     alignItems: "center",
     paddingHorizontal: 20,
-    paddingTop: 20,
-    paddingBottom: 10,
+    paddingTop: 16,
   },
-  header: {
-    fontSize: 20,
+  pageTitle: {
+    fontSize: 26,
     fontFamily: FONTS.bold,
-    color: COLORS.brand,
+    color: COLORS.text,
+    textAlign: "right",
+    paddingHorizontal: 20,
+    paddingTop: 6,
+    paddingBottom: 12,
   },
 
   listContent: { paddingTop: 4, paddingBottom: 20 },
@@ -234,57 +306,73 @@ const styles = StyleSheet.create({
   chatRow: {
     flexDirection: "row-reverse",
     alignItems: "center",
-    paddingVertical: 11,
-    paddingHorizontal: 16,
-    backgroundColor: COLORS.surface,
+    paddingVertical: 12,
+    paddingHorizontal: 20,
   },
 
   avatar: {
-    width: 54,
-    height: 54,
-    borderRadius: 27,
+    width: 52,
+    height: 52,
+    borderRadius: 26,
     backgroundColor: COLORS.divider,
-    marginLeft: 14,
+    marginLeft: 12,
   },
   avatarFallback: {
-    backgroundColor: COLORS.brand,
     justifyContent: "center",
     alignItems: "center",
   },
   avatarInitials: {
-    fontSize: 20,
+    fontSize: 18,
     fontFamily: FONTS.bold,
-    color: COLORS.onBrand,
+    color: "rgba(0,0,0,0.5)",
   },
 
   chatInfo: {
     flex: 1,
     justifyContent: "center",
-  },
-  chatTopRow: {
-    flexDirection: "row-reverse",
-    alignItems: "center",
-    justifyContent: "space-between",
-    marginBottom: 3,
+    gap: 3,
   },
   chatName: {
-    flex: 1,
     fontSize: 16,
     fontFamily: FONTS.bold,
     color: COLORS.text,
     textAlign: "right",
   },
+  chatPreview: {
+    fontSize: 14,
+    fontFamily: FONTS.regular,
+    color: COLORS.textMuted,
+    textAlign: "right",
+  },
+  chatPreviewUnread: {
+    color: COLORS.text,
+    fontFamily: FONTS.bold,
+  },
+
+  chatMeta: {
+    alignItems: "center",
+    gap: 6,
+    marginRight: 6,
+    minWidth: 40,
+  },
   chatTime: {
     fontSize: 12,
     fontFamily: FONTS.regular,
     color: COLORS.textMuted,
-    marginRight: 8,
   },
-  chatPreview: {
-    fontSize: 14,
-    fontFamily: FONTS.regular,
-    color: COLORS.textSecondary,
-    textAlign: "right",
+  unreadBadge: {
+    minWidth: 20,
+    height: 20,
+    borderRadius: 10,
+    paddingHorizontal: 6,
+    backgroundColor: COLORS.brand,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  unreadBadgeText: {
+    fontSize: 12,
+    fontFamily: FONTS.bold,
+    color: COLORS.onBrand,
   },
 
   // ── Empty ──

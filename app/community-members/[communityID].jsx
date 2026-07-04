@@ -1,6 +1,6 @@
 import { Ionicons } from "@expo/vector-icons";
 import { useLocalSearchParams, useRouter } from "expo-router";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
   FlatList,
@@ -34,21 +34,44 @@ function formatJoinedAt(iso) {
   return `${String(d.getDate()).padStart(2, "0")}/${String(d.getMonth() + 1).padStart(2, "0")}/${d.getFullYear()}`;
 }
 
-// אווטר עגול עם נפילה עדינה לאייקון ברירת-מחדל.
+// צבעי אווטר פסטליים — צבע יציב לכל משתמש לפי שמו (מראה מודרני).
+const AVATAR_COLORS = ["#F5D9E0", "#D9E7F5", "#D6F0E6", "#F5EAD3", "#E7DCF5", "#F5DAD6", "#DCEFF0"];
+function avatarColor(name) {
+  const s = String(name || "");
+  let h = 0;
+  for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) % AVATAR_COLORS.length;
+  return AVATAR_COLORS[h];
+}
+
+// אווטר עגול: תמונה, ואם אין — עיגול פסטלי עם ראשי-תיבות.
 function MemberAvatar({ uri, name }) {
   const [failed, setFailed] = useState(false);
   const showImg = uri && !failed;
-  return (
-    <View style={styles.avatar}>
-      {showImg ? (
+  if (showImg) {
+    return (
+      <View style={styles.avatar}>
         <Image
           source={{ uri }}
           style={styles.avatarImg}
           onError={() => setFailed(true)}
           accessibilityLabel={name ? `תמונת הפרופיל של ${name}` : "תמונת פרופיל"}
         />
+      </View>
+    );
+  }
+  const initials = (name || "")
+    .split(" ")
+    .map((s) => s[0])
+    .filter(Boolean)
+    .slice(0, 2)
+    .join("")
+    .toUpperCase();
+  return (
+    <View style={[styles.avatar, { backgroundColor: avatarColor(name) }]}>
+      {initials ? (
+        <Text style={styles.avatarInitials}>{initials}</Text>
       ) : (
-        <Ionicons name="person-circle" size={48} color={COLORS.textMuted} />
+        <Ionicons name="person" size={22} color="rgba(0,0,0,0.4)" />
       )}
     </View>
   );
@@ -89,6 +112,14 @@ export default function CommunityMembersScreen() {
       });
   }, [communityID]);
 
+  // המשתמש הנוכחי מוצג ראשון (כמו ב-WhatsApp).
+  const sortedMembers = useMemo(() => {
+    if (!myId) return members;
+    const me = members.filter((m) => m.userID === myId);
+    const others = members.filter((m) => m.userID !== myId);
+    return [...me, ...others];
+  }, [members, myId]);
+
   const renderMember = useCallback(
     ({ item }) => {
       const fullName =
@@ -97,14 +128,20 @@ export default function CommunityMembersScreen() {
       const isMe = item.userID === myId;
       const joined = formatJoinedAt(item.joinedAt);
       return (
-        <View style={styles.row}>
+        <View style={[styles.row, isMe && styles.rowMe]}>
           <MemberAvatar uri={buildImageUri(item.profileImage)} name={fullName} />
           <View style={styles.rowText}>
-            <Text style={styles.name} numberOfLines={1}>
-              {fullName}
-              {isMe ? <Text style={styles.youTag}> (את/ה)</Text> : null}
-            </Text>
-            {joined ? <Text style={styles.joined}>הצטרף/ה בתאריך {joined}</Text> : null}
+            <View style={styles.nameRow}>
+              <Text style={styles.name} numberOfLines={1}>
+                {fullName}
+              </Text>
+              {isMe ? (
+                <View style={styles.youChip}>
+                  <Text style={styles.youChipText}>את/ה</Text>
+                </View>
+              ) : null}
+            </View>
+            {joined ? <Text style={styles.joined}>הצטרפ/ה ב-{joined}</Text> : null}
           </View>
         </View>
       );
@@ -152,7 +189,7 @@ export default function CommunityMembersScreen() {
         </View>
       ) : (
         <FlatList
-          data={members}
+          data={sortedMembers}
           keyExtractor={(item) => String(item.userID)}
           renderItem={renderMember}
           initialNumToRender={15}
@@ -161,6 +198,7 @@ export default function CommunityMembersScreen() {
             members.length === 0 ? styles.emptyListContent : styles.listContent
           }
           showsVerticalScrollIndicator={false}
+          ItemSeparatorComponent={() => <View style={styles.separator} />}
           ListEmptyComponent={
             <View style={styles.stateBox}>
               <View style={styles.stateIconCircle}>
@@ -175,10 +213,8 @@ export default function CommunityMembersScreen() {
   );
 }
 
-const SCREEN_BG = "#EDE7DD";
-
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: SCREEN_BG },
+  container: { flex: 1, backgroundColor: COLORS.background },
   center: { flex: 1, justifyContent: "center", alignItems: "center", gap: 12 },
 
   // ── Header ──
@@ -210,36 +246,46 @@ const styles = StyleSheet.create({
   },
 
   // ── List ──
-  listContent: { paddingVertical: 6 },
+  listContent: { paddingVertical: 8 },
+  separator: {
+    height: StyleSheet.hairlineWidth,
+    backgroundColor: COLORS.border,
+    marginRight: 76, // מתחיל אחרי האווטר
+  },
   row: {
     flexDirection: "row-reverse",
     alignItems: "center",
-    paddingVertical: 10,
-    paddingHorizontal: 16,
+    paddingVertical: 12,
+    paddingHorizontal: 20,
     gap: 12,
-    backgroundColor: COLORS.surface,
-    borderBottomWidth: 1,
-    borderBottomColor: COLORS.border,
   },
+  rowMe: { backgroundColor: COLORS.brandLight },
   avatar: {
     width: 48,
     height: 48,
     borderRadius: 24,
     overflow: "hidden",
-    backgroundColor: SCREEN_BG,
+    backgroundColor: COLORS.divider,
     justifyContent: "center",
     alignItems: "center",
   },
   avatarImg: { width: 48, height: 48, borderRadius: 24 },
-  rowText: { flex: 1, alignItems: "flex-end" },
+  avatarInitials: { fontSize: 17, fontFamily: FONTS.bold, color: "rgba(0,0,0,0.5)" },
+  rowText: { flex: 1, alignItems: "flex-end", gap: 2 },
+  nameRow: { flexDirection: "row-reverse", alignItems: "center", gap: 8 },
   name: { fontFamily: FONTS.bold, fontSize: 15, color: COLORS.text, textAlign: "right" },
-  youTag: { fontFamily: FONTS.regular, fontSize: 13, color: COLORS.textSecondary },
+  youChip: {
+    backgroundColor: COLORS.brand,
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 10,
+  },
+  youChipText: { fontFamily: FONTS.bold, fontSize: 11, color: COLORS.onBrand },
   joined: {
     fontFamily: FONTS.regular,
     fontSize: 12,
-    color: COLORS.textSecondary,
+    color: COLORS.textMuted,
     textAlign: "right",
-    marginTop: 2,
   },
 
   // ── State boxes ──

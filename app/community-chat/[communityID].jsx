@@ -29,6 +29,7 @@ import {
 import { getUser } from "../src/auth/authStore";
 import { COLORS, FONTS } from "../src/theme";
 import HeaderMenu from "../../components/HeaderMenu";
+import ChatBackground from "../../components/ChatBackground";
 
 const SCREEN_H = Dimensions.get("window").height;
 
@@ -404,6 +405,8 @@ export default function CommunityChatScreen() {
 
   return (
     <SafeAreaView style={styles.container} edges={["top", "left", "right"]}>
+      <ChatBackground />
+
       {/* ── HEADER ── */}
       <View style={styles.header}>
         <TouchableOpacity

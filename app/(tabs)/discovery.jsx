@@ -3,7 +3,6 @@ import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
-import { ChevronRight, Users, Star } from "lucide-react-native";
 
 import { COLORS, FONTS } from "../src/theme";
 import { getUser } from "../src/auth/authStore";
@@ -19,17 +18,17 @@ export default function DiscoveryScreen() {
     {
       title: "יצירת קהילה / הצטרפות",
       sub: "לפי תחומי עניין",
-      Icon: Users,
-      iconBg: "#EDE9FE",
-      iconColor: "#7E76A6",
+      icon: "people",
+      iconBg: COLORS.primaryLight,
+      iconColor: COLORS.primary,
       route: "/community",
     },
     {
       title: "המלצות של אחרים",
       sub: "על מקומות ואטרקציות",
-      Icon: Star,
-      iconBg: "#FEF3C7",
-      iconColor: "#D97706",
+      icon: "star",
+      iconBg: COLORS.coralLight,
+      iconColor: COLORS.coral,
       route: "/recommendations",
     },
   ];
@@ -40,7 +39,6 @@ export default function DiscoveryScreen() {
         {/* Header */}
         <View style={styles.headerRow}>
           <TouchableOpacity
-            style={styles.backBtn}
             onPress={() => router.back()}
             hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
             accessibilityRole="button"
@@ -62,26 +60,23 @@ export default function DiscoveryScreen() {
 
         {/* כרטיסים */}
         <View style={styles.list}>
-          {items.map((item, i) => {
-            const Icon = item.Icon;
-            return (
-              <TouchableOpacity
-                key={i}
-                style={styles.card}
-                activeOpacity={0.85}
-                onPress={() => router.push(item.route)}
-              >
-                <ChevronRight size={20} color={COLORS.textMuted} />
-                <View style={styles.cardText}>
-                  <Text style={styles.cardTitle}>{item.title}</Text>
-                  <Text style={styles.cardSub}>{item.sub}</Text>
-                </View>
-                <View style={[styles.iconBox, { backgroundColor: item.iconBg }]}>
-                  <Icon size={22} color={item.iconColor} strokeWidth={2} />
-                </View>
-              </TouchableOpacity>
-            );
-          })}
+          {items.map((item, i) => (
+            <TouchableOpacity
+              key={i}
+              style={styles.card}
+              activeOpacity={0.85}
+              onPress={() => router.push(item.route)}
+            >
+              <Ionicons name="chevron-back" size={20} color={COLORS.textMuted} />
+              <View style={styles.cardText}>
+                <Text style={styles.cardTitle}>{item.title}</Text>
+                <Text style={styles.cardSub}>{item.sub}</Text>
+              </View>
+              <View style={[styles.iconBox, { backgroundColor: item.iconBg }]}>
+                <Ionicons name={item.icon} size={24} color={item.iconColor} />
+              </View>
+            </TouchableOpacity>
+          ))}
         </View>
       </View>
 
@@ -102,19 +97,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingTop: 16,
     paddingBottom: 12,
-  },
-
-  backBtn: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: COLORS.surface,
-    justifyContent: "center",
-    alignItems: "center",
-    shadowColor: COLORS.shadow,
-    shadowOpacity: 0.08,
-    shadowRadius: 4,
-    elevation: 2,
   },
 
   initialsBox: {

@@ -55,6 +55,7 @@ export async function getMyMatches(userId) {
 
       return {
         matchID: m.matchID,
+        chatID: m.chatID, // נדרש לספירת הודעות שלא נקראו בצד הלקוח
         status: m.matchStatus,
         otherUserID: iAmUser1 ? m.user2ID : m.user1ID,
         otherUserName: otherName || "משתמש",
