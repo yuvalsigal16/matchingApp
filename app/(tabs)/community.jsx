@@ -14,11 +14,37 @@ import { useFocusEffect, useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { Check, Plus, Users } from "lucide-react-native";
 
+import AsyncStorage from "@react-native-async-storage/async-storage";
+
 import { BASE_URL } from "../src/api/config";
 import { getToken, getUser } from "../src/auth/authStore";
 import { COLORS, FONTS } from "../src/theme";
-import { getCommunityMembers } from "../src/api/communityChatService";
+import {
+  getCommunityChat,
+  getCommunityMembers,
+  getCommunityMessages,
+} from "../src/api/communityChatService";
 import BottomNav from "../../components/BottomNav";
+
+// "נקרא לאחרונה" לכל קהילה — נשמר מקומית (communityID → timestamp במילישניות).
+const COMMUNITY_LAST_SEEN_KEY = "community_last_seen";
+
+async function getCommunityLastSeenMap() {
+  try {
+    const raw = await AsyncStorage.getItem(COMMUNITY_LAST_SEEN_KEY);
+    return raw ? JSON.parse(raw) : {};
+  } catch {
+    return {};
+  }
+}
+
+async function markCommunitySeen(communityID) {
+  try {
+    const map = await getCommunityLastSeenMap();
+    map[communityID] = Date.now();
+    await AsyncStorage.setItem(COMMUNITY_LAST_SEEN_KEY, JSON.stringify(map));
+  } catch {}
+}
 
 const ICON_COLORS = [
   { bg: "#DCFCE7", icon: "#16A34A" },
@@ -41,6 +67,8 @@ export default function CommunityScreen() {
   const [joining, setJoining] = useState({});
   // מזהי הקהילות שאני כבר חבר בהן (השרת לא מחזיר isJoined, אז מחשבים בצד לקוח).
   const [joinedIds, setJoinedIds] = useState(new Set());
+  // מספר הודעות שלא נקראו לכל קהילה שאני חבר בה (communityID → count).
+  const [unreadMap, setUnreadMap] = useState({});
 
   useEffect(() => {
     loadCommunities();
@@ -87,23 +115,51 @@ export default function CommunityScreen() {
     const myId = getUser()?.userID;
     if (!myId) return;
     try {
-      const results = await Promise.all(
+      const lastSeen = await getCommunityLastSeenMap();
+      const joined = new Set();
+      const unread = {};
+      await Promise.all(
         (list || []).map(async (c) => {
           try {
             const members = await getCommunityMembers(c.communityID);
-            const joined = (members || []).some(
+            const isMember = (members || []).some(
               (m) => String(m.userID) === String(myId),
             );
-            return joined ? c.communityID : null;
+            if (!isMember) return;
+            joined.add(c.communityID);
+            // ספירת הודעות שלא נקראו — רק לקהילות שאני חבר בהן (הודעות מאחרים אחרי הכניסה האחרונה).
+            try {
+              const chat = await getCommunityChat(c.communityID);
+              const msgs = await getCommunityMessages(chat?.communityChatID);
+              const seenAt = lastSeen[c.communityID] || 0;
+              unread[c.communityID] = (msgs || []).filter(
+                (m) =>
+                  String(m.senderID) !== String(myId) &&
+                  new Date(m.sentAt).getTime() > seenAt,
+              ).length;
+            } catch {
+              // כשל בטעינת הודעות של קהילה בודדת לא מפיל את הרשימה
+            }
           } catch {
-            return null;
+            // כשל בבדיקת חברות של קהילה בודדת לא מפיל את הרשימה
           }
         }),
       );
-      setJoinedIds(new Set(results.filter((x) => x != null)));
+      setJoinedIds(joined);
+      setUnreadMap(unread);
     } catch {
       // כשל בבדיקת חברות לא מפיל את הרשימה
     }
+  };
+
+  // פתיחת צ'אט קהילה — מסמן כנקרא ומנקה את התג מיד.
+  const openCommunityChat = (c) => {
+    markCommunitySeen(c.communityID);
+    setUnreadMap((prev) => ({ ...prev, [c.communityID]: 0 }));
+    router.push({
+      pathname: "/community-chat/[communityID]",
+      params: { communityID: c.communityID, name: c.communityName },
+    });
   };
 
   const handleJoin = async (communityId) => {
@@ -211,18 +267,14 @@ export default function CommunityScreen() {
             const color = ICON_COLORS[index % ICON_COLORS.length];
             const isJoining = joining[c.communityID];
             const isJoined = joinedIds.has(c.communityID);
+            const unread = isJoined ? unreadMap[c.communityID] || 0 : 0;
 
             return (
               <TouchableOpacity
                 key={c.communityID}
                 style={styles.card}
                 activeOpacity={0.85}
-                onPress={() =>
-                  router.push({
-                    pathname: "/community-chat/[communityID]",
-                    params: { communityID: c.communityID, name: c.communityName },
-                  })
-                }
+                onPress={() => openCommunityChat(c)}
               >
                 {/* חבר בקהילה → חיווי סטטי (לא כפתור). אחרת → כפתור הצטרף. */}
                 {isJoined ? (
@@ -253,9 +305,18 @@ export default function CommunityScreen() {
                   </Text>
                 </View>
 
-                {/* אייקון */}
-                <View style={[styles.iconBox, { backgroundColor: color.bg }]}>
-                  <Users size={22} color={color.icon} strokeWidth={2} />
+                {/* אייקון + תג הודעות שלא נקראו */}
+                <View>
+                  <View style={[styles.iconBox, { backgroundColor: color.bg }]}>
+                    <Users size={22} color={color.icon} strokeWidth={2} />
+                  </View>
+                  {unread > 0 ? (
+                    <View style={styles.unreadBadge}>
+                      <Text style={styles.unreadBadgeText}>
+                        {unread > 99 ? "99+" : unread}
+                      </Text>
+                    </View>
+                  ) : null}
                 </View>
               </TouchableOpacity>
             );
@@ -359,6 +420,27 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     justifyContent: "center",
     alignItems: "center",
+  },
+
+  // תג הודעות שלא נקראו — עיגול קטן בפינת אייקון הקהילה (כמו וואטסאפ)
+  unreadBadge: {
+    position: "absolute",
+    top: -5,
+    right: -5,
+    minWidth: 20,
+    height: 20,
+    borderRadius: 10,
+    paddingHorizontal: 5,
+    backgroundColor: COLORS.brand,
+    justifyContent: "center",
+    alignItems: "center",
+    borderWidth: 2,
+    borderColor: COLORS.surface,
+  },
+  unreadBadgeText: {
+    fontSize: 11,
+    fontFamily: FONTS.bold,
+    color: COLORS.onBrand,
   },
 
   cardText: {

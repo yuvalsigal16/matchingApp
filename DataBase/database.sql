@@ -320,11 +320,12 @@ GO
 CREATE TABLE dbo.Recommendations (
     RecommendationID INT IDENTITY(1,1) PRIMARY KEY,
     UserID           INT NOT NULL,
-    TripID           INT NOT NULL,
+    TripID           INT NULL,               -- אופציונלי: אפשר המלצה כללית ללא טיול
     PlaceName        NVARCHAR(100) NOT NULL,
     Description      NVARCHAR(500) NULL,
     Rating           TINYINT NULL,
     MediaUrl         NVARCHAR(255) NULL,
+    Category         NVARCHAR(50) NULL,
     IsAnonymous      BIT NOT NULL DEFAULT 0,
     CONSTRAINT FK_Reco_User
         FOREIGN KEY (UserID) REFERENCES dbo.Users(UserID),
@@ -333,6 +334,20 @@ CREATE TABLE dbo.Recommendations (
     CONSTRAINT CK_Reco_Rating
         CHECK (Rating IS NULL OR Rating BETWEEN 1 AND 5)
 );
+GO
+
+-- הוספת עמודת Category ל-DB שכבר קיים (בטוח להריץ שוב — לא יכפיל)
+IF COL_LENGTH('dbo.Recommendations', 'Category') IS NULL
+    ALTER TABLE dbo.Recommendations ADD Category NVARCHAR(50) NULL;
+GO
+
+-- הפיכת TripID לאופציונלי ב-DB שכבר קיים (כדי לאפשר המלצה כללית ללא טיול)
+IF EXISTS (
+    SELECT 1 FROM sys.columns
+    WHERE object_id = OBJECT_ID('dbo.Recommendations')
+      AND name = 'TripID' AND is_nullable = 0
+)
+    ALTER TABLE dbo.Recommendations ALTER COLUMN TripID INT NULL;
 GO
 
 CREATE TABLE dbo.UserProfileInteractions (
@@ -2030,11 +2045,12 @@ GO
 
 CREATE OR ALTER PROCEDURE dbo.AddRecommendation
     @UserID INT,
-    @TripID INT,
+    @TripID INT = NULL,
     @PlaceName NVARCHAR(100),
     @Description NVARCHAR(500) = NULL,
     @Rating TINYINT = NULL,
     @MediaUrl NVARCHAR(255) = NULL,
+    @Category NVARCHAR(50) = NULL,
     @IsAnonymous BIT = 0
 AS
 BEGIN
@@ -2046,18 +2062,47 @@ BEGIN
         RETURN;
     END
 
-    IF NOT EXISTS (SELECT 1 FROM dbo.Trips WHERE TripID = @TripID)
+    -- בודקים קיום טיול רק אם נבחר טיול (המלצה כללית יכולה להיות ללא טיול)
+    IF @TripID IS NOT NULL AND NOT EXISTS (SELECT 1 FROM dbo.Trips WHERE TripID = @TripID)
     BEGIN
         RAISERROR('Trip does not exist.', 16, 1);
         RETURN;
     END
 
     INSERT INTO dbo.Recommendations
-    (UserID, TripID, PlaceName, Description, Rating, MediaUrl, IsAnonymous)
+    (UserID, TripID, PlaceName, Description, Rating, MediaUrl, Category, IsAnonymous)
     VALUES
-    (@UserID, @TripID, @PlaceName, @Description, @Rating, @MediaUrl, @IsAnonymous);
+    (@UserID, @TripID, @PlaceName, @Description, @Rating, @MediaUrl, @Category, @IsAnonymous);
 
     SELECT SCOPE_IDENTITY() AS RecommendationID;
+END
+GO
+
+-- כל ההמלצות מכל המשתמשים (פיד גלובלי) — עם שם היעד מהטיול
+CREATE OR ALTER PROCEDURE dbo.GetAllRecommendations
+AS
+BEGIN
+    SET NOCOUNT ON;
+
+    SELECT r.*, t.Destination AS TripName
+    FROM dbo.Recommendations r
+    LEFT JOIN dbo.Trips t ON t.TripID = r.TripID   -- LEFT: גם המלצות כלליות ללא טיול
+    ORDER BY r.RecommendationID DESC;
+END
+GO
+
+-- כל ההמלצות של יעד מסוים (מכל המשתמשים) — למשל כל ההמלצות על "רומא"
+CREATE OR ALTER PROCEDURE dbo.GetRecommendationsByDestination
+    @Destination NVARCHAR(100)
+AS
+BEGIN
+    SET NOCOUNT ON;
+
+    SELECT r.*, t.Destination AS TripName
+    FROM dbo.Recommendations r
+    INNER JOIN dbo.Trips t ON t.TripID = r.TripID
+    WHERE t.Destination = @Destination
+    ORDER BY r.RecommendationID DESC;
 END
 GO
 

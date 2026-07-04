@@ -18,10 +18,7 @@ import {
   useRouter,
 } from "expo-router";
 
-import {
-  getMatchById,
-  getTripSuggestions,
-} from "../src/api/chatService";
+import { getMatchById } from "../src/api/chatService";
 
 import { COLORS, FONTS } from "../src/theme";
 
@@ -37,9 +34,6 @@ export default function MatchingSuccess() {
   const [match, setMatch] =
     useState(null);
 
-  const [places, setPlaces] =
-    useState([]);
-
   useEffect(() => {
     loadData();
   }, []);
@@ -52,18 +46,6 @@ export default function MatchingSuccess() {
         );
 
       setMatch(data);
-
-      if (data?.tripName) {
-        const suggestions =
-          await getTripSuggestions(
-            data.tripName,
-            data.interests || ""
-          );
-
-        setPlaces(
-          suggestions || []
-        );
-      }
 
     } catch (err) {
       console.log(err);
@@ -182,48 +164,6 @@ export default function MatchingSuccess() {
 
         </View>
 
-        {/* המלצות */}
-        <Text style={styles.sectionTitle}>
-          ✨ המלצות בשבילכם
-        </Text>
-
-        {
-          places.length === 0
-
-          ?
-
-          <Text style={styles.empty}>
-            עוד אין המלצות
-          </Text>
-
-          :
-
-          places.map(
-            (p, i) => (
-
-              <View
-                key={i}
-                style={styles.placeCard}
-              >
-
-                <Text style={styles.placeName}>
-                  📍 {p.name}
-                </Text>
-
-                <Text>
-                  ⭐ {p.rating}
-                </Text>
-
-                <Text>
-                  {p.address}
-                </Text>
-
-              </View>
-
-            )
-          )
-        }
-
         {/* בית */}
         <TouchableOpacity
           style={styles.primaryBtn}
@@ -333,34 +273,6 @@ fontFamily:FONTS.regular,
 value:{
 fontFamily:FONTS.bold,
 color:COLORS.text,
-},
-
-sectionTitle:{
-fontSize:18,
-fontFamily:FONTS.bold,
-marginBottom:16,
-textAlign:"right",
-color:COLORS.brand,
-},
-
-placeCard:{
-backgroundColor:COLORS.surface,
-padding:14,
-borderRadius:16,
-marginBottom:10,
-},
-
-placeName:{
-fontFamily:FONTS.bold,
-marginBottom:6,
-color:COLORS.text,
-},
-
-empty:{
-textAlign:"center",
-marginBottom:20,
-color:COLORS.textMuted,
-fontFamily:FONTS.regular,
 },
 
 primaryBtn:{

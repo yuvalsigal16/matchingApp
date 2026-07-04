@@ -15,7 +15,6 @@ import { SafeAreaView } from "react-native-safe-area-context";
 
 import { BASE_URL } from "../../src/api/config";
 import { getToken } from "../../src/auth/authStore";
-import { getTripSuggestions } from "../../src/api/chatService";
 import { getUserProfile } from "../../src/api/userProfileService";
 import { COLORS, FONTS } from "../../src/theme";
 import HeaderMenu from "../../../components/HeaderMenu";
@@ -55,7 +54,6 @@ export default function TripDetails() {
   const [trip, setTrip] = useState(null);
   const [participants, setParticipants] = useState([]);
   const [creator, setCreator] = useState(null);
-  const [places, setPlaces] = useState([]);
   const [rating, setRating] = useState(0);
   const [loading, setLoading] = useState(true);
   const [deleting, setDeleting] = useState(false);
@@ -91,26 +89,8 @@ export default function TripDetails() {
         const tripData = await tripRes.json();
         setTrip(tripData);
 
-        // ארבע קריאות עצמאיות — מריצים במקביל לקיצור זמן הטעינה.
+        // קריאות עצמאיות — מריצים במקביל לקיצור זמן הטעינה.
         await Promise.all([
-          // המלצות מקומות לטיולים שיצאו לדרך
-          (async () => {
-            if (tripData.status?.toLowerCase() === "matched") {
-              try {
-                const interests = tripData.interests
-                  ?.map((i) => i.interestName)
-                  .join(",");
-                const suggestions = await getTripSuggestions(
-                  tripData.destination,
-                  interests,
-                );
-                setPlaces(suggestions || []);
-              } catch (err) {
-                console.log("Suggestions error", err);
-              }
-            }
-          })(),
-
           // פרטי יוצר הטיול
           (async () => {
             const creatorId = tripData.createdByUserID ?? tripData.CreatedByUserID;
@@ -385,41 +365,6 @@ export default function TripDetails() {
           )}
         </View>
 
-        {/* מקומות מומלצים ביעד (כשיש התאמה) */}
-        {isMatched && places.length > 0 && (
-          <>
-            <Text style={styles.sectionTitle}>מקומות מומלצים ביעד</Text>
-            <View style={styles.card}>
-              {places.map((p, i) => (
-                <View
-                  key={i}
-                  style={[styles.placeRow, i > 0 && styles.participantDivider]}
-                >
-                  <View style={styles.placeIcon}>
-                    <Ionicons name="location" size={16} color={COLORS.coral} />
-                  </View>
-                  <View style={{ flex: 1 }}>
-                    <Text style={styles.placeTitle} numberOfLines={1}>
-                      {p.name}
-                    </Text>
-                    {p.address ? (
-                      <Text style={styles.placeAddr} numberOfLines={1}>
-                        {p.address}
-                      </Text>
-                    ) : null}
-                  </View>
-                  {p.rating ? (
-                    <View style={styles.placeRating}>
-                      <Ionicons name="star" size={12} color={COLORS.amber} />
-                      <Text style={styles.placeRatingText}>{p.rating}</Text>
-                    </View>
-                  ) : null}
-                </View>
-              ))}
-            </View>
-          </>
-        )}
-
         {/* דירוג ההתאמה (לטיול שהסתיים) */}
         {isPast && (
           <>
@@ -619,45 +564,6 @@ const styles = StyleSheet.create({
     color: COLORS.text,
     textAlign: "right",
   },
-
-  // ── Places ──
-  placeRow: {
-    flexDirection: "row-reverse",
-    alignItems: "center",
-    gap: 10,
-    paddingVertical: 10,
-  },
-  placeIcon: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: COLORS.coralLight,
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  placeTitle: {
-    fontSize: 14,
-    fontFamily: FONTS.bold,
-    color: COLORS.text,
-    textAlign: "right",
-  },
-  placeAddr: {
-    fontSize: 12,
-    fontFamily: FONTS.regular,
-    color: COLORS.textMuted,
-    textAlign: "right",
-    marginTop: 2,
-  },
-  placeRating: {
-    flexDirection: "row-reverse",
-    alignItems: "center",
-    gap: 3,
-    backgroundColor: COLORS.amberLight,
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 10,
-  },
-  placeRatingText: { fontSize: 12, fontFamily: FONTS.bold, color: COLORS.amberDark },
 
   // ── Rating ──
   starsRow: {

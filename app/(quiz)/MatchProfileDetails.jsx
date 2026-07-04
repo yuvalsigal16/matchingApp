@@ -13,7 +13,16 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useLocalSearchParams, useRouter } from "expo-router";
-import { ChevronRight, MapPin, Plane } from "lucide-react-native";
+import {
+  ChevronRight,
+  Flame,
+  Gem,
+  MapPin,
+  Moon,
+  Plane,
+  Utensils,
+  Zap,
+} from "lucide-react-native";
 import { BASE_URL } from "../src/api/config";
 import { getToken, getUser } from "../src/auth/authStore";
 import { sendChatRequest } from "../src/api/notificationService";
@@ -21,6 +30,10 @@ import { blockUser } from "../src/api/blockService";
 import { COLORS, FONTS } from "../src/theme";
 
 const GENDER_DB_TO_HE = { Male: "זכר", Female: "נקבה", Other: "אחר" };
+
+// "בן"/"בת" לפי מגדר — נקבה→בת, זכר→בן, אחר/לא ידוע→בן/בת.
+const ageWordByGender = (gender) =>
+  gender === "Female" ? "בת" : gender === "Male" ? "בן" : "בן/בת";
 
 const calcAge = (birthDate) => {
   if (!birthDate) return null;
@@ -186,28 +199,49 @@ export default function MatchProfile() {
     );
   }
 
-  const user = profile || matchUser;
+  // matchUser (מרשימת ההתאמות) הוא המקור העשיר — כולל שם, תמונה ושדות השאלון.
+  // /User/{id} מחזיר אובייקט דל שבו כל שדות השאלון הם null, ולכן חייב להתמזג *מתחת*
+  // ל-matchUser כדי שה-null-ים שלו לא ידרסו את הערכים האמיתיים.
+  const user = { ...(profile || {}), ...matchUser };
   const firstName = user.firstName || matchUser.name?.split(" ")[0] || "";
   const lastName =
     user.lastName || matchUser.name?.split(" ").slice(1).join(" ") || "";
   const initials =
     `${firstName[0] || ""}${lastName[0] || ""}`.toUpperCase() || "?";
-  const imageUri = buildImageUri(user.profileImage);
+  // התמונה נמצאת על UserProfile ולא על טבלת Users, אז ה-fetch של /User עשוי להחזירה ריקה.
+  // נופלים ל-matchUser.profileImage — התמונה שכבר הוצגה ברשימת ההתאמות.
+  const imageUri = buildImageUri(
+    user.profileImage || user.ProfileImage || matchUser.profileImage,
+  );
   const age = calcAge(user.birthDate) || matchUser.age;
   const interests = user.interests || matchUser.interests || [];
+
+  // רמות 1–5 → תיאור מילולי קצר (לפי הניסוח בשאלון ההעדפות).
+  const spontaneityWord = (v) =>
+    v <= 2 ? "מתכנן/ת מראש" : v === 3 ? "מאוזן/ת" : "הרפתקן/ית";
+  const lifestyleWord = (v) =>
+    v <= 2 ? "פשוט וחסכוני" : v === 3 ? "מאוזן" : "יוקרתי ומפנק";
 
   const lifestyleTags = [
     user.isSmoker != null && {
       label: user.isSmoker ? "מעשן/ת" : "לא מעשן/ת",
-      icon: user.isSmoker ? "🚬" : "🚭",
+      Icon: Flame,
     },
     user.keepsKosher != null && {
       label: user.keepsKosher ? "שומר/ת כשרות" : "לא שומר/ת כשרות",
-      icon: "🍽️",
+      Icon: Utensils,
     },
     user.keepsShabbat != null && {
       label: user.keepsShabbat ? "שומר/ת שבת" : "לא שומר/ת שבת",
-      icon: "🕍",
+      Icon: Moon,
+    },
+    user.spontaneityLevel != null && {
+      label: `ספונטניות: ${spontaneityWord(user.spontaneityLevel)}`,
+      Icon: Zap,
+    },
+    user.lifestyleLevel != null && {
+      label: `אורח חיים: ${lifestyleWord(user.lifestyleLevel)}`,
+      Icon: Gem,
     },
   ].filter(Boolean);
 
@@ -244,9 +278,9 @@ export default function MatchProfile() {
 
           {age || user.gender ? (
             <Text style={styles.ageLine}>
-              {age ? `בן/בת ${age}` : ""}
-              {age && user.gender ? " · " : ""}
-              {GENDER_DB_TO_HE[user.gender] || ""}
+              {age
+                ? `${ageWordByGender(user.gender)} ${age}`
+                : GENDER_DB_TO_HE[user.gender] || ""}
             </Text>
           ) : null}
 
@@ -260,7 +294,7 @@ export default function MatchProfile() {
           {matchUser.matchScore != null && (
             <View style={styles.matchBox}>
               <Text style={styles.matchText}>
-                ✨ {matchUser.matchScore}% התאמה
+                {matchUser.matchScore}% התאמה
               </Text>
             </View>
           )}
@@ -298,9 +332,8 @@ export default function MatchProfile() {
             <View style={styles.tagsRow}>
               {lifestyleTags.map((tag, i) => (
                 <View key={i} style={styles.tag}>
-                  <Text style={styles.tagText}>
-                    {tag.icon} {tag.label}
-                  </Text>
+                  <tag.Icon size={15} color={COLORS.brand} strokeWidth={2} />
+                  <Text style={styles.tagText}>{tag.label}</Text>
                 </View>
               ))}
             </View>
@@ -521,6 +554,9 @@ const styles = StyleSheet.create({
   },
 
   tag: {
+    flexDirection: "row-reverse",
+    alignItems: "center",
+    gap: 6,
     backgroundColor: COLORS.brandLight,
     borderRadius: 20,
     paddingHorizontal: 12,

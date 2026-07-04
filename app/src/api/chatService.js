@@ -163,13 +163,3 @@ export const sendChatMessage = async (chatId, text, senderId) => {
     sentAt: new Date().toISOString(),
   };
 };
-
-/* =========================
-   TRIP SUGGESTIONS
-========================= */
-
-// המלצות מקומות (Claude) — ה-controller TripSuggestions לא קיים בשרת האמיתי.
-// מחזירים [] בעדינות כדי שהמסכים לא ייכשלו. כשייווצר endpoint בשרת — אפשר לחבר כאן.
-export const getTripSuggestions = async () => {
-  return [];
-};

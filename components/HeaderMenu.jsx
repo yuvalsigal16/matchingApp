@@ -14,7 +14,7 @@ export default function HeaderMenu({ visible, onClose, items }) {
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
       {/* לחיצה מחוץ לתפריט סוגרת אותו */}
       <Pressable style={styles.backdrop} onPress={onClose}>
-        <View style={[styles.menu, { top: insets.top + 56 }]}>
+        <View style={[styles.menu, { top: insets.top + 60 }]}>
           {items.map((item, i) => (
             <Pressable
               key={i}
@@ -45,7 +45,7 @@ const styles = StyleSheet.create({
   backdrop: { flex: 1 },
   menu: {
     position: "absolute",
-    left: 10,
+    left: 4,
     minWidth: 190,
     backgroundColor: COLORS.surface,
     borderRadius: 12,
