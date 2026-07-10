@@ -24,6 +24,7 @@ import {
   Zap,
 } from "lucide-react-native";
 import { BASE_URL } from "../src/api/config";
+import { buildImageUri } from "../src/utils/image";
 import { getToken, getUser } from "../src/auth/authStore";
 import { sendChatRequest } from "../src/api/notificationService";
 import { blockUser } from "../src/api/blockService";
@@ -48,15 +49,6 @@ const formatDate = (d) => {
   const dt = new Date(d);
   return `${dt.getDate().toString().padStart(2, "0")}/${(dt.getMonth() + 1).toString().padStart(2, "0")}/${dt.getFullYear()}`;
 };
-
-function buildImageUri(raw) {
-  if (!raw) return null;
-  const value = String(raw).trim();
-  if (!value) return null;
-  if (/^(https?:|data:|file:)/i.test(value)) return value;
-  const origin = BASE_URL.replace(/\/api\/?$/, "");
-  return value.startsWith("/") ? `${origin}${value}` : `${origin}/${value}`;
-}
 
 export default function MatchProfile() {
   const router = useRouter();

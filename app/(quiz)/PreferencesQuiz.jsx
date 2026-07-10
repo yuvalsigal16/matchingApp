@@ -52,32 +52,6 @@ import { COLORS, FONTS } from "../src/theme";
 
 // ── פונקציות עזר לתאריכים ──
 
-// המרה ממחרוזת "DD/MM/YY" או "DD/MM/YYYY" לאובייקט Date
-// מחזירה null אם הפורמט שגוי או התאריך לא קיים בלוח השנה
-function parseDDMMYY(str) {
-  if (!str) return null;
-  // רגקס לפיצוח 3 קבוצות מספרים מופרדות בלוכסן
-  const m = /^(\d{1,2})\/(\d{1,2})\/(\d{2,4})$/.exec(str.trim());
-  if (!m) return null;
-  let d = parseInt(m[1], 10);
-  let mo = parseInt(m[2], 10);
-  let y = parseInt(m[3], 10);
-  // אם השנה דו-ספרתית — מוסיפים 2000 (25 → 2025)
-  if (y < 100) y += 2000;
-  // ולידציה בסיסית של טווחים
-  if (mo < 1 || mo > 12 || d < 1 || d > 31) return null;
-  const date = new Date(y, mo - 1, d); // החודש ב-JS מתחיל מ-0
-  // ולידציה: בודקת שהתאריך באמת קיים (למשל 31/2 לא יעבור)
-  if (
-    date.getFullYear() !== y ||
-    date.getMonth() !== mo - 1 ||
-    date.getDate() !== d
-  ) {
-    return null;
-  }
-  return date;
-}
-
 // ממיר אובייקט Date ל-"YYYY-MM-DD" לפי שעון מקומי (לא UTC)
 function toIsoDateOnly(date) {
   const y = date.getFullYear();
@@ -252,7 +226,6 @@ export default function PreferencesQuizScreen() {
     partnerLifestyle: null,
     priorities: [], // דירוג חשיבות הגורמים (מערך keys לפי סדר) — אופציונלי
   });
-  const isNewTripFlow = mode === "newTrip" || mode === "editTrip";
 
   // ── תחומי עניין מהשרת ──
   const [interestOptions, setInterestOptions] = useState([]); // הרשימה שנטענה

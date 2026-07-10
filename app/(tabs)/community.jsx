@@ -57,9 +57,6 @@ const ICON_COLORS = [
 
 export default function CommunityScreen() {
   const router = useRouter();
-  const user = getUser();
-  const initials =
-    `${user?.firstName?.[0] || ""}${user?.lastName?.[0] || ""}`.toUpperCase();
 
   const [communities, setCommunities] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -199,7 +196,7 @@ export default function CommunityScreen() {
           Alert.alert("שגיאה", msg || "לא הצלחנו להצטרף לקהילה. נסה שוב.");
         }
       }
-    } catch (err) {
+    } catch {
       Alert.alert("שגיאה", "בעיית תקשורת. נסה שוב.");
     } finally {
       setJoining((prev) => ({ ...prev, [communityId]: false }));

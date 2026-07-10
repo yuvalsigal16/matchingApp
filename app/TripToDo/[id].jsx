@@ -25,6 +25,7 @@ import {
 } from "../src/api/todoService";
 import { getUser } from "../src/auth/authStore";
 import { COLORS, FONTS } from "../src/theme";
+import Snackbar from "../../components/Snackbar";
 
 export default function TripToDoScreen() {
   const router = useRouter();
@@ -39,6 +40,7 @@ export default function TripToDoScreen() {
   const [adding, setAdding] = useState(false);
   const [modalVisible, setModalVisible] = useState(false);
   const [kbHeight, setKbHeight] = useState(0);
+  const [snack, setSnack] = useState(""); // משוב הצלחה קצר
   const mountedRef = useRef(true);
 
   useEffect(() => {
@@ -108,6 +110,7 @@ export default function TripToDoScreen() {
           prev.map((t) => (t.taskID === tempId ? { ...t, taskID: newId } : t)),
         );
       }
+      if (mountedRef.current) setSnack("המשימה נוספה");
     } catch {
       if (mountedRef.current) {
         setTasks((prev) => prev.filter((t) => t.taskID !== tempId));
@@ -249,8 +252,21 @@ export default function TripToDoScreen() {
                 </View>
                 <Text style={styles.stateTitle}>אין עדיין משימות</Text>
                 <Text style={styles.stateSub}>
-                  הוסיפו למטה משימות שתרצו לזכור לקראת הטיול
+                  כאן תרכזו כל מה שצריך להכין לקראת הטיול המשותף
                 </Text>
+                <TouchableOpacity
+                  style={styles.emptyBtn}
+                  onPress={() => {
+                    setText("");
+                    setModalVisible(true);
+                  }}
+                  activeOpacity={0.85}
+                  accessibilityRole="button"
+                  accessibilityLabel="הוספת משימה ראשונה"
+                >
+                  <Ionicons name="add" size={18} color={COLORS.onBrand} />
+                  <Text style={styles.emptyBtnText}>הוספת משימה ראשונה</Text>
+                </TouchableOpacity>
               </View>
             }
           />
@@ -320,6 +336,12 @@ export default function TripToDoScreen() {
           </View>
         </View>
       </Modal>
+
+      <Snackbar
+        text={snack}
+        onHide={() => setSnack("")}
+        bottom={insets.bottom + 84}
+      />
     </SafeAreaView>
   );
 }
@@ -459,6 +481,17 @@ const styles = StyleSheet.create({
     borderRadius: 20,
   },
   retryText: { color: COLORS.onBrand, fontFamily: FONTS.bold, fontSize: 14 },
+  emptyBtn: {
+    flexDirection: "row-reverse",
+    alignItems: "center",
+    gap: 7,
+    backgroundColor: COLORS.brand,
+    borderRadius: 22,
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+    marginTop: 18,
+  },
+  emptyBtnText: { color: COLORS.onBrand, fontFamily: FONTS.bold, fontSize: 14 },
 
   // ── Add button (docked) ──
   addDock: {

@@ -26,8 +26,6 @@ export default function MyTripsScreen() {
 
 
   const loadTrips = async () => {
-  console.log("=== LOAD TRIPS STARTED ===");
-
   try {
     const userId = getUser()?.userID;
     const token = getToken();

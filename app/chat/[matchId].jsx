@@ -22,6 +22,7 @@ import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context"
 import { Ionicons } from "@expo/vector-icons";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useFocusEffect } from "@react-navigation/native";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 
 import {
   getChatMessages,
@@ -29,22 +30,13 @@ import {
   sendChatMessage,
 } from "../src/api/chatService";
 import { blockUser } from "../src/api/blockService";
-import { BASE_URL } from "../src/api/config";
+import { buildImageUri } from "../src/utils/image";
 import { getUser } from "../src/auth/authStore";
 import { COLORS, FONTS } from "../src/theme";
 import HeaderMenu from "../../components/HeaderMenu";
 import ChatBackground from "../../components/ChatBackground";
 
 // ── עזרי תצוגה ──
-function buildImageUri(raw) {
-  if (!raw) return null;
-  const value = String(raw).trim();
-  if (!value) return null;
-  if (/^(https?:|data:|file:)/i.test(value)) return value;
-  const origin = BASE_URL.replace(/\/api\/?$/, "");
-  return value.startsWith("/") ? `${origin}${value}` : `${origin}/${value}`;
-}
-
 function formatTime(iso) {
   if (!iso) return "";
   const d = new Date(iso);
@@ -87,6 +79,9 @@ function sameTail(a, b) {
 // גובה המסך — לחישוב חפיפת המקלדת.
 const { height: SCREEN_H } = Dimensions.get("window");
 
+// מפתח מקומי (AsyncStorage) לזכירת "יצאנו לדרך" לצ'אט — בלי שרת, בלי DB.
+const journeyKey = (id) => `journey_started_${id}`;
+
 export default function ChatScreen() {
   const router = useRouter();
   const { matchId } = useLocalSearchParams();
@@ -98,6 +93,7 @@ export default function ChatScreen() {
   const [loadError, setLoadError] = useState(false);
   const [matchData, setMatchData] = useState(null);
   const [menuVisible, setMenuVisible] = useState(false);
+  const [journeyStarted, setJourneyStarted] = useState(false); // "יצאנו לדרך" (מקומי)
 
   const flatListRef = useRef(null);
   const insets = useSafeAreaInsets();
@@ -171,6 +167,13 @@ export default function ChatScreen() {
   // useFocusEffect מפעיל בכניסה ומנקה (clearInterval) ביציאה — אפס ריצה ברקע.
   useFocusEffect(
     useCallback(() => {
+      // קריאת סטטוס "יצאנו לדרך" בכל חזרה למסך (למשל אחרי מסך ההצלחה).
+      AsyncStorage.getItem(journeyKey(matchId))
+        .then((v) => {
+          if (mountedRef.current) setJourneyStarted(v === "1");
+        })
+        .catch(() => {});
+
       const tick = async () => {
         if (fetchingRef.current) return; // לא מתחילים בקשה אם הקודמת עדיין רצה
         fetchingRef.current = true;
@@ -191,7 +194,7 @@ export default function ChatScreen() {
       };
       const id = setInterval(tick, 4000);
       return () => clearInterval(id);
-    }, [initChat]),
+    }, [initChat, matchId]),
   );
 
   const send = async () => {
@@ -201,7 +204,7 @@ export default function ChatScreen() {
     try {
       const saved = await sendChatMessage(matchData.chatID, t, currentUser?.userID);
       setMessages((prev) => [...prev, saved]);
-    } catch (err) {
+    } catch {
       setText(t); // החזרת הטקסט אם נכשל
       Alert.alert("שגיאה", "לא ניתן לשלוח הודעה");
     }
@@ -258,6 +261,53 @@ export default function ChatScreen() {
     { label: "הצג פרופיל", onPress: goToOtherProfile },
     { label: "חסום משתמש", destructive: true, onPress: confirmBlock },
   ];
+
+  // ── "יוצאים לדרך יחד" — המעבר מ"מצאנו שותף" ל"מתחילים לתכנן" ──
+  // מעביר את הנתונים שכבר בידינו למסך ההצלחה כדי להימנע מטעינה חוזרת ולהתאים אישית מיד.
+  const goToSuccess = () => {
+    const me = getUser();
+    const myName = me?.firstName || (me?.name ? me.name.split(" ")[0] : "") || "";
+    // זוכרים מקומית שהצ'אט עבר לשלב תכנון — כדי להציג באנר בחזרה (בלי שרת).
+    AsyncStorage.setItem(journeyKey(matchId), "1").catch(() => {});
+    setJourneyStarted(true);
+    router.push({
+      pathname: "/matching/MatchingSuccess",
+      params: {
+        matchId: String(matchId),
+        tripID: matchData?.tripID != null ? String(matchData.tripID) : "",
+        destination: matchData?.tripName && matchData.tripName !== "טיול" ? matchData.tripName : "",
+        startDate: matchData?.tripStartDate || "",
+        otherUserName: otherName,
+        otherUserImage: matchData?.otherUserImage || "",
+        myName,
+        myImage: me?.profileImage || "",
+      },
+    });
+  };
+
+  // מעבר ישיר למתכנן הטיול מהבאנר (אחרי שיצאו לדרך).
+  const openPlanner = () => {
+    if (matchData?.tripID != null) {
+      router.push({
+        pathname: "/TripPlanner/[id]",
+        params: { id: String(matchData.tripID) },
+      });
+    }
+  };
+
+  const confirmJourney = () => {
+    const dest = matchData?.tripName && matchData.tripName !== "טיול" ? matchData.tripName : "";
+    Alert.alert(
+      "יוצאים לדרך יחד?",
+      dest
+        ? `אתם ו${otherName} מתחילים לתכנן את הטיול ל${dest}?`
+        : `אתם ו${otherName} מתחילים לתכנן את הטיול המשותף?`,
+      [
+        { text: "עוד לא", style: "cancel" },
+        { text: "יוצאים!", onPress: goToSuccess },
+      ],
+    );
+  };
 
   const renderMessage = ({ item, index }) => {
     const isMine = item.senderID === currentUser?.userID;
@@ -362,6 +412,47 @@ export default function ChatScreen() {
         items={menuItems}
       />
 
+      {/* ── מוצג רק כשיש הקשר של טיול (tripID). לפני האישור: פס פעולה. אחרי: באנר תכנון ── */}
+      {matchData?.tripID != null ? (
+        journeyStarted ? (
+          <View style={styles.journeyBanner}>
+            <View style={styles.journeyBannerRow}>
+              <View style={styles.journeyBannerIcon}>
+                <Ionicons name="flag" size={18} color={COLORS.brand} />
+              </View>
+              <View style={styles.journeyBannerTexts}>
+                <Text style={styles.journeyBannerTitle}>יצאתם לדרך!</Text>
+                <Text style={styles.journeyBannerText}>
+                  הטיול שלכם נמצא עכשיו בשלב התכנון.
+                </Text>
+              </View>
+            </View>
+            <TouchableOpacity
+              style={styles.journeyBannerBtn}
+              onPress={openPlanner}
+              activeOpacity={0.9}
+              accessibilityRole="button"
+              accessibilityLabel="פתח את מתכנן הטיול"
+            >
+              <Ionicons name="calendar" size={16} color={COLORS.onBrand} />
+              <Text style={styles.journeyBannerBtnText}>פתח את מתכנן הטיול</Text>
+            </TouchableOpacity>
+          </View>
+        ) : (
+          <TouchableOpacity
+            style={styles.journeyBar}
+            onPress={confirmJourney}
+            activeOpacity={0.9}
+            accessibilityRole="button"
+            accessibilityLabel="יצאנו לדרך"
+          >
+            <Ionicons name="flag" size={17} color={COLORS.onBrand} />
+            <Text style={styles.journeyBarText}>יצאנו לדרך</Text>
+            <Ionicons name="chevron-back" size={17} color={COLORS.onBrand} />
+          </TouchableOpacity>
+        )
+      ) : null}
+
       {/* ── אזור הצ'אט (עולה עם המקלדת) ── */}
       <Animated.View style={areaStyle}>
         {loadError ? (
@@ -452,6 +543,74 @@ const styles = StyleSheet.create({
   headerName: { fontSize: 16, fontFamily: FONTS.bold, color: COLORS.text },
   headerSub: { fontSize: 12, fontFamily: FONTS.regular, color: COLORS.textSecondary, marginTop: 1 },
   headerOptionsBtn: { padding: 4 },
+
+  // ── פס "יוצאים לדרך יחד" ──
+  journeyBar: {
+    flexDirection: "row-reverse",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+    paddingVertical: 11,
+    paddingHorizontal: 16,
+    backgroundColor: COLORS.brand,
+  },
+  journeyBarText: {
+    fontFamily: FONTS.bold,
+    fontSize: 14.5,
+    color: COLORS.onBrand,
+    letterSpacing: 0.2,
+  },
+
+  // ── באנר "יצאתם לדרך" (אחרי האישור) ──
+  journeyBanner: {
+    backgroundColor: COLORS.brandLight,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: COLORS.border,
+  },
+  journeyBannerRow: {
+    flexDirection: "row-reverse",
+    alignItems: "center",
+    gap: 10,
+  },
+  journeyBannerIcon: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: COLORS.surface,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  journeyBannerTexts: { flex: 1 },
+  journeyBannerTitle: {
+    fontFamily: FONTS.bold,
+    fontSize: 15,
+    color: COLORS.brand,
+    textAlign: "right",
+  },
+  journeyBannerText: {
+    fontFamily: FONTS.regular,
+    fontSize: 12.5,
+    color: COLORS.textSecondary,
+    textAlign: "right",
+    marginTop: 1,
+  },
+  journeyBannerBtn: {
+    flexDirection: "row-reverse",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 7,
+    backgroundColor: COLORS.brand,
+    borderRadius: 12,
+    paddingVertical: 10,
+    marginTop: 10,
+  },
+  journeyBannerBtnText: {
+    fontFamily: FONTS.bold,
+    fontSize: 14,
+    color: COLORS.onBrand,
+  },
 
   // ── Messages ──
   listContent: { paddingHorizontal: 12, paddingVertical: 14 },

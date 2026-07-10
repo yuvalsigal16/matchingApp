@@ -18,21 +18,12 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { BASE_URL } from "../src/api/config";
+import { buildImageUri } from "../src/utils/image";
 import { deleteProfileImage, uploadProfileImage } from "../src/api/userProfileService";
 import { clearAuth, getToken, getUser } from "../src/auth/authStore";
 import { COLORS, FONTS } from "../src/theme";
 import BottomNav from "../../components/BottomNav";
 
-
-// 👇 אותו helper כמו במסך הבית
-function buildImageUri(raw) {
-  if (!raw) return null;
-  const value = String(raw).trim();
-  if (!value) return null;
-  if (/^(https?:|data:|file:)/i.test(value)) return value;
-  const origin = BASE_URL.replace(/\/api\/?$/, "");
-  return value.startsWith("/") ? `${origin}${value}` : `${origin}/${value}`;
-}
 
 export default function ProfileScreen() {
   const router = useRouter();

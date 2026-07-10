@@ -27,7 +27,7 @@ import {
   getRecommendationsByDestination,
   uploadRecommendationImage,
 } from "../src/api/recommendationService";
-import { BASE_URL } from "../src/api/config";
+import { buildImageUri } from "../src/utils/image";
 import { getUserInterests } from "../src/api/interestService";
 import { getAllUsers } from "../src/api/userService";
 import { getUserTrips } from "../src/api/tripService";
@@ -53,16 +53,6 @@ const SORT_OPTIONS = [
   { key: "lowest", label: "דירוג נמוך לגבוה", icon: "star-outline" },
   { key: "personalized", label: "מותאם עבורי", icon: "sparkles" },
 ];
-
-// ממיר נתיב תמונה יחסי (/images/xxx) ל-URL מלא. תמונות שמועלות נשמרות כנתיב יחסי.
-function buildImageUri(raw) {
-  if (!raw) return null;
-  const value = String(raw).trim();
-  if (!value) return null;
-  if (/^(https?:|data:|file:)/i.test(value)) return value;
-  const origin = BASE_URL.replace(/\/api\/?$/, "");
-  return value.startsWith("/") ? `${origin}${value}` : `${origin}/${value}`;
-}
 
 const hasImage = (r) => !!buildImageUri(r.mediaUrl);
 

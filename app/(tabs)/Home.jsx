@@ -7,19 +7,9 @@ import { Bell, ChevronLeft, MapPin, MessageCircle, Users } from "lucide-react-na
 import { COLORS, FONTS } from "../src/theme";
 import { getToken, getUser } from "../src/auth/authStore";
 import { BASE_URL } from "../src/api/config";
+import { buildImageUri } from "../src/utils/image";
 import { fetchWithTimeout } from "../src/api/fetchWithTimeout";
 import BottomNav from "../../components/BottomNav";
-
-// בונה URI שלם לתמונת פרופיל. השרת עשוי להחזיר URL מלא, נתיב יחסי, או שם קובץ —
-// במקרים האחרונים חייבים להוסיף את שורש השרת (ללא ה-"/api") כדי ש-<Image> יוכל לטעון.
-function buildImageUri(raw) {
-  if (!raw) return null;
-  const value = String(raw).trim();
-  if (!value) return null;
-  if (/^(https?:|data:|file:)/i.test(value)) return value;
-  const origin = BASE_URL.replace(/\/api\/?$/, "");
-  return value.startsWith("/") ? `${origin}${value}` : `${origin}/${value}`;
-}
 
 export default function Home() {
   const router = useRouter();
@@ -80,7 +70,6 @@ export default function Home() {
 
         if (profileRes?.ok) {
           const data = await profileRes.json();
-          console.log("[HomeScreen] תשובת פרופיל:", data);
           firstName = data.firstName || data.FirstName || "";
           // fallback: אם endpoint התמונה ייכשל, ניקח את הנתיב מתוך הפרופיל
           profileImage = data.profileImage || data.ProfileImage || "";
@@ -90,7 +79,6 @@ export default function Home() {
 
         if (imageRes?.ok) {
           const imgData = await imageRes.json();
-          console.log("[HomeScreen] תשובת תמונה:", imgData);
           if (imgData?.imagePath) {
             profileImage = imgData.imagePath;
           }
