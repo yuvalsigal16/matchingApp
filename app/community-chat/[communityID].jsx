@@ -18,7 +18,7 @@ import {
 } from "react-native";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 
-import { BASE_URL } from "../src/api/config";
+import { buildImageUri } from "../src/utils/image";
 import {
   getCommunityChat,
   getCommunityMembers,
@@ -32,16 +32,6 @@ import HeaderMenu from "../../components/HeaderMenu";
 import ChatBackground from "../../components/ChatBackground";
 
 const SCREEN_H = Dimensions.get("window").height;
-
-// בונה URI לתמונת פרופיל מתוך נתיב יחסי/מלא — אותו עזר שבשאר האפליקציה.
-function buildImageUri(raw) {
-  if (!raw) return null;
-  const value = String(raw).trim();
-  if (!value) return null;
-  if (/^(https?:|data:|file:)/i.test(value)) return value;
-  const origin = BASE_URL.replace(/\/api\/?$/, "");
-  return value.startsWith("/") ? `${origin}${value}` : `${origin}/${value}`;
-}
 
 function formatTime(iso) {
   if (!iso) return "";

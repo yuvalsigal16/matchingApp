@@ -1,4 +1,3 @@
-import { getToken } from "../auth/authStore";
 import { BASE_URL } from "./config";
 
 // helper פנימי: ניסיון לפרסר JSON, נפילה לטקסט גולמי אם השרת מחזיר plain text.

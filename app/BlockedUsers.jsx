@@ -14,18 +14,8 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 
 import { getBlockedUsers, unblockUser } from "./src/api/blockService";
-import { BASE_URL } from "./src/api/config";
+import { buildImageUri } from "./src/utils/image";
 import { COLORS, FONTS } from "./src/theme";
-
-// בונה URI מלא לתמונה (השרת עשוי להחזיר נתיב יחסי)
-function buildImageUri(raw) {
-  if (!raw) return null;
-  const value = String(raw).trim();
-  if (!value) return null;
-  if (/^(https?:|data:|file:)/i.test(value)) return value;
-  const origin = BASE_URL.replace(/\/api\/?$/, "");
-  return value.startsWith("/") ? `${origin}${value}` : `${origin}/${value}`;
-}
 
 // פורמט תאריך פשוט: DD/MM/YYYY
 function formatDate(raw) {

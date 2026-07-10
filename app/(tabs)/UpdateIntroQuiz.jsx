@@ -94,8 +94,6 @@ export default function UpdateIntroQuizScreen() {
         }
 
         if (questionnaire) {
-          // log עוזר לאתר אי-התאמה בשמות שדות (camelCase מול PascalCase) אם יקרה
-          console.log("[UpdateIntroQuiz] questionnaire from server:", questionnaire);
           // ננסה את שתי האפשרויות לשם השדה (camelCase של ASP.NET עם web defaults,
           // או PascalCase במקרה ש-config שונה הופעל)
           const spont = questionnaire.spontaneityLevel ?? questionnaire.SpontaneityLevel;

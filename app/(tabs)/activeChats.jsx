@@ -14,7 +14,7 @@ import { useFocusEffect, useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
-import { BASE_URL } from "../src/api/config";
+import { buildImageUri } from "../src/utils/image";
 import { COLORS, FONTS } from "../src/theme";
 import { getUser } from "../src/auth/authStore";
 import { getMyMatches } from "../src/api/notificationService";
@@ -40,16 +40,6 @@ async function markChatSeen(matchID) {
     map[matchID] = Date.now();
     await AsyncStorage.setItem(LAST_SEEN_KEY, JSON.stringify(map));
   } catch {}
-}
-
-// בונה URI מלא לתמונת פרופיל
-function buildImageUri(raw) {
-  if (!raw) return null;
-  const value = String(raw).trim();
-  if (!value) return null;
-  if (/^(https?:|data:|file:)/i.test(value)) return value;
-  const origin = BASE_URL.replace(/\/api\/?$/, "");
-  return value.startsWith("/") ? `${origin}${value}` : `${origin}/${value}`;
 }
 
 // זמן יחסי לרשימת הצ'אטים: היום → HH:MM, אתמול, אחרת DD/MM/YYYY

@@ -9,8 +9,6 @@ import {
 
 import {
   getUserTrips,
-  getTripPreferences,
-  getTripPreferenceInterests,
   createTrip,
 } from "../src/api/tripService";
 
@@ -41,7 +39,6 @@ import { getUser } from "../src/auth/authStore";
 import { getUserProfile } from "../src/api/userProfileService";
 import { getUserInterests } from "../src/api/interestService";
 import { getQuestionnaire } from "../src/api/questionnaireService";
-import { saveWheelSelection } from "../src/api/tripService";
 
 const WHEEL_SIZE = 290;
 const CX = WHEEL_SIZE / 2;

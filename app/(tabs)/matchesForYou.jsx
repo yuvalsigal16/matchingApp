@@ -3,7 +3,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { useFocusEffect, useRouter } from "expo-router";
 import { useCallback, useEffect, useMemo, useState } from "react";
 
-import { BASE_URL } from "../src/api/config";
+import { buildImageUri } from "../src/utils/image";
 import { getUserInterests } from "../src/api/interestService";
 import {
   approveRequest,
@@ -47,16 +47,6 @@ function computeAge(birthDate) {
   const m = today.getMonth() - dob.getMonth();
   if (m < 0 || (m === 0 && today.getDate() < dob.getDate())) age--;
   return age;
-}
-
-// בונה URI מלא לתמונה (השרת עשוי להחזיר נתיב יחסי)
-function buildImageUri(raw) {
-  if (!raw) return null;
-  const value = String(raw).trim();
-  if (!value) return null;
-  if (/^(https?:|data:|file:)/i.test(value)) return value;
-  const origin = BASE_URL.replace(/\/api\/?$/, "");
-  return value.startsWith("/") ? `${origin}${value}` : `${origin}/${value}`;
 }
 
 // ממיר את מחרוזת ה-Interests (JSON מ-FOR JSON PATH ב-SP) למערך שמות.

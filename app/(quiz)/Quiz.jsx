@@ -751,11 +751,6 @@ export default function QuizScreen() {
     }
   };
 
-  const handleBack = () => {
-    if (step > 0) animateTransition(step - 1);
-    else router.back();
-  };
-
   const updateAnswer = useCallback((key, value) => {
     setAnswers((prev) => ({ ...prev, [key]: value }));
   }, []);
@@ -1357,12 +1352,6 @@ export default function QuizScreen() {
             </Pressable>
           </Animated.View>
 
-          {/* <Pressable
-            onPress={handleBack}
-            style={({ pressed }) => [styles.backBtn, pressed && { opacity: 0.5 }]}
-          >
-            <Text style={styles.backLink}>חזרה לאחור</Text>
-          </Pressable> */}
         </View>
       </KeyboardAvoidingView>
     </SafeAreaView>

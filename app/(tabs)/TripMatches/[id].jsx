@@ -15,6 +15,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 
 import BottomNav from "../../../components/BottomNav";
 import { BASE_URL } from "../../src/api/config";
+import { buildImageUri } from "../../src/utils/image";
 import { getAllUsers } from "../../src/api/userService";
 import {
   getTripPreferenceInterests,
@@ -40,16 +41,6 @@ function computeAge(birthDate) {
   const m = today.getMonth() - dob.getMonth();
   if (m < 0 || (m === 0 && today.getDate() < dob.getDate())) age--;
   return age;
-}
-
-// בונה URI מלא לתמונה (השרת עשוי להחזיר נתיב יחסי)
-function buildImageUri(raw) {
-  if (!raw) return null;
-  const value = String(raw).trim();
-  if (!value) return null;
-  if (/^(https?:|data:|file:)/i.test(value)) return value;
-  const origin = BASE_URL.replace(/\/api\/?$/, "");
-  return value.startsWith("/") ? `${origin}${value}` : `${origin}/${value}`;
 }
 
 // ממיר את מחרוזת ה-Interests (JSON מ-SP) למערך שמות. תומך גם במערך מוכן.

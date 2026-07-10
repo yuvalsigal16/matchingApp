@@ -48,6 +48,7 @@ export const getMatchById = async (matchId) => {
         return {
           matchID: m.matchID,
           chatID: m.chatID,
+          tripID: m.tripID, // נדרש למעבר מהצ'אט ל-TripPlanner/ToDo במסך "יוצאים לדרך"
           otherUserID: iAmUser1 ? m.user2ID : m.user1ID,
           otherUserName: otherName || "משתמש",
           otherUserImage: iAmUser1 ? m.user2Image : m.user1Image,
