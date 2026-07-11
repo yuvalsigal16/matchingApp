@@ -37,8 +37,7 @@ import {
   addTripPreferenceInterest,
   addTripPreferencePriority,
   clearTripPreferencePriorities,
-  createTrip,
-  createTripPreferences,
+  createFullTrip,
   getTripPreferenceInterests,
   getTripPreferencePriorities,
   getTripPreferences,
@@ -68,6 +67,21 @@ const GENDER_HE_TO_DB = {
   אישה: "Female",
   הכל: null,
 };
+
+// בונה את אובייקט העדפות הפרטנר מתשובות השאלון.
+// משותף למסלול הרגיל (submitFullTrip) ולמסלול הגלגל — כדי לא לשכפל את המיפוי.
+function buildPartnerPref(data) {
+  return {
+    PreferredGender: GENDER_HE_TO_DB[data.gender],
+    PreferredAgeMin: data.ageRange?.min,
+    PreferredAgeMax: data.ageRange?.max,
+    IsSmoker: data.partnerIsSmoker,
+    KeepsKosher: data.partnerKeepsKosher,
+    KeepsShabbat: data.partnerKeepsShabbat,
+    SpontaneityLevel: data.partnerSpontaneity,
+    LifestyleLevel: data.partnerLifestyle,
+  };
+}
 
 const GENDER_DB_TO_HE = {
   Male: "גבר",
@@ -427,51 +441,18 @@ export default function PreferencesQuizScreen() {
     today.setHours(0, 0, 0, 0); // איפוס שעות לתחילת היום
     if (start < today) throw new Error("תאריך יציאה חייב להיות בעתיד");
 
-    // ── שלב 1: יצירת רשומת Trip ──
-    // Status הוא שדה חובה במודל בצד השרת. "Active" הוא ערך ברירת מחדל סביר
-    // לטיול חדש שנוצר זה עתה. אם השרת מצפה לערך אחר (למשל "Open"/"Planning") —
-    // יש לעדכן כאן.
-    const tripId = await createTrip({
-      CreatedByUserID: u.userID,
-      TripName: (data.tripName || "").trim() || dest,
-      Destination: dest,
-      StartDate: toIsoDateOnly(start), // YYYY-MM-DD
-      EndDate: end ? toIsoDateOnly(end) : null,
-      Status: "Active",
+    // שמירה מלאה דרך הפונקציה המשותפת (Trip + העדפות + תחומי עניין + דירוגים).
+    // אותן קריאות ובאותו סדר כמו קודם — רק מרוכזות במקום אחד (משותף עם מסלול הגלגל).
+    await createFullTrip({
+      createdByUserID: u.userID,
+      tripName: (data.tripName || "").trim() || dest,
+      destination: dest,
+      startDate: toIsoDateOnly(start), // YYYY-MM-DD
+      endDate: end ? toIsoDateOnly(end) : null,
+      pref: buildPartnerPref(data),
+      interests: data.interests || [],
+      priorities: data.priorities || [],
     });
-
-    // ── שלב 2: יצירת רשומת TripPreferences (קשורה ל-Trip) ──
-    // טווח הגיל מגיע כ-{ min, max } מסליידר הטווח
-    // שדות אורח חיים — null משמעו "אין העדפה" (כל השאלות בשלב lifestyle אופציונליות)
-    const prefId = await createTripPreferences({
-      TripID: tripId,
-      PreferredGender: GENDER_HE_TO_DB[data.gender],
-      PreferredAgeMin: data.ageRange?.min,
-      PreferredAgeMax: data.ageRange?.max,
-      IsSmoker: data.partnerIsSmoker,
-      KeepsKosher: data.partnerKeepsKosher,
-      KeepsShabbat: data.partnerKeepsShabbat,
-      SpontaneityLevel: data.partnerSpontaneity,
-      LifestyleLevel: data.partnerLifestyle,
-    });
-    // ── שלב 3: שמירת תחומי העניין שנבחרו (קישור many-to-many) ──
-    if (Array.isArray(data.interests) && data.interests.length > 0) {
-      // Promise.all שולח את כל הקריאות במקביל לחיסכון בזמן
-      await Promise.all(
-        data.interests.map((interestId) =>
-          addTripPreferenceInterest(prefId, interestId),
-        ),
-      );
-    }
-
-    // ── שלב 4: שמירת דירוג חשיבות הגורמים (המיקום במערך = PriorityRank) ──
-    if (Array.isArray(data.priorities) && data.priorities.length > 0) {
-      await Promise.all(
-        data.priorities.map((factor, idx) =>
-          addTripPreferencePriority(prefId, factor, idx + 1),
-        ),
-      );
-    }
   }, [data]);
 
   // ── עדכון טיול קיים (מצב עריכה) ──
@@ -547,9 +528,21 @@ export default function PreferencesQuizScreen() {
 
     // האם זו השאלה האחרונה?
     if (step === QUESTIONS.length - 1) {
-      // אם המשתמש לא בחר יעד — מפנה לגלגל המזל
+      // אם המשתמש לא בחר יעד — מפנה לגלגל המזל.
+      // מעבירים את ההעדפות שכבר נאספו כדי שהגלגל ישמור טיול *מלא* (ולא יאבד אותן).
       if (!(data.destination || "").trim()) {
-        router.push("/Wheel");
+        const wheelPrefs = {
+          tripName: (data.tripName || "").trim(),
+          startDate: data.startDate ? toIsoDateOnly(data.startDate) : null,
+          endDate: data.endDate ? toIsoDateOnly(data.endDate) : null,
+          pref: buildPartnerPref(data),
+          interests: data.interests || [],
+          priorities: data.priorities || [],
+        };
+        router.push({
+          pathname: "/Wheel",
+          params: { prefs: JSON.stringify(wheelPrefs) },
+        });
         return;
       }
 

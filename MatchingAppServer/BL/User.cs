@@ -1,4 +1,6 @@
 ﻿using MatchingAppServer.DAL;
+using System.Security.Cryptography;
+using System.Text;
 
 namespace MatchingAppServer.BL
 {
@@ -147,6 +149,76 @@ namespace MatchingAppServer.BL
             string newHash = BCrypt.Net.BCrypt.HashPassword(newPass);
 
             return dal.ChangePassword(userId, newHash);
+        }
+
+        // ── FORGOT PASSWORD ──
+
+        // יצירת בקשת איפוס: מזהה משתמש לפי מייל, יוצר טוקן מאובטח (32 bytes),
+        // שומר רק את ה-SHA-256 שלו עם תוקף 15 דקות, ומחזיר את הטוקן הגולמי
+        // (הקונטרולר שולח אותו במייל). null = אין משתמש → הקונטרולר יחזיר תגובה גנרית.
+        public string RequestPasswordReset(string email)
+        {
+            if (string.IsNullOrWhiteSpace(email))
+                return null;
+
+            int userId = dal.GetUserIdByEmail(email.Trim());
+            if (userId <= 0)
+                return null;
+
+            // טוקן אקראי מאובטח (CSPRNG): 32 bytes → Base64Url. נשלח למשתמש.
+            byte[] bytes = RandomNumberGenerator.GetBytes(32);
+            string rawToken = Base64UrlEncode(bytes);
+
+            // ב-DB שומרים רק SHA-256(token), עם תוקף 15 דקות.
+            string tokenHash = Sha256Hex(rawToken);
+            DateTime expiresAt = DateTime.UtcNow.AddMinutes(15);
+
+            dal.CreatePasswordResetToken(userId, tokenHash, expiresAt);
+            return rawToken;
+        }
+
+        // איפוס סיסמה בפועל: מאמת את הטוקן (קיים / לא נוצל / בתוקף), מעדכן סיסמה (BCrypt),
+        // ומסמן את הטוקן כמנוצל. שימוש חוזר ב-ChangePassword הקיים לעדכון עצמו.
+        public void ResetPassword(string token, string newPassword)
+        {
+            if (string.IsNullOrWhiteSpace(token))
+                throw new Exception("קישור לא תקין");
+
+            if (string.IsNullOrWhiteSpace(newPassword))
+                throw new Exception("יש להזין סיסמה חדשה");
+
+            string tokenHash = Sha256Hex(token);
+            PasswordResetToken t = dal.GetPasswordResetToken(tokenHash);
+
+            if (t == null)
+                throw new Exception("הקישור לאיפוס אינו תקף");
+            if (t.Used)
+                throw new Exception("הקישור לאיפוס כבר נוצל");
+            if (t.ExpiresAt < DateTime.UtcNow)
+                throw new Exception("הקישור לאיפוס פג תוקף");
+
+            string newHash = BCrypt.Net.BCrypt.HashPassword(newPassword);
+            dal.ChangePassword(t.UserID, newHash);          // שימוש חוזר בפונקציה הקיימת
+            dal.MarkPasswordResetTokenUsed(t.TokenID);
+        }
+
+        // ── עזרי טוקן ──
+
+        // 32 bytes → Base64Url (בטוח ל-URL: בלי +,/,=).
+        private static string Base64UrlEncode(byte[] bytes)
+        {
+            return Convert.ToBase64String(bytes)
+                .TrimEnd('=')
+                .Replace('+', '-')
+                .Replace('/', '_');
+        }
+
+        // SHA-256 בהקסה (uppercase) — מה שנשמר ב-DB.
+        private static string Sha256Hex(string input)
+        {
+            using var sha = SHA256.Create();
+            byte[] hash = sha.ComputeHash(Encoding.UTF8.GetBytes(input));
+            return Convert.ToHexString(hash);
         }
 
         //DELETE USER

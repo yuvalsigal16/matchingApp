@@ -329,6 +329,89 @@ namespace MatchingAppServer.DAL
             }
         }
 
+        // ── FORGOT PASSWORD ──
+
+        // זיהוי משתמש לפי מייל. מחזיר UserID, או 0 אם לא נמצא.
+        public int GetUserIdByEmail(string email)
+        {
+            try { con = connect(); }
+            catch (Exception ex) { Console.WriteLine("Error connecting to database: " + ex.Message); throw; }
+
+            var param = new Dictionary<string, object>() { { "@Email", email } };
+            cmd = CreateCommandWithStoredProcedureGeneral("GetUserIdByEmail", con, param);
+            try
+            {
+                object result = cmd.ExecuteScalar();
+                return result == null ? 0 : Convert.ToInt32(result);
+            }
+            finally { con?.Close(); }
+        }
+
+        // יצירת טוקן איפוס (ה-SP מבטל קודם את הטוקנים הישנים). מחזיר TokenID.
+        public int CreatePasswordResetToken(int userId, string tokenHash, DateTime expiresAt)
+        {
+            try { con = connect(); }
+            catch (Exception ex) { Console.WriteLine("Error connecting to database: " + ex.Message); throw; }
+
+            var param = new Dictionary<string, object>()
+            {
+                { "@UserID", userId },
+                { "@TokenHash", tokenHash },
+                { "@ExpiresAt", expiresAt }
+            };
+            cmd = CreateCommandWithStoredProcedureGeneral("CreatePasswordResetToken", con, param);
+            try
+            {
+                object result = cmd.ExecuteScalar();
+                return result == null ? 0 : Convert.ToInt32(result);
+            }
+            finally { con?.Close(); }
+        }
+
+        // שליפת טוקן לפי hash (או null). האימות עצמו נעשה ב-BL.
+        public PasswordResetToken GetPasswordResetToken(string tokenHash)
+        {
+            try { con = connect(); }
+            catch (Exception ex) { Console.WriteLine("Error connecting to database: " + ex.Message); throw; }
+
+            var param = new Dictionary<string, object>() { { "@TokenHash", tokenHash } };
+            cmd = CreateCommandWithStoredProcedureGeneral("GetPasswordResetToken", con, param);
+            try
+            {
+                reader = cmd.ExecuteReader();
+                if (reader.Read())
+                {
+                    return new PasswordResetToken
+                    {
+                        TokenID = Convert.ToInt32(reader["TokenID"]),
+                        UserID = Convert.ToInt32(reader["UserID"]),
+                        ExpiresAt = Convert.ToDateTime(reader["ExpiresAt"]),
+                        Used = Convert.ToBoolean(reader["Used"])
+                    };
+                }
+                return null;
+            }
+            finally { con.Close(); }
+        }
+
+        // סימון טוקן כמנוצל (חד-פעמי). מחזיר מספר שורות שהושפעו.
+        public int MarkPasswordResetTokenUsed(int tokenId)
+        {
+            try { con = connect(); }
+            catch (Exception ex) { Console.WriteLine("Error connecting to database: " + ex.Message); throw; }
+
+            var param = new Dictionary<string, object>() { { "@TokenID", tokenId } };
+            cmd = CreateCommandWithStoredProcedureGeneral("MarkPasswordResetTokenUsed", con, param);
+            try
+            {
+                reader = cmd.ExecuteReader();
+                if (reader.Read())
+                    return Convert.ToInt32(reader["RowsAffected"]);
+                return 0;
+            }
+            finally { con.Close(); }
+        }
+
         // DELETE USER
         public int DeleteUser(int userId)
         {

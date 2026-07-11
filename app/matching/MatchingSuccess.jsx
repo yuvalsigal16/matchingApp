@@ -26,7 +26,9 @@ import { Ionicons } from "@expo/vector-icons";
 import { useLocalSearchParams, useRouter } from "expo-router";
 
 import { getMatchById } from "../src/api/chatService";
-import { getUser } from "../src/auth/authStore";
+import { getUserProfile } from "../src/api/userProfileService";
+import { BASE_URL } from "../src/api/config";
+import { getToken, getUser } from "../src/auth/authStore";
 import { buildImageUri } from "../src/utils/image";
 import { openFlights, openHotels } from "../src/utils/externalLinks";
 import { COLORS, FONTS } from "../src/theme";
@@ -48,6 +50,22 @@ function formatDate(raw) {
   const d = new Date(raw);
   if (Number.isNaN(d.getTime())) return "";
   return `${String(d.getDate()).padStart(2, "0")}/${String(d.getMonth() + 1).padStart(2, "0")}/${d.getFullYear()}`;
+}
+
+// טווח תאריכים לטיול; לכיוון-אחד (בלי endDate) מציג רק את תאריך היציאה.
+function formatDateRange(start, end) {
+  const s = formatDate(start);
+  const e = formatDate(end);
+  if (s && e) return `${s} – ${e}`;
+  return s || e || "";
+}
+
+// תווית סטטוס בעברית לפי matchingStatus שמגיע מ-getMatchById (Active/Closed/none).
+function statusLabel(status) {
+  const s = String(status || "").toLowerCase();
+  if (s === "closed") return "הסתיים";
+  if (s === "active") return "יוצאים לדרך";
+  return "בתכנון";
 }
 
 // אווטר עגול עם נפילה חלקה לראשי-תיבות כשאין תמונה.
@@ -165,22 +183,70 @@ export default function MatchingSuccess() {
   const [destination, setDestination] = useState(params.destination || "");
   const [tripID, setTripID] = useState(params.tripID || "");
   const [startDate, setStartDate] = useState(params.startDate || "");
+  const [endDate, setEndDate] = useState(params.endDate || "");
+  const [matchingStatus, setMatchingStatus] = useState(params.status || "");
 
   // שלב פתיחה קצר ("מכינים את אזור התכנון") לפני חשיפת התוכן — מעבר איכותי בין שלבים.
   const [ready, setReady] = useState(false);
 
+  // המשתמש המחובר: authStore מחזיק רק userID/email (ללא firstName ותמונה),
+  // לכן מתחילים מ-params/getUser ומעשירים מפרופיל השרת מיד עם העלייה.
   const me = getUser();
-  const myName = params.myName || me?.firstName || "";
-  const myImage = params.myImage || me?.profileImage || "";
+  const [myName, setMyName] = useState(params.myName || "");
+  const [myImage, setMyImage] = useState(params.myImage || me?.profileImage || "");
 
   useEffect(() => {
     const t = setTimeout(() => setReady(true), 650);
     return () => clearTimeout(t);
   }, []);
 
+  // טעינת הפרופיל המלא של המשתמש המחובר (שם + תמונה) — כדי שהכותרת תציג
+  // "ליאל וטלי" ולא רק את הצד השני, והאווטר השמאלי יראה את התמונה שלי.
   useEffect(() => {
-    // אם נכנסו עם matchId בלבד (למשל deep-link) — משלימים את החוסר מהשרת.
-    if ((otherName && destination) || !params.matchId) return;
+    const myUserId = me?.userID;
+    if (!myUserId) return;
+    let alive = true;
+    (async () => {
+      try {
+        const profile = await getUserProfile(myUserId);
+        if (!alive || !profile) return;
+
+        const fname = profile.firstName || profile.FirstName || "";
+        if (fname) setMyName(fname);
+
+        let img = profile.profileImage || profile.ProfileImage || "";
+        // נפילה-לאחור לתמונה: endpoint ייעודי אם אין נתיב בפרופיל עצמו.
+        if (!img) {
+          try {
+            const token = getToken();
+            const r = await fetch(`${BASE_URL}/UserProfile/image/${myUserId}`, {
+              headers: token ? { Authorization: `Bearer ${token}` } : {},
+            });
+            if (r.ok) {
+              const d = await r.json();
+              if (d?.imagePath) img = d.imagePath;
+            }
+          } catch {
+            // כשל בתמונה — נשארים עם fallback לראשי-תיבות לפי השם
+          }
+        }
+        if (alive && img) setMyImage(img);
+      } catch {
+        // כשל טעינת פרופיל — המסך עדיין תקין עם מה שהתקבל ב-params
+      }
+    })();
+    return () => {
+      alive = false;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  useEffect(() => {
+    // הצ'אט מעביר שם/יעד/תאריך-יציאה, אך לא תאריך-סיום וסטטוס — לכן משלימים
+    // מ-getMatchById (שכבר מחזיר tripEndDate + matchingStatus). גם deep-link
+    // עם matchId בלבד נתמך. מדלגים רק אם כבר יש את כל השדות המוצגים.
+    if (!params.matchId) return;
+    if (otherName && destination && endDate && matchingStatus) return;
     let alive = true;
     (async () => {
       try {
@@ -191,6 +257,8 @@ export default function MatchingSuccess() {
         if (!destination && m.tripName && m.tripName !== "טיול") setDestination(m.tripName);
         if (!tripID && m.tripID != null) setTripID(String(m.tripID));
         if (!startDate && m.tripStartDate) setStartDate(m.tripStartDate);
+        if (!endDate && m.tripEndDate) setEndDate(m.tripEndDate);
+        if (!matchingStatus && m.matchingStatus) setMatchingStatus(m.matchingStatus);
       } catch {
         // כשל השלמה — המסך עדיין תקין עם מה שיש
       }
@@ -216,7 +284,8 @@ export default function MatchingSuccess() {
   }));
 
   const dest = (destination || "").trim();
-  const dateText = formatDate(startDate);
+  const dateRangeText = formatDateRange(startDate, endDate);
+  const statusText = statusLabel(matchingStatus);
   const bothNames = myName && otherName ? `${myName} ו${otherName}` : otherName || "אתם";
 
   // כרטיסי "השלב הבא" — קודם בתוך האפליקציה (תכנון), ואז שירותים חיצוניים.
@@ -319,10 +388,6 @@ export default function MatchingSuccess() {
           <Animated.View entering={SlideInRight.delay(150).duration(600)} style={styles.avatarRight}>
             <PartnerAvatar image={otherImage} name={otherName} />
           </Animated.View>
-
-          <Animated.View entering={ZoomIn.delay(650).duration(400)} style={styles.centerBadge}>
-            <Ionicons name="airplane" size={20} color={COLORS.onBrand} />
-          </Animated.View>
         </View>
 
         {/* ── טקסט אישי + הסבר ── */}
@@ -349,15 +414,15 @@ export default function MatchingSuccess() {
           <View style={styles.summaryDivider} />
           <View style={styles.summaryCol}>
             <Ionicons name="navigate-outline" size={20} color={COLORS.primary} />
-            <Text style={styles.summaryValue}>בתכנון</Text>
+            <Text style={styles.summaryValue} numberOfLines={1}>{statusText}</Text>
             <Text style={styles.summaryLabel}>סטטוס</Text>
           </View>
         </Animated.View>
 
-        {dateText ? (
+        {dateRangeText ? (
           <Animated.View entering={FadeInUp.delay(560).duration(500)} style={styles.dateRow}>
             <Ionicons name="calendar-outline" size={14} color={COLORS.textSecondary} />
-            <Text style={styles.dateText}>תאריך יציאה משוער: {dateText}</Text>
+            <Text style={styles.dateText}>תאריכים: {dateRangeText}</Text>
           </Animated.View>
         ) : null}
 
@@ -515,22 +580,6 @@ const styles = StyleSheet.create({
     fontSize: 30,
     fontFamily: FONTS.bold,
     color: COLORS.onBrand,
-  },
-  centerBadge: {
-    position: "absolute",
-    top: "50%",
-    left: "50%",
-    marginTop: 22,
-    marginLeft: -20,
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: COLORS.brand,
-    justifyContent: "center",
-    alignItems: "center",
-    borderWidth: 3,
-    borderColor: COLORS.surface,
-    zIndex: 3,
   },
   ring: {
     position: "absolute",

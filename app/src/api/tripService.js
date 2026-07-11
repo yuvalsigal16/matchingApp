@@ -210,6 +210,48 @@ export async function createTrip(trip) {
   return safeParse(text);
 }
 
+// שמירת טיול מלא במקום אחד: Trip → TripPreferences → תחומי עניין → דירוגי חשיבות.
+// מקור אמת יחיד לשני המסלולים (שאלון עם יעד, וגלגל המזל) — כדי לא לשכפל לוגיקה.
+// מרכיבה את אותן קריאות API שכבר קיימות, באותו סדר. מחזירה את tripID.
+export async function createFullTrip({
+  createdByUserID,
+  tripName,
+  destination,
+  startDate,
+  endDate,
+  status = "Active",
+  pref = null,
+  interests = [],
+  priorities = [],
+}) {
+  const tripId = await createTrip({
+    CreatedByUserID: createdByUserID,
+    TripName: tripName,
+    Destination: destination,
+    StartDate: startDate,
+    EndDate: endDate,
+    Status: status,
+  });
+
+  if (pref) {
+    const prefId = await createTripPreferences({ TripID: tripId, ...pref });
+
+    if (Array.isArray(interests) && interests.length > 0) {
+      await Promise.all(
+        interests.map((interestId) => addTripPreferenceInterest(prefId, interestId)),
+      );
+    }
+
+    if (Array.isArray(priorities) && priorities.length > 0) {
+      await Promise.all(
+        priorities.map((factor, idx) => addTripPreferencePriority(prefId, factor, idx + 1)),
+      );
+    }
+  }
+
+  return tripId;
+}
+
 // יוצר העדפות לטיול. UNIQUE על TripID.
 // pref = { TripID, PreferredGender, PreferredAgeMin, PreferredAgeMax, IsSmoker, KeepsKosher, KeepsShabbat, SpontaneityLevel, LifestyleLevel }
 // שליחת העדפות הפרטנר המבוקש לטיול (גיל, מגדר וכו') ושמירתן בשרת

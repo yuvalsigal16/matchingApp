@@ -31,5 +31,11 @@ namespace MatchingAppServer.BL
         {
             return dal.Close(matchID);
         }
+
+        // MARK JOURNEY STARTED — "יצאנו לדרך"
+        public int MarkJourneyStarted(int matchID)
+        {
+            return dal.MarkJourneyStarted(matchID);
+        }
     }
 }

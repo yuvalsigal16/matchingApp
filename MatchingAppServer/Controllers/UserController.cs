@@ -15,9 +15,13 @@ namespace MatchingAppServer.Controllers
     {
         User bl = new User();
         private readonly JwtService _jwtService;
-        public UserController(JwtService jwtService)
+        private readonly IEmailService _emailService;
+        private readonly IConfiguration _config;
+        public UserController(JwtService jwtService, IEmailService emailService, IConfiguration config)
         {
             _jwtService = jwtService;
+            _emailService = emailService;
+            _config = config;
         }
 
 
@@ -200,6 +204,45 @@ namespace MatchingAppServer.Controllers
                     ok = false,
                     message = ex.Message
                 });
+            }
+        }
+
+        // FORGOT PASSWORD — שליחת קישור איפוס למייל. תמיד תגובה גנרית (anti-enumeration).
+        [AllowAnonymous]
+        [HttpPost("forgot-password")]
+        public async Task<IActionResult> ForgotPassword([FromBody] ForgotPasswordRequest req)
+        {
+            try
+            {
+                string rawToken = bl.RequestPasswordReset(req?.Email);
+                if (rawToken != null)
+                {
+                    string linkBase = _config["App:ResetLinkBase"] ?? "matchingapp://reset-password";
+                    string link = $"{linkBase}?token={rawToken}";
+                    await _emailService.SendPasswordResetEmailAsync(req.Email.Trim(), link);
+                }
+            }
+            catch
+            {
+                // בכוונה לא חושפים דבר — נשמרת תגובה גנרית זהה בכל מקרה
+            }
+
+            return Ok(new { message = "אם המייל קיים במערכת, נשלח אליו קישור לאיפוס סיסמה." });
+        }
+
+        // RESET PASSWORD — איפוס בפועל לפי הטוקן מהקישור.
+        [AllowAnonymous]
+        [HttpPost("reset-password")]
+        public IActionResult ResetPassword([FromBody] ResetPasswordRequest req)
+        {
+            try
+            {
+                bl.ResetPassword(req?.Token, req?.NewPassword);
+                return Ok(new { message = "הסיסמה אופסה בהצלחה" });
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(new { ok = false, message = ex.Message });
             }
         }
 

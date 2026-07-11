@@ -27,6 +27,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import {
   getChatMessages,
   getMatchById,
+  markJourneyStarted,
   sendChatMessage,
 } from "../src/api/chatService";
 import { blockUser } from "../src/api/blockService";
@@ -267,7 +268,9 @@ export default function ChatScreen() {
   const goToSuccess = () => {
     const me = getUser();
     const myName = me?.firstName || (me?.name ? me.name.split(" ")[0] : "") || "";
-    // זוכרים מקומית שהצ'אט עבר לשלב תכנון — כדי להציג באנר בחזרה (בלי שרת).
+    // שמירה אמיתית בשרת (JourneyStarted=1) — עקבי בין מכשירים ושורד מחיקת אפליקציה.
+    markJourneyStarted(String(matchId)).catch(() => {});
+    // שומרים גם מקומית למשוב מיידי של הבאנר (בלי להמתין לשרת).
     AsyncStorage.setItem(journeyKey(matchId), "1").catch(() => {});
     setJourneyStarted(true);
     router.push({
@@ -412,31 +415,42 @@ export default function ChatScreen() {
         items={menuItems}
       />
 
-      {/* ── מוצג רק כשיש הקשר של טיול (tripID). לפני האישור: פס פעולה. אחרי: באנר תכנון ── */}
-      {matchData?.tripID != null ? (
+      {/* ── פס "יצאנו לדרך" / באנר תכנון — מוצג בכל צ'אט טעון. לפני האישור: פס פעולה. אחרי: באנר ── */}
+      {matchData ? (
         journeyStarted ? (
           <View style={styles.journeyBanner}>
-            <View style={styles.journeyBannerRow}>
+            {/* לחיצה על הכותרת פותחת שוב את מסך סיכום הטיול (MatchingSuccess) — נקודת חזרה קבועה. */}
+            <TouchableOpacity
+              style={styles.journeyBannerRow}
+              onPress={goToSuccess}
+              activeOpacity={0.85}
+              accessibilityRole="button"
+              accessibilityLabel="הצג את סיכום הטיול"
+            >
               <View style={styles.journeyBannerIcon}>
                 <Ionicons name="flag" size={18} color={COLORS.brand} />
               </View>
               <View style={styles.journeyBannerTexts}>
                 <Text style={styles.journeyBannerTitle}>יצאתם לדרך!</Text>
                 <Text style={styles.journeyBannerText}>
-                  הטיול שלכם נמצא עכשיו בשלב התכנון.
+                  הצגת סיכום הטיול המשותף.
                 </Text>
               </View>
-            </View>
-            <TouchableOpacity
-              style={styles.journeyBannerBtn}
-              onPress={openPlanner}
-              activeOpacity={0.9}
-              accessibilityRole="button"
-              accessibilityLabel="פתח את מתכנן הטיול"
-            >
-              <Ionicons name="calendar" size={16} color={COLORS.onBrand} />
-              <Text style={styles.journeyBannerBtnText}>פתח את מתכנן הטיול</Text>
+              <Ionicons name="chevron-back" size={18} color={COLORS.textMuted} />
             </TouchableOpacity>
+            {/* כפתור המתכנן דורש טיול — מוצג רק כשיש tripID */}
+            {matchData?.tripID != null ? (
+              <TouchableOpacity
+                style={styles.journeyBannerBtn}
+                onPress={openPlanner}
+                activeOpacity={0.9}
+                accessibilityRole="button"
+                accessibilityLabel="פתח את מתכנן הטיול"
+              >
+                <Ionicons name="calendar" size={16} color={COLORS.onBrand} />
+                <Text style={styles.journeyBannerBtnText}>פתח את מתכנן הטיול</Text>
+              </TouchableOpacity>
+            ) : null}
           </View>
         ) : (
           <TouchableOpacity

@@ -77,6 +77,7 @@ useFocusEffect(
   };
 
   const isPastTrip = (endDate) => {
+    if (!endDate) return false; // כרטיס לכיוון אחד (ללא תאריך חזרה) — לא נחשב "עבר"
     return new Date(endDate) < new Date();
   };
 

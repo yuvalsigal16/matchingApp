@@ -9,7 +9,7 @@ import {
 
 import {
   getUserTrips,
-  createTrip,
+  createFullTrip,
 } from "../src/api/tripService";
 
 // ייבוא Hooks של React
@@ -18,6 +18,7 @@ import { useEffect, useRef, useState } from "react";
 // ייבוא רכיבי UI מ-React Native
 import {
   ActivityIndicator, // אינדיקטור טעינה
+  Alert, // משוב שגיאה למשתמש (כשל שמירה)
   Animated, // מאפשר אנימציות (סיבוב הגלגל)
   Easing, // פונקציות שולטות במהירות האנימציה (האם מאיץ? מאט?)
   PanResponder, // זיהוי מחוות סוויפ על הגלגל
@@ -30,7 +31,7 @@ import {
 
 // SafeAreaView — מבטיח שהתוכן לא ייחסם על ידי ה-notch או סרגל הניווט
 import { SafeAreaView } from "react-native-safe-area-context";
-import { useRouter } from "expo-router";
+import { useLocalSearchParams, useRouter } from "expo-router";
 import Svg, { Path, G, Text as SvgText } from "react-native-svg";
 // פונטים מותאמים של האפליקציה
 import { COLORS as THEME, FONTS } from "../src/theme";
@@ -131,6 +132,8 @@ export default function WheelScreen() {
   const [users, setUsers] = useState([]);
 const [currentUser, setCurrentUser] = useState(null);
 const [bestMatch, setBestMatch] = useState(null);
+const [saving, setSaving] = useState(false); // מונע לחיצה כפולה על "זה היעד שלי"
+const wheelParams = useLocalSearchParams(); // ההעדפות שהועברו מהשאלון (אם דילגו על יעד)
 // const [matches, setMatches] = useState([]);
 
 // const saveTripToDB = async () => {
@@ -167,45 +170,50 @@ const [bestMatch, setBestMatch] = useState(null);
 // };
 
 const saveTripToDB = async () => {
+  if (!result || saving) return;
+
+  const loggedUser = getUser();
+  if (!loggedUser?.userID) {
+    Alert.alert("שגיאה", "המשתמש לא מחובר. נא להתחבר מחדש.");
+    return;
+  }
+
+  // ההעדפות שהועברו מהשאלון (אם דילגו על יעד) — כדי לשמור טיול מלא ולא לאבד אותן.
+  let quizPrefs = null;
   try {
-    console.log("BUTTON CLICKED");
+    quizPrefs = wheelParams?.prefs ? JSON.parse(wheelParams.prefs) : null;
+  } catch {
+    quizPrefs = null;
+  }
 
-    if (!result) {
-      console.log("NO RESULT");
-      return;
-    }
+  // תאריך יציאה: מהשאלון; אם אין — ברירת מחדל בעוד 30 יום.
+  let startDate = quizPrefs?.startDate || null;
+  if (!startDate) {
+    const s = new Date();
+    s.setDate(s.getDate() + 30);
+    startDate = s.toISOString();
+  }
+  // תאריך חזרה: מהשאלון, או null (כרטיס לכיוון אחד) — לא ממציאים תאריך פיקטיבי.
+  const endDate = quizPrefs?.endDate || null;
 
-    const loggedUser = getUser();
-
-    console.log("USER:", loggedUser);
-
-    const startDate = new Date();
-startDate.setDate(startDate.getDate() + 30);
-
-const endDate = new Date();
-endDate.setDate(endDate.getDate() + 37);
-
-const payload = {
-  createdByUserID: loggedUser.userID,
-  destination: result.name,
-  startDate: startDate.toISOString(),
-  endDate: endDate.toISOString(),
-  status: "Active",
-};
-
-    console.log("PAYLOAD:");
-    console.log(JSON.stringify(payload, null, 2));
-
-    const response = await createTrip(payload);
-
-    console.log("CREATE TRIP SUCCESS:");
-    console.log(response);
-
+  setSaving(true);
+  try {
+    // שמירה מלאה דרך אותה פונקציה משותפת של המסלול הרגיל (Trip + העדפות + עניין + דירוגים).
+    await createFullTrip({
+      createdByUserID: loggedUser.userID,
+      tripName: quizPrefs?.tripName || result.name,
+      destination: result.name,
+      startDate,
+      endDate,
+      pref: quizPrefs?.pref || null,
+      interests: quizPrefs?.interests || [],
+      priorities: quizPrefs?.priorities || [],
+    });
     router.replace("/Home");
   } catch (err) {
-    console.log("SAVE TRIP ERROR:");
-    console.log(err);
-    console.log(err?.message);
+    // תיקון: משוב ברור למשתמש במקום כשל שקט.
+    Alert.alert("שמירת הטיול נכשלה", err?.message || "אירעה שגיאה. נסי שוב.");
+    setSaving(false);
   }
 };
 
@@ -712,10 +720,14 @@ setResult({
   style={({ pressed }) => [
     styles.confirmBtn,
     pressed && { opacity: 0.85 },
+    saving && { opacity: 0.6 },
   ]}
   onPress={saveTripToDB}
+  disabled={saving}
 >
-            <Text style={styles.confirmBtnText}>זה היעד שלי!</Text>
+            <Text style={styles.confirmBtnText}>
+              {saving ? "שומר..." : "זה היעד שלי!"}
+            </Text>
           </Pressable>
         ) : null}
 

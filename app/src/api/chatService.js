@@ -80,6 +80,15 @@ export const getMatchById = async (matchId) => {
   };
 };
 
+// סימון "יצאנו לדרך" — נשמר בשרת על ה-Match (JourneyStarted=1), עקבי בין מכשירים.
+export const markJourneyStarted = async (matchId) => {
+  const res = await fetch(`${BASE_URL}/Match/journey/${matchId}`, {
+    method: "PUT",
+    headers: authHeaders(),
+  });
+  return res.ok;
+};
+
 // התאמות של המשתמש לטיול מסוים (תצוגה ב-TripDetails).
 // אין endpoint matches-by-trip — מסננים מתוך ההתאמות של המשתמש לפי tripID.
 export const getMatchesByTrip = async (tripId) => {

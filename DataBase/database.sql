@@ -74,7 +74,7 @@ CREATE TABLE dbo.Trips(
     CreatedByUserID   INT NOT NULL,                -- ?????? ???? ?? ?????
     Destination       NVARCHAR(100) NOT NULL,      -- ??? (????)
     StartDate         DATE NOT NULL,               -- ????? ?????
-    EndDate           DATE NOT NULL,               -- ????? ????
+    EndDate           DATE NULL,                   -- ????? ???? (NULL = ????? ?????? ???)
     Status            NVARCHAR(20) NOT NULL DEFAULT 'Active',  -- Active / Archive
     CreatedAt         DATETIME2 NOT NULL DEFAULT SYSDATETIME(),
     CONSTRAINT FK_Trips_CreatedBy
@@ -85,6 +85,16 @@ CREATE TABLE dbo.Trips(
     CONSTRAINT CK_Trips_Status
         CHECK (Status IN ('Active', 'Archive'))
 );
+GO
+
+-- הפיכת EndDate לאופציונלי ב-DB שכבר קיים (כרטיס לכיוון אחד — ללא תאריך חזרה).
+-- בטוח להריץ שוב. ה-CHECK הקיים (EndDate >= StartDate) מתיר NULL (NULL→UNKNOWN).
+IF EXISTS (
+    SELECT 1 FROM sys.columns
+    WHERE object_id = OBJECT_ID('dbo.Trips')
+      AND name = 'EndDate' AND is_nullable = 0
+)
+    ALTER TABLE dbo.Trips ALTER COLUMN EndDate DATE NULL;
 
 CREATE TABLE dbo.TripPreferences (
     TripPreferenceID  INT IDENTITY(1,1) PRIMARY KEY,
@@ -190,6 +200,7 @@ CREATE TABLE dbo.Matches (
     User2ID    INT NOT NULL,
     CreatedAt  DATETIME2 NOT NULL DEFAULT SYSDATETIME(),
     Status     NVARCHAR(20) NOT NULL DEFAULT 'Active',
+    JourneyStarted BIT NOT NULL DEFAULT 0,   -- 1 = נלחץ "יצאנו לדרך" (נפרד מ-Status)
     CONSTRAINT FK_Matches_Request
         FOREIGN KEY (RequestID) REFERENCES dbo.MatchRequests(RequestID),
     CONSTRAINT FK_Matches_Trip
@@ -204,6 +215,22 @@ CREATE TABLE dbo.Matches (
     CONSTRAINT CK_Matches_Status
         CHECK (Status IN ('Active','Closed'))
 );
+GO
+
+-- הוספת JourneyStarted ל-DB שכבר קיים (בטוח להריץ שוב). Status נשאר Active/Closed בלבד.
+IF COL_LENGTH('dbo.Matches', 'JourneyStarted') IS NULL
+    ALTER TABLE dbo.Matches ADD JourneyStarted BIT NOT NULL DEFAULT 0;
+GO
+
+-- סימון "יצאנו לדרך" להתאמה — מעדכן רק את JourneyStarted, לא נוגע ב-Status.
+CREATE OR ALTER PROCEDURE dbo.SetMatchJourneyStarted
+    @MatchID INT
+AS
+BEGIN
+    SET NOCOUNT ON;
+    UPDATE dbo.Matches SET JourneyStarted = 1 WHERE MatchID = @MatchID;
+    SELECT @@ROWCOUNT AS RowsAffected;
+END
 GO
 
 CREATE TABLE dbo.MatchChats (
@@ -882,7 +909,7 @@ CREATE OR ALTER PROCEDURE dbo.AddTrip
     @CreatedByUserID INT,
     @Destination NVARCHAR(100),
     @StartDate DATE,
-    @EndDate DATE
+    @EndDate DATE = NULL
 AS
 BEGIN
     SET NOCOUNT ON;
@@ -910,7 +937,7 @@ CREATE OR ALTER PROCEDURE dbo.UpdateTrip
     @TripID INT,
     @Destination NVARCHAR(100),
     @StartDate DATE,
-    @EndDate DATE,
+    @EndDate DATE = NULL,
     @Status NVARCHAR(20)
 AS
 BEGIN
@@ -2473,6 +2500,7 @@ BEGIN
     SELECT 
         M.MatchID,
         M.Status AS MatchStatus,
+        M.JourneyStarted,
         M.CreatedAt,
 
         T.TripID,
@@ -2995,5 +3023,94 @@ BEGIN
         ROLLBACK TRANSACTION;
         THROW;
     END CATCH
+END
+GO
+
+
+/* =========================================================
+   FORGOT PASSWORD — טוקן איפוס סיסמה (חד-פעמי, תוקף 15 דק').
+   שומרים רק SHA-256(token) — לעולם לא את הטוקן הגולמי.
+   שימוש חוזר ב-dbo.ChangeUserPassword הקיים לעדכון הסיסמה עצמה.
+   ========================================================= */
+
+-- טבלת טוקנים לאיפוס סיסמה (בטוח להריץ שוב)
+IF OBJECT_ID('dbo.PasswordResetTokens', 'U') IS NULL
+BEGIN
+    CREATE TABLE dbo.PasswordResetTokens (
+        TokenID    INT IDENTITY(1,1) PRIMARY KEY,
+        UserID     INT NOT NULL,
+        TokenHash  NVARCHAR(255) NOT NULL,   -- SHA-256(token) בלבד
+        ExpiresAt  DATETIME2 NOT NULL,
+        Used       BIT NOT NULL DEFAULT 0,
+        CreatedAt  DATETIME2 NOT NULL DEFAULT SYSDATETIME(),
+        CONSTRAINT FK_PRT_User FOREIGN KEY (UserID)
+            REFERENCES dbo.Users(UserID) ON DELETE CASCADE
+    );
+END
+GO
+
+-- אינדקס לחיפוש מהיר לפי hash (בטוח להריץ שוב)
+IF NOT EXISTS (
+    SELECT 1 FROM sys.indexes
+    WHERE name = 'IX_PRT_TokenHash'
+      AND object_id = OBJECT_ID('dbo.PasswordResetTokens')
+)
+    CREATE INDEX IX_PRT_TokenHash ON dbo.PasswordResetTokens(TokenHash);
+GO
+
+-- זיהוי משתמש לפי מייל (מחזיר UserID בלבד) — לשלב forgot-password
+CREATE OR ALTER PROCEDURE dbo.GetUserIdByEmail
+    @Email NVARCHAR(120)
+AS
+BEGIN
+    SET NOCOUNT ON;
+    SELECT UserID FROM dbo.Users WHERE Email = @Email;
+END
+GO
+
+-- יצירת טוקן חדש: מבטל קודם את כל הטוקנים הפעילים של המשתמש, ואז מכניס חדש.
+CREATE OR ALTER PROCEDURE dbo.CreatePasswordResetToken
+    @UserID    INT,
+    @TokenHash NVARCHAR(255),
+    @ExpiresAt DATETIME2
+AS
+BEGIN
+    SET NOCOUNT ON;
+
+    -- ביטול כל הטוקנים הישנים שטרם נוצלו (חד-פעמיות + היגיינה)
+    UPDATE dbo.PasswordResetTokens
+    SET Used = 1
+    WHERE UserID = @UserID AND Used = 0;
+
+    INSERT INTO dbo.PasswordResetTokens (UserID, TokenHash, ExpiresAt)
+    VALUES (@UserID, @TokenHash, @ExpiresAt);
+
+    SELECT SCOPE_IDENTITY() AS TokenID;
+END
+GO
+
+-- שליפת טוקן לפי hash — לאימות בעת reset (הבדיקות מתבצעות ב-BL)
+CREATE OR ALTER PROCEDURE dbo.GetPasswordResetToken
+    @TokenHash NVARCHAR(255)
+AS
+BEGIN
+    SET NOCOUNT ON;
+    SELECT TokenID, UserID, ExpiresAt, Used
+    FROM dbo.PasswordResetTokens
+    WHERE TokenHash = @TokenHash;
+END
+GO
+
+-- סימון טוקן כמנוצל (חד-פעמי) אחרי איפוס מוצלח
+CREATE OR ALTER PROCEDURE dbo.MarkPasswordResetTokenUsed
+    @TokenID INT
+AS
+BEGIN
+    SET NOCOUNT ON;
+    UPDATE dbo.PasswordResetTokens
+    SET Used = 1
+    WHERE TokenID = @TokenID;
+
+    SELECT @@ROWCOUNT AS RowsAffected;
 END
 GO

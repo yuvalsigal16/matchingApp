@@ -51,6 +51,16 @@ export async function apiLogin(email, password) {
   return postJson("/User/login", { Email: email, UserPassword: password });
 }
 
+// שכחתי סיסמה — מבקש קישור איפוס למייל. השרת מחזיר תמיד תגובה גנרית (anti-enumeration).
+export async function apiForgotPassword(email) {
+  return postJson("/User/forgot-password", { Email: email });
+}
+
+// איפוס סיסמה בפועל — הזיהוי מגיע מהטוקן שבקישור (לא מהמייל, לא מסיסמה ישנה).
+export async function apiResetPassword(token, newPassword) {
+  return postJson("/User/reset-password", { Token: token, NewPassword: newPassword });
+}
+
 // מחיקת חשבון המשתמש המחובר.
 // פעולה הרסנית - מוחקת את כל הנתונים: פרופיל, תחומים, שאלון, טיולים, בקשות.
 export async function apiDeleteAccount(userId) {
