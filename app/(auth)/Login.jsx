@@ -94,7 +94,7 @@ export default function LoginScreen() {
     }
   };
 
-  const handleForgotPassword = () => console.log("Forgot password");
+  const handleForgotPassword = () => router.push("/ForgotPassword");
 
   return (
     <SafeAreaView style={styles.safe}>

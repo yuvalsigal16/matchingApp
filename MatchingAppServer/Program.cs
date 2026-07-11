@@ -13,7 +13,7 @@ namespace MatchingAppServer
 
             var jwtSettings = builder.Configuration.GetSection("Jwt");
 
-            // мечз аъ дофъз дсегй (Key) оддвгшеъ еоойш аеъе мбййийн (фешои щдотшлъ цшйлд мдцфрд)
+            // пїЅпїЅпїЅпїЅ пїЅпїЅ пїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅ (Key) пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅ (пїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ)
             var key = Encoding.UTF8.GetBytes(jwtSettings["Key"]);
 
             builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
@@ -68,6 +68,9 @@ namespace MatchingAppServer
 
             builder.Services.AddScoped<JwtService>();
 
+            // Ч©Ч™ЧЁЧ•ЧЄ Ч©ЧњЧ™Ч—ЧЄ ЧћЧ™Ч™Чњ (Brevo Ч“ЧЁЧљ HttpClient) вЂ” ЧњЧђЧ™Ч¤Ч•ЧЎ ЧЎЧ™ЧЎЧћЧ”
+            builder.Services.AddHttpClient<IEmailService, BrevoEmailService>();
+
             var app = builder.Build();
 
             // Configure the HTTP request pipeline.
@@ -79,9 +82,9 @@ namespace MatchingAppServer
 
             //app.UseHttpsRedirection();
 
-            //оафщш мщшъ мвщъ мчбцйн сииййн лое ъоереъ
-            //лбшйшъ озгм деа лбш ферд мъйчййд wwwroot щм дфшейчи
-            //лм чебх щозежч б-wwwroot йдйд рвйщ гшк дгфгфп
+            //пїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ
+            //пїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅ пїЅпїЅпїЅ пїЅпїЅпїЅ пїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅ wwwroot пїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅ
+            //пїЅпїЅ пїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ пїЅ-wwwroot пїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅ пїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ
             app.UseStaticFiles();
 
             app.UseCors(policy => policy.AllowAnyOrigin().AllowAnyHeader().AllowAnyMethod());

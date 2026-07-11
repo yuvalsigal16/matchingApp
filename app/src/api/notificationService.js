@@ -57,6 +57,7 @@ export async function getMyMatches(userId) {
         matchID: m.matchID,
         chatID: m.chatID, // נדרש לספירת הודעות שלא נקראו בצד הלקוח
         status: m.matchStatus,
+        journeyStarted: !!m.journeyStarted, // "יצאנו לדרך" (נשמר בשרת)
         otherUserID: iAmUser1 ? m.user2ID : m.user1ID,
         otherUserName: otherName || "משתמש",
         otherUserImage: iAmUser1 ? m.user2Image : m.user1Image,

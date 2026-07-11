@@ -20,6 +20,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { BASE_URL } from "../src/api/config";
 import { buildImageUri } from "../src/utils/image";
 import { deleteProfileImage, uploadProfileImage } from "../src/api/userProfileService";
+import { getMyMatches } from "../src/api/notificationService";
 import { clearAuth, getToken, getUser } from "../src/auth/authStore";
 import { COLORS, FONTS } from "../src/theme";
 import BottomNav from "../../components/BottomNav";
@@ -38,8 +39,8 @@ export default function ProfileScreen() {
 
   const [stats, setStats] = useState({
     matches: 0,
+    journeyStarted: 0,
     trips: 0,
-    friends: 0,
   });
 
   const [loading, setLoading] = useState(true);
@@ -59,12 +60,13 @@ export default function ProfileScreen() {
           Authorization: `Bearer ${token}`,
         };
 
-        const [profileRes, imageRes, matchesRes, tripsRes] =
+        // getMyMatches = מקור האמת של ההתאמות (זהה למסך הצ'אטים/התאמות).
+        const [profileRes, imageRes, tripsRes, myMatches] =
           await Promise.all([
             fetch(`${BASE_URL}/UserProfile/${userId}`, { headers }),
             fetch(`${BASE_URL}/UserProfile/image/${userId}`, { headers }),
-            fetch(`${BASE_URL}/Match/user/${userId}`, { headers }),
             fetch(`${BASE_URL}/Trip/user/${userId}`, { headers }),
+            getMyMatches(userId),
           ]);
 
         let firstName = "";
@@ -83,18 +85,17 @@ export default function ProfileScreen() {
           if (img?.imagePath) profileImage = img.imagePath;
         }
 
-        let matches = 0;
         let trips = 0;
-
-        if (matchesRes.ok) {
-          const m = await matchesRes.json();
-          matches = m.length || 0;
-        }
-
         if (tripsRes.ok) {
           const t = await tripsRes.json();
           trips = t.length || 0;
         }
+
+        // מקור אמת יחיד: getMyMatches.
+        // התאמות = כל ההתאמות הפעילות (לא Closed); יצאנו לדרך = JourneyStarted מהשרת.
+        const list = myMatches || [];
+        const matches = list.filter((m) => m.status !== "Closed").length;
+        const journeyStarted = list.filter((m) => m.journeyStarted).length;
 
         setUserData({
           firstName,
@@ -103,11 +104,7 @@ export default function ProfileScreen() {
           profileImage,
         });
 
-        setStats({
-          matches,
-          trips,
-          friends: matches, // בינתיים
-        });
+        setStats({ matches, journeyStarted, trips });
       } catch (e) {
         console.error("Profile load error:", e);
       } finally {
@@ -312,13 +309,13 @@ export default function ProfileScreen() {
         {/* Stats */}
         <View style={styles.statsRow}>
           <View style={styles.statBox}>
-            <Text style={styles.statNumber}>{stats.friends}</Text>
-            <Text style={styles.statLabel}>חברים</Text>
+            <Text style={styles.statNumber}>{stats.matches}</Text>
+            <Text style={styles.statLabel}>התאמות</Text>
           </View>
 
           <View style={styles.statBox}>
-            <Text style={styles.statNumber}>{stats.matches}</Text>
-            <Text style={styles.statLabel}>התאמות</Text>
+            <Text style={styles.statNumber}>{stats.journeyStarted}</Text>
+            <Text style={styles.statLabel}>יצאנו לדרך</Text>
           </View>
 
           <View style={styles.statBox}>

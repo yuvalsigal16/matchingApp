@@ -206,16 +206,21 @@ export default function TripDetails() {
   });
 
   // פעולות ניהול — בתוך תפריט 3 הנקודות, כדי לשמור על מסך נקי.
+  // בטיול שהסתיים אין עריכה/השבתה (פעולות על טיול עתידי) — נשארת רק מחיקה (ניהול היסטוריה).
   const manageItems = [
-    {
-      label: "ערוך טיול",
-      onPress: () =>
-        router.push({
-          pathname: "/PreferencesQuiz",
-          params: { mode: "editTrip", tripId: id },
-        }),
-    },
-    ...(trip.status !== "Inactive"
+    ...(!isPast
+      ? [
+          {
+            label: "ערוך טיול",
+            onPress: () =>
+              router.push({
+                pathname: "/PreferencesQuiz",
+                params: { mode: "editTrip", tripId: id },
+              }),
+          },
+        ]
+      : []),
+    ...(!isPast && trip.status !== "Inactive"
       ? [{ label: "השבת טיול", onPress: handleDeactivate }]
       : []),
     { label: "מחק טיול", destructive: true, onPress: handleDeleteTrip },
@@ -281,15 +286,18 @@ export default function TripDetails() {
         </View>
 
         {/* HUB — כפתורי ניווט */}
-        <HubButton
-          icon="people"
-          label="פרופילים עבורך"
-          tint={COLORS.primary}
-          bg={COLORS.primaryLight}
-          onPress={() =>
-            router.push({ pathname: "/TripMatches/[id]", params: { id } })
-          }
-        />
+        {/* חיפוש שותפים/התאמות רלוונטי רק לטיול עתידי — מוסתר בטיול שהסתיים (קריאה בלבד). */}
+        {!isPast && (
+          <HubButton
+            icon="people"
+            label="פרופילים עבורך"
+            tint={COLORS.primary}
+            bg={COLORS.primaryLight}
+            onPress={() =>
+              router.push({ pathname: "/TripMatches/[id]", params: { id } })
+            }
+          />
+        )}
 
         <HubButton
           icon="checkmark-done"

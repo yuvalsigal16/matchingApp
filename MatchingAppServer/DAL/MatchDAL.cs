@@ -112,5 +112,34 @@ namespace MatchingAppServer.DAL
                     con.Close();
             }
         }
+
+        // סימון "יצאנו לדרך" (JourneyStarted=1) — לא נוגע ב-Status.
+        public int MarkJourneyStarted(int matchID)
+        {
+            try
+            {
+                con = connect();
+            }
+            catch (Exception) { throw; }
+
+            var param = new Dictionary<string, object>()
+            {
+                { "@MatchID", matchID }
+            };
+
+            cmd = CreateCommandWithStoredProcedureGeneral("SetMatchJourneyStarted", con, param);
+
+            try
+            {
+                object result = cmd.ExecuteScalar(); // RowsAffected
+                return Convert.ToInt32(result);
+            }
+            catch (Exception) { throw; }
+            finally
+            {
+                if (con != null)
+                    con.Close();
+            }
+        }
     }
 }

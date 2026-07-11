@@ -8,7 +8,7 @@ namespace MatchingAppServer.BL
         public int CreatedByUserID { get; set; }
         public string Destination { get; set; }
         public DateTime StartDate { get; set; }
-        public DateTime EndDate { get; set; }
+        public DateTime? EndDate { get; set; }   // NULL = כרטיס לכיוון אחד (ללא תאריך חזרה)
         public string Status { get; set; }
         public DateTime CreatedAt { get; set; }
 

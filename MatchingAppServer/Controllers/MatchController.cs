@@ -61,5 +61,25 @@ namespace MatchingAppServer.Controllers
             }
         }
 
+        // MARK JOURNEY STARTED — "יצאנו לדרך" (מסמן JourneyStarted=1, לא נוגע ב-Status)
+        [Authorize]
+        [HttpPut("journey/{matchID}")]
+        public IActionResult MarkJourneyStarted(int matchID)
+        {
+            try
+            {
+                int result = bl.MarkJourneyStarted(matchID);
+
+                if (result > 0)
+                    return Ok("JourneyStarted");
+
+                return NotFound();
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(ex.Message);
+            }
+        }
+
     }
 }

@@ -43,12 +43,13 @@ namespace MatchingAppServer.DAL
                     {
                         MatchID = Convert.ToInt32(reader["MatchID"]),
                         MatchStatus = reader["MatchStatus"].ToString(),
+                        JourneyStarted = reader["JourneyStarted"] != DBNull.Value && Convert.ToBoolean(reader["JourneyStarted"]),
                         CreatedAt = Convert.ToDateTime(reader["CreatedAt"]),
 
                         TripID = Convert.ToInt32(reader["TripID"]),
                         Destination = reader["Destination"].ToString(),
                         StartDate = Convert.ToDateTime(reader["StartDate"]),
-                        EndDate = Convert.ToDateTime(reader["EndDate"]),
+                        EndDate = reader["EndDate"] == DBNull.Value ? (DateTime?)null : Convert.ToDateTime(reader["EndDate"]),
 
                         ChatID = Convert.ToInt32(reader["ChatID"]),
 

@@ -42,7 +42,7 @@ namespace MatchingAppServer.DAL
                         CreatedByUserID = Convert.ToInt32(reader["CreatedByUserID"]),
                         Destination = reader["Destination"].ToString(),
                         StartDate = Convert.ToDateTime(reader["StartDate"]),
-                        EndDate = Convert.ToDateTime(reader["EndDate"]),
+                        EndDate = reader["EndDate"] == DBNull.Value ? (DateTime?)null : Convert.ToDateTime(reader["EndDate"]),
                         Status = reader["Status"].ToString(),
                         CreatedAt = Convert.ToDateTime(reader["CreatedAt"])
                     });
@@ -89,7 +89,7 @@ namespace MatchingAppServer.DAL
                         CreatedByUserID = Convert.ToInt32(reader["CreatedByUserID"]),
                         Destination = reader["Destination"].ToString(),
                         StartDate = Convert.ToDateTime(reader["StartDate"]),
-                        EndDate = Convert.ToDateTime(reader["EndDate"]),
+                        EndDate = reader["EndDate"] == DBNull.Value ? (DateTime?)null : Convert.ToDateTime(reader["EndDate"]),
                         Status = reader["Status"].ToString(),
                         CreatedAt = Convert.ToDateTime(reader["CreatedAt"])
                     };
@@ -122,7 +122,7 @@ namespace MatchingAppServer.DAL
                 { "@CreatedByUserID", trip.CreatedByUserID },
                 { "@Destination", trip.Destination },
                 { "@StartDate", trip.StartDate },
-                { "@EndDate", trip.EndDate }
+                { "@EndDate", trip.EndDate.HasValue ? (object)trip.EndDate.Value : DBNull.Value }
             };
 
             cmd = CreateCommandWithStoredProcedureGeneral("AddTrip", con, param);
@@ -157,7 +157,7 @@ namespace MatchingAppServer.DAL
                 { "@TripID", trip.TripID },
                 { "@Destination", trip.Destination },
                 { "@StartDate", trip.StartDate },
-                { "@EndDate", trip.EndDate },
+                { "@EndDate", trip.EndDate.HasValue ? (object)trip.EndDate.Value : DBNull.Value },
                 { "@Status", trip.Status }
             };
 
