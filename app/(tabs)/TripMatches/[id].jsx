@@ -25,6 +25,7 @@ import {
 } from "../../src/api/tripService";
 import { logInteraction } from "../../src/api/interactionService";
 import { getToken, getUser } from "../../src/auth/authStore";
+import { computeTripPreferenceScore } from "../../src/matching/tripPreferenceScore";
 import { COLORS, FONTS } from "../../src/theme";
 
 const { width: SCREEN_W } = Dimensions.get("window");
@@ -81,29 +82,6 @@ function isLiveTrip(trip) {
   const end = toDate(trip.endDate) || toDate(trip.startDate);
   if (end && end < new Date(new Date().toDateString())) return false;
   return true;
-}
-
-// =========================================
-// 🧠 משקלים + דירוג חשיבות אישי לאלגוריתם ההתאמה לטיול.
-// =========================================
-const TRIP_WEIGHTS = {
-  gender: 25,
-  interests: 25,
-  age: 20,
-  smoker: 10,
-  kosher: 10,
-  shabbat: 10,
-  spontaneity: 15,
-  lifestyle: 15,
-};
-const LEVEL_RANGE = 4;
-const AGE_DECAY = 10;
-const PRIORITY_MULTIPLIERS = [2, 1.5, 1.2];
-function priorityMult(factor, orderedFactors) {
-  const idx = orderedFactors.indexOf(factor);
-  return idx >= 0 && idx < PRIORITY_MULTIPLIERS.length
-    ? PRIORITY_MULTIPLIERS[idx]
-    : 1;
 }
 
 export default function TripMatchesScreen() {
@@ -202,61 +180,14 @@ export default function TripMatchesScreen() {
   const scoreByUser = useMemo(() => {
     const result = {};
     if (!pref) return result;
-    const wantedInterests = prefInterests.map((s) => String(s).toLowerCase());
-
     users.forEach((user) => {
-      let earned = 0;
-      let maxPossible = 0;
-      const add = (factor, baseWeight, fraction) => {
-        const w = baseWeight * priorityMult(factor, priorityFactors);
-        maxPossible += w;
-        earned += w * fraction;
-      };
-
-      if (pref.preferredGender) {
-        add("gender", TRIP_WEIGHTS.gender, user.gender === pref.preferredGender ? 1 : 0);
-      }
-      if (
-        user.age != null &&
-        pref.preferredAgeMin != null &&
-        pref.preferredAgeMax != null
-      ) {
-        let frac;
-        if (user.age >= pref.preferredAgeMin && user.age <= pref.preferredAgeMax) {
-          frac = 1;
-        } else {
-          const dist =
-            user.age < pref.preferredAgeMin
-              ? pref.preferredAgeMin - user.age
-              : user.age - pref.preferredAgeMax;
-          frac = Math.max(0, 1 - dist / AGE_DECAY);
-        }
-        add("age", TRIP_WEIGHTS.age, frac);
-      }
-      if (wantedInterests.length > 0 && user.interests.length > 0) {
-        const theirs = new Set(user.interests.map((s) => String(s).toLowerCase()));
-        const matched = wantedInterests.filter((i) => theirs.has(i)).length;
-        add("interests", TRIP_WEIGHTS.interests, matched / wantedInterests.length);
-      }
-      if (pref.isSmoker != null && user.isSmoker != null) {
-        add("smoker", TRIP_WEIGHTS.smoker, pref.isSmoker === user.isSmoker ? 1 : 0);
-      }
-      if (pref.keepsKosher != null && user.keepsKosher != null) {
-        add("kosher", TRIP_WEIGHTS.kosher, pref.keepsKosher === user.keepsKosher ? 1 : 0);
-      }
-      if (pref.keepsShabbat != null && user.keepsShabbat != null) {
-        add("shabbat", TRIP_WEIGHTS.shabbat, pref.keepsShabbat === user.keepsShabbat ? 1 : 0);
-      }
-      if (pref.spontaneityLevel != null && user.spontaneityLevel != null) {
-        const diff = Math.abs(pref.spontaneityLevel - user.spontaneityLevel);
-        add("spontaneity", TRIP_WEIGHTS.spontaneity, Math.max(0, 1 - diff / LEVEL_RANGE));
-      }
-      if (pref.lifestyleLevel != null && user.lifestyleLevel != null) {
-        const diff = Math.abs(pref.lifestyleLevel - user.lifestyleLevel);
-        add("lifestyle", TRIP_WEIGHTS.lifestyle, Math.max(0, 1 - diff / LEVEL_RANGE));
-      }
-
-      result[user.userID] = maxPossible > 0 ? Math.round((earned / maxPossible) * 100) : 0;
+      // אלגוריתם התאמת העדפות הטיול (חולץ ל-tripPreferenceScore).
+      result[user.userID] = computeTripPreferenceScore(
+        user,
+        pref,
+        prefInterests,
+        priorityFactors,
+      );
     });
     return result;
   }, [users, pref, prefInterests, priorityFactors]);
@@ -330,11 +261,20 @@ export default function TripMatchesScreen() {
     return cats.filter((c) => c.items.length > 0);
   }, [users, tripsByUser, scoreByUser, myTrip]);
 
-  const openProfile = (user) => {
+  const openProfile = (user, score) => {
     logInteraction(user.userID, "View"); // מתעד צפייה למנוע ההתנהגותי
+    // הקשר ההתאמה — טיול, עם מזהה הטיול והציון שכבר חושב כאן (העדפות טיול).
+    const matchContext = {
+      type: "trip",
+      tripId: Number(tripId),
+      score,
+    };
     router.push({
       pathname: "/MatchProfileDetails",
-      params: { user: JSON.stringify(user) },
+      params: {
+        user: JSON.stringify(user),
+        matchContext: JSON.stringify(matchContext),
+      },
     });
   };
 
@@ -360,7 +300,7 @@ export default function TripMatchesScreen() {
           !inGrid && styles.cardFlipped,
         ]}
         activeOpacity={0.9}
-        onPress={() => openProfile(user)}
+        onPress={() => openProfile(user, score)}
       >
         <View style={styles.cardImageWrap}>
           {imageUri ? (

@@ -14,12 +14,12 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import {
+  Ban,
   ChevronRight,
   Flame,
   Gem,
   MapPin,
   Moon,
-  Plane,
   Utensils,
   Zap,
 } from "lucide-react-native";
@@ -28,6 +28,16 @@ import { buildImageUri } from "../src/utils/image";
 import { getToken, getUser } from "../src/auth/authStore";
 import { sendChatRequest } from "../src/api/notificationService";
 import { blockUser } from "../src/api/blockService";
+import { getUserProfile } from "../src/api/userProfileService";
+import { getQuestionnaire } from "../src/api/questionnaireService";
+import { getUserInterests } from "../src/api/interestService";
+import { buildMatchReasons } from "../src/utils/matchReasons";
+import { computeIntroMatchScore } from "../src/matching/introQuestionnaireScore";
+import { computeTripPreferenceScore } from "../src/matching/tripPreferenceScore";
+import { MATCH_CONTEXT, matchContextLabel } from "../src/matching/matchContext";
+import { getTripScoringInputs } from "../src/api/tripService";
+import MatchReasons from "../../components/ui/MatchReasons";
+import Button from "../../components/ui/Button";
 import { COLORS, FONTS } from "../src/theme";
 
 const GENDER_DB_TO_HE = { Male: "זכר", Female: "נקבה", Other: "אחר" };
@@ -54,27 +64,98 @@ export default function MatchProfile() {
   const router = useRouter();
   const params = useLocalSearchParams();
   const matchUser = JSON.parse(params.user);
+  // תמצית המשתמש המחובר (שדות ההשוואה) ל-buildMatchReasons. מ-matchesForYou היא מגיעה
+  // ב-param; מכניסות אחרות (צ'אט, TripMatches) היא נשלפת כאן למטה, כדי ש"למה אולי תתחברו"
+  // יופיע מכל מסך.
+  const [meData, setMeData] = useState(params.me ? JSON.parse(params.me) : null);
+
+  // הקשר ההתאמה — "למה הגעתי לפרופיל" (general/trip/discovery). קובע איזה ציון מציגים.
+  // ברירת מחדל בטוחה: general (התנהגות קיימת) אם משום מה לא הועבר הקשר.
+  const matchContext = params.matchContext
+    ? JSON.parse(params.matchContext)
+    : { type: "general" };
 
   const [profile, setProfile] = useState(null);
+  const [questionnaire, setQuestionnaire] = useState(null);
+  const [fetchedInterests, setFetchedInterests] = useState([]);
+  const [tripInputs, setTripInputs] = useState(null); // קלטי ניקוד הטיול (לכניסה מצ'אט-טיול)
   const [trips, setTrips] = useState([]);
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
   const [blocking, setBlocking] = useState(false);
 
   useEffect(() => {
+    // בפיתוח: אם הגענו בלי matchContext — זה כנראה נקודת ניווט ששכחה להעביר הקשר.
+    // נופלים ל-general (backward-compatible) אבל *מזהירים* במקום לבלוע את הבאג בשקט.
+    if (__DEV__ && !params.matchContext) {
+      console.warn(
+        "[MatchProfileDetails] נפתח ללא matchContext — נופל ל-general. " +
+          "ודא שכל נקודת ניווט לפרופיל מעבירה matchContext.",
+      );
+    }
     const load = async () => {
       try {
         const token = getToken();
         const headers = { Authorization: `Bearer ${token}` };
         const userId = matchUser.userID;
 
-        const [userRes, tripsRes] = await Promise.allSettled([
-          fetch(`${BASE_URL}/User/${userId}`, { headers }),
-          fetch(`${BASE_URL}/Trip/user/${userId}`, { headers }),
-        ]);
+        // המסך שולף בעצמו את מלוא נתוני המשתמש (פרופיל + שאלון + תחומי עניין),
+        // כדי שיוצג נכון מכל כניסה — גם מהצ'אט, שמעביר רק שם/תמונה/מזהה.
+        // ובמקביל: אם לא הועברו נתוני ההשוואה שלי (me) — שולפים גם אותם, כדי
+        // ש"למה אולי תתחברו" יופיע גם מהצ'אט/TripMatches.
+        const myId = !params.me ? getUser()?.userID : null;
 
-        if (userRes.status === "fulfilled" && userRes.value.ok) {
-          setProfile(await userRes.value.json());
+        // כשמגיעים מצ'אט-טיול (הקשר trip בלי ציון מוכן) — שולפים את קלטי ניקוד הטיול
+        // כדי לחשב את אחוז ההתאמה לטיול עם אותה פונקציה בדיוק (בלי לשנות אלגוריתם).
+        const needTripInputs =
+          matchContext.type === "trip" &&
+          matchContext.score == null &&
+          matchContext.tripId != null;
+
+        const [profileRes, questRes, interestsRes, tripsRes, mineRes, tripInputsRes] =
+          await Promise.allSettled([
+            getUserProfile(userId),
+            getQuestionnaire(userId),
+            getUserInterests(userId),
+            fetch(`${BASE_URL}/Trip/user/${userId}`, { headers }),
+            myId
+              ? Promise.all([
+                  getUserProfile(myId),
+                  getQuestionnaire(myId),
+                  getUserInterests(myId),
+                ])
+              : Promise.resolve(null),
+            needTripInputs
+              ? getTripScoringInputs(matchContext.tripId)
+              : Promise.resolve(null),
+          ]);
+
+        if (tripInputsRes.status === "fulfilled" && tripInputsRes.value) {
+          setTripInputs(tripInputsRes.value);
+        }
+
+        if (profileRes.status === "fulfilled") setProfile(profileRes.value || null);
+        if (questRes.status === "fulfilled") setQuestionnaire(questRes.value || null);
+        if (interestsRes.status === "fulfilled") {
+          setFetchedInterests(
+            (interestsRes.value || [])
+              .map((i) => i?.interestName || i?.InterestName)
+              .filter(Boolean),
+          );
+        }
+        if (mineRes.status === "fulfilled" && mineRes.value) {
+          const [myProfile, myQuest, myInterests] = mineRes.value;
+          setMeData({
+            interests: (myInterests || [])
+              .map((i) => i?.interestName || i?.InterestName)
+              .filter(Boolean),
+            age: calcAge(myProfile?.birthDate),
+            spontaneityLevel: myQuest?.spontaneityLevel ?? null,
+            lifestyleLevel: myQuest?.lifestyleLevel ?? null,
+            isSmoker: myQuest?.isSmoker ?? null,
+            keepsKosher: myQuest?.keepsKosher ?? null,
+            keepsShabbat: myQuest?.keepsShabbat ?? null,
+          });
         }
         if (tripsRes.status === "fulfilled" && tripsRes.value.ok) {
           const all = await tripsRes.value.json();
@@ -103,7 +184,11 @@ export default function MatchProfile() {
     if (sending) return;
     setSending(true);
     try {
-      await sendChatRequest(me.userID, matchUser.userID);
+      // אם הגענו מהקשר טיול — שולחים את tripId, כך שההתאמה נולדת מקושרת לטיול
+      // וההקשר נשמר גם בצ'אט שייווצר. אחרת — בקשה כללית (כמו קודם).
+      const tripId =
+        matchContext.type === MATCH_CONTEXT.TRIP ? matchContext.tripId : null;
+      await sendChatRequest(me.userID, matchUser.userID, tripId);
       if (Platform.OS === "web") window.alert("הבקשה נשלחה בהצלחה");
       else Alert.alert("נשלח", "הבקשה נשלחה בהצלחה");
       router.back();
@@ -191,22 +276,63 @@ export default function MatchProfile() {
     );
   }
 
-  // matchUser (מרשימת ההתאמות) הוא המקור העשיר — כולל שם, תמונה ושדות השאלון.
-  // /User/{id} מחזיר אובייקט דל שבו כל שדות השאלון הם null, ולכן חייב להתמזג *מתחת*
-  // ל-matchUser כדי שה-null-ים שלו לא ידרסו את הערכים האמיתיים.
-  const user = { ...(profile || {}), ...matchUser };
+  // בסיס עשיר מהשליפות של המסך (פרופיל + שאלון). מעליו שוזרים רק שדות *לא-null*
+  // מ-matchUser, כך שקורא עשיר (רשימת ההתאמות) גובר, וקורא דל (צ'אט) לא דורס בערכים ריקים.
+  const user = { ...(profile || {}), ...(questionnaire || {}) };
+  Object.keys(matchUser).forEach((k) => {
+    if (matchUser[k] != null) user[k] = matchUser[k];
+  });
+
   const firstName = user.firstName || matchUser.name?.split(" ")[0] || "";
   const lastName =
     user.lastName || matchUser.name?.split(" ").slice(1).join(" ") || "";
   const initials =
     `${firstName[0] || ""}${lastName[0] || ""}`.toUpperCase() || "?";
-  // התמונה נמצאת על UserProfile ולא על טבלת Users, אז ה-fetch של /User עשוי להחזירה ריקה.
-  // נופלים ל-matchUser.profileImage — התמונה שכבר הוצגה ברשימת ההתאמות.
   const imageUri = buildImageUri(
     user.profileImage || user.ProfileImage || matchUser.profileImage,
   );
   const age = calcAge(user.birthDate) || matchUser.age;
-  const interests = user.interests || matchUser.interests || [];
+  // תחומי עניין — מ-matchUser אם הגיע עשיר, אחרת מהשליפה של המסך.
+  const interests =
+    matchUser.interests && matchUser.interests.length
+      ? matchUser.interests
+      : fetchedInterests;
+
+  // "למה אולי תתחברו" — עד 3 סיבות אנושיות, מאותו מנוע כמו בכרטיס. במסך יש יותר מקום,
+  // לכן limit=3. אם אין נתוני משתמש מחובר (me) — הרשימה ריקה והמקטע פשוט לא מוצג.
+  const reasons = meData
+    ? buildMatchReasons(meData, { ...user, age, interests }, { limit: 3 })
+    : [];
+
+  // אחוז ההתאמה — לפי הקשר ההגעה (matchContext), בלי לנחש אלגוריתם:
+  //   general → שאלון היכרות · trip → העדפות הטיול · discovery → אין אחוז.
+  // אם המסך המקורי כבר חישב ציון (score) — משתמשים בו; אחרת מחשבים כאן עם אותה פונקציה
+  // בדיוק ונתוני ההקשר. לעולם לא נופלים מ-trip לשאלון היכרות — עדיף להסתיר מאשר להטעות.
+  const other = { ...user, age, interests };
+  const scoreLabel = matchContextLabel(matchContext.type);
+  let matchScore = null;
+  if (matchContext.type === MATCH_CONTEXT.DISCOVERY) {
+    matchScore = null;
+  } else if (matchContext.type === MATCH_CONTEXT.TRIP) {
+    matchScore =
+      matchContext.score != null
+        ? matchContext.score
+        : tripInputs?.pref
+          ? computeTripPreferenceScore(
+              other,
+              tripInputs.pref,
+              tripInputs.prefInterests,
+              tripInputs.priorityFactors,
+            )
+          : null;
+  } else {
+    matchScore =
+      matchContext.score != null
+        ? matchContext.score
+        : meData
+          ? computeIntroMatchScore(meData, other)
+          : null;
+  }
 
   // רמות 1–5 → תיאור מילולי קצר (לפי הניסוח בשאלון ההעדפות).
   const spontaneityWord = (v) =>
@@ -283,22 +409,27 @@ export default function MatchProfile() {
             </View>
           ) : null}
 
-          {matchUser.matchScore != null && (
+          {matchScore != null && (
             <View style={styles.matchBox}>
               <Text style={styles.matchText}>
-                {matchUser.matchScore}% התאמה
+                {matchScore}% {scoreLabel}
               </Text>
             </View>
           )}
         </View>
 
+        {/* ── למה אולי תתחברו — הסבר אנושי לסיבת ההמלצה, מיד אחרי אחוז ההתאמה ── */}
+        {reasons.length > 0 && (
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>למה אולי תתחברו</Text>
+            <MatchReasons reasons={reasons} size="md" />
+          </View>
+        )}
+
         {/* ── טיולים פעילים ── */}
         {trips.length > 0 && (
           <View style={styles.section}>
-            <View style={styles.sectionHeader}>
-              <Plane size={17} color={COLORS.brand} />
-              <Text style={styles.sectionTitle}>טיולים מתוכננים</Text>
-            </View>
+            <Text style={styles.sectionTitle}>טיולים מתוכננים</Text>
             {trips.map((t, i) => (
               <View key={i} style={styles.tripCard}>
                 <Text style={styles.tripDest}>
@@ -346,38 +477,33 @@ export default function MatchProfile() {
           </View>
         )}
 
-        {/* ── כפתורים ── */}
-        <View style={styles.buttonsRow}>
-          <TouchableOpacity
-            style={[styles.chatBtn, sending && { opacity: 0.6 }]}
+        {/* ── פעולות ── */}
+        <View style={styles.footer}>
+          <Button
+            label="שלח בקשה לצ׳אט"
+            variant="primary"
+            size="lg"
+            loading={sending}
             onPress={handleSendRequest}
-            disabled={sending}
-          >
-            <Text style={styles.chatBtnText}>
-              {sending ? "שולח..." : "שלח בקשה לצ׳אט"}
-            </Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={styles.removeBtn}
+          />
+          <Button
+            label="הסר מההצעות"
+            variant="secondary"
+            size="lg"
             onPress={handleRemove}
-          >
-            <Text style={styles.removeBtnText}>הסר מההצעות</Text>
-          </TouchableOpacity>
+          />
+          {/* פעולה הרסנית — מופרדת בקו-שיער, נמוכה יותר, בגוון danger */}
+          <View style={styles.footerDivider} />
+          <Button
+            label="חסום משתמש"
+            variant="danger"
+            size="md"
+            loading={blocking}
+            Icon={Ban}
+            onPress={handleBlock}
+            accessibilityLabel="חסום משתמש"
+          />
         </View>
-
-        {/* חסימת משתמש */}
-        <TouchableOpacity
-          style={[styles.blockBtn, blocking && { opacity: 0.6 }]}
-          onPress={handleBlock}
-          disabled={blocking}
-          accessibilityRole="button"
-          accessibilityLabel="חסום משתמש"
-        >
-          <Text style={styles.blockBtnText}>
-            {blocking ? "חוסם..." : "חסום משתמש"}
-          </Text>
-        </TouchableOpacity>
       </ScrollView>
     </SafeAreaView>
   );
@@ -499,13 +625,6 @@ const styles = StyleSheet.create({
     elevation: 2,
   },
 
-  sectionHeader: {
-    flexDirection: "row-reverse",
-    alignItems: "center",
-    gap: 6,
-    marginBottom: 12,
-  },
-
   sectionTitle: {
     fontSize: 15,
     fontFamily: FONTS.bold,
@@ -574,51 +693,16 @@ const styles = StyleSheet.create({
     color: "#7E76A6",
   },
 
-  buttonsRow: {
-    flexDirection: "row-reverse",
-    gap: 12,
+  // פוטר הפעולות — כפתורים מלאי-רוחב, מוערמים, בהיררכיה ברורה (ראשי → משני → הרסני).
+  footer: {
+    marginHorizontal: 16,
     marginTop: 8,
-    marginHorizontal: 16,
-    marginBottom: 16,
-  },
-
-  chatBtn: {
-    flex: 1,
-    backgroundColor: COLORS.brand,
-    paddingVertical: 16,
-    borderRadius: 14,
-    alignItems: "center",
-  },
-
-  chatBtnText: {
-    color: COLORS.onBrand,
-    fontSize: 16,
-    fontFamily: FONTS.bold,
-  },
-
-  removeBtn: {
-    flex: 1,
-    backgroundColor: COLORS.divider,
-    paddingVertical: 16,
-    borderRadius: 14,
-    alignItems: "center",
-  },
-
-  removeBtnText: {
-    color: COLORS.textSecondary,
-    fontSize: 16,
-    fontFamily: FONTS.bold,
-  },
-
-  blockBtn: {
-    alignItems: "center",
-    paddingVertical: 12,
-    marginHorizontal: 16,
     marginBottom: 24,
+    gap: 12,
   },
-  blockBtnText: {
-    color: COLORS.danger,
-    fontSize: 15,
-    fontFamily: FONTS.bold,
+  footerDivider: {
+    height: 1,
+    backgroundColor: COLORS.hairline,
+    marginTop: 4,
   },
 });

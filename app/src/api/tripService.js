@@ -343,6 +343,34 @@ export async function getTripPreferencePriorities(tripPreferenceId) {
   return safeParse(text) || [];
 }
 
+// מרכז את כל קלטי הניקוד של טיול (העדפות + תחומי עניין מבוקשים + דירוג חשיבות)
+// לאובייקט אחד { pref, prefInterests, priorityFactors } — בדיוק מה ש-computeTripPreferenceScore
+// מצפה לו. חולץ כדי שגם TripMatches וגם מסך הפרופיל (בכניסה מצ'אט-טיול) ישתמשו באותה שרשרת,
+// בלי לשכפל את הבנייה. מחזיר pref=null אם אין העדפות לטיול.
+export async function getTripScoringInputs(tripId) {
+  const pref = await getTripPreferences(tripId);
+  if (!pref?.tripPreferenceID) {
+    return { pref: pref || null, prefInterests: [], priorityFactors: [] };
+  }
+
+  let prefInterests = [];
+  let priorityFactors = [];
+  try {
+    const ints = await getTripPreferenceInterests(pref.tripPreferenceID);
+    prefInterests = (ints || []).map((i) => i.interestName).filter(Boolean);
+  } catch {}
+  try {
+    const prios = await getTripPreferencePriorities(pref.tripPreferenceID);
+    priorityFactors = (prios || [])
+      .slice()
+      .sort((a, b) => a.priorityRank - b.priorityRank)
+      .map((x) => x.factor)
+      .filter(Boolean);
+  } catch {}
+
+  return { pref, prefInterests, priorityFactors };
+}
+
 // מוסיף שורת דירוג אחת (POST query string, כמו addTripPreferenceInterest).
 export async function addTripPreferencePriority(tripPreferenceId, factor, priorityRank) {
   const url = `${BASE_URL}/TripPreferencePriorities?tripPreferenceID=${tripPreferenceId}&factor=${encodeURIComponent(factor)}&priorityRank=${priorityRank}`;

@@ -1,9 +1,10 @@
 // ייבוא אייקונים מ-lucide-react-native
 import {
   ChevronRight, // חץ ימינה — לכפתור חזרה
+  MapPin, // סיכת מפה — ליעד
+  Plane, // מטוס — לכותרת כרטיס-המסע
   RotateCw, // חץ סיבוב — לכפתור "סובב את הגלגל"
   Sparkles, // אייקון נצנוצים — לכותרת "גלגל המזל"
-  MapPin, // סיכת מפה — לכרטיס התוצאה
   User, // אייקון משתמש — לפרטי הפרטנר
 } from "lucide-react-native";
 
@@ -34,12 +35,15 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import Svg, { Path, G, Text as SvgText } from "react-native-svg";
 // פונטים מותאמים של האפליקציה
-import { COLORS as THEME, FONTS } from "../src/theme";
+import { COLORS as THEME, FONTS, SHADOWS } from "../src/theme";
+import Button from "../../components/ui/Button";
+import CompletionOverlay from "../../components/ui/CompletionOverlay";
 import { getAllUsers } from "../src/api/userService";
 import { getUser } from "../src/auth/authStore";
 import { getUserProfile } from "../src/api/userProfileService";
 import { getUserInterests } from "../src/api/interestService";
 import { getQuestionnaire } from "../src/api/questionnaireService";
+import { computeWheelMatchScore } from "../src/matching/wheelMatchScore";
 
 const WHEEL_SIZE = 290;
 const CX = WHEEL_SIZE / 2;
@@ -60,21 +64,19 @@ function sectorPath(startDeg, endDeg) {
 }
 
 
-// ── פלטת הצבעים של מקטעי הגלגל ──
+// ── פלטת מקטעי הגלגל ──
+// משפחה מגובשת של טורקיז + גווני-אדמה חמים ("מפת מסע"), במקום קשת צבעים גנרית.
+// כל הגוונים מספיק כהים כדי שהטקסט הלבן על המקטעים יישאר קריא.
 const COLORS = [
-  "#1A3C40", // ירוק כהה — הצבע הראשי של האפליקציה
-  "#7FB3B3", // turquoise בינוני
-  "#E5A9A9", // ורוד עדין
-  "#F4C77B", // צהוב חמים
-  "#A5C99E", // ירוק רך
-  "#B89BC9", // סגול עדין
-  "#FF8B8B", // אדום-ורוד בהיר
-  "#4ECDC4", // turquoise בהיר
-  "#F9A66C", // כתום אפרסק
+  "#1A3C40", // טורקיז עמוק (מותג)
+  "#B45309", // ענבר כהה
+  "#2F6E72", // טורקיז בינוני
+  "#B04A32", // טרקוטה
+  "#3E7C7A", // טורקיז רך
+  "#6E7F4E", // זית
+  "#255A5D", // טורקיז כהה
+  "#BE6A34", // חול-ענבר
 ];
-
-
-
 
 
 function computeAge(birthDate) {
@@ -129,45 +131,10 @@ const enrichUser = async (basicUser) => {
 export default function WheelScreen() {
   const router = useRouter();
   const [destinations, setDestinations] = useState([]);
-  const [users, setUsers] = useState([]);
-const [currentUser, setCurrentUser] = useState(null);
 const [bestMatch, setBestMatch] = useState(null);
 const [saving, setSaving] = useState(false); // מונע לחיצה כפולה על "זה היעד שלי"
+const [done, setDone] = useState(false); // רגע-סיום קצר לפני היציאה מהאונבורדינג
 const wheelParams = useLocalSearchParams(); // ההעדפות שהועברו מהשאלון (אם דילגו על יעד)
-// const [matches, setMatches] = useState([]);
-
-// const saveTripToDB = async () => {
-//   if (!result) return;
-
-//   try {
-//     const currentUser = getUser();
-
-//     const payload = {
-//   userID: currentUser.userID,
-//   destination: result.name,
-//   partnerID: bestMatch?.userID || null,
-// };
-
-// console.log("SENDING TRIP:");
-// console.log(JSON.stringify(payload, null, 2));
-
-// const response = await createTrip(payload);
-
-// console.log("CREATE TRIP RESPONSE:");
-// console.log(response);
-
-// await saveWheelSelection(
-//   currentUser.userID,
-//   result.destinationId,
-//   bestMatch?.userID
-// );
-
-// router.replace("/Home");
-//   } catch (err) {
-//   console.log("SAVE TRIP ERROR");
-//   console.log(err);
-// }
-// };
 
 const saveTripToDB = async () => {
   if (!result || saving) return;
@@ -209,7 +176,9 @@ const saveTripToDB = async () => {
       interests: quizPrefs?.interests || [],
       priorities: quizPrefs?.priorities || [],
     });
-    router.replace("/Home");
+    // רגע-סיום קצר (וי + הודעה) לפני הכניסה למוצר — תחושת הישג, בלי הגזמה.
+    setDone(true);
+    setTimeout(() => router.replace("/Home"), 1500);
   } catch (err) {
     // תיקון: משוב ברור למשתמש במקום כשל שקט.
     Alert.alert("שמירת הטיול נכשלה", err?.message || "אירעה שגיאה. נסי שוב.");
@@ -259,8 +228,6 @@ async function loadUsers() {
         : null
     );
 
-    setCurrentUser(me);
-
     const others = basicUsers.filter(
       (u) => u.userID !== myId
     );
@@ -269,35 +236,11 @@ async function loadUsers() {
       others.map(enrichUser)
     );
 
-    const usersWithScore = enriched.map((user) => {
-  let score = 0;
-
-  if (user.age && me.age) {
-    const ageDiff = Math.abs(user.age - me.age);
-
-    if (ageDiff <= 2) score += 20;
-    else if (ageDiff <= 5) score += 10;
-  }
-
-  const myInterests = (me.interests || []).map((s) =>
-    s.toLowerCase()
-  );
-
-  const shared = (user.interests || []).filter((i) =>
-    myInterests.includes(i.toLowerCase())
-  );
-
-  score += shared.length * 15;
-
-  if (user.isSmoker === me.isSmoker) score += 10;
-  if (user.keepsKosher === me.keepsKosher) score += 10;
-  if (user.keepsShabbat === me.keepsShabbat) score += 10;
-
-  return {
-    ...user,
-    matchScore: Math.min(score, 100),
-  };
-});
+    // אלגוריתם "ההתאמה הטובה ביותר" של הגלגל (חולץ ל-wheelMatchScore).
+    const usersWithScore = enriched.map((user) => ({
+      ...user,
+      matchScore: computeWheelMatchScore(me, user),
+    }));
 
 const rankedUsers = usersWithScore.sort(
   (a, b) => b.matchScore - a.matchScore
@@ -346,7 +289,6 @@ console.log("uniqueDestinations (real trips):", uniqueDestinations);
 
 // מחבר את הגלגל ליעדים האמיתיים (עם הפרטנר האמיתי). בלי נתונים פיקטיביים.
 setDestinations(uniqueDestinations);
-setUsers(usersWithScore);
   } catch (err) {
     console.log(err);
   } finally {
@@ -358,9 +300,6 @@ setUsers(usersWithScore);
   // ערך הסיבוב הנוכחי של הגלגל (0 = עומד במקום, גדל בכל סיבוב)
   // useRef מונע יצירה מחדש בכל render
   const spinValue = useRef(new Animated.Value(0)).current;
-
-  // ערך גודל לכפתור — מקטין מעט בלחיצה לאפקט פידבק
-  const spinBtnScale = useRef(new Animated.Value(1)).current;
 
   // ── ערכי State ──
   // התוצאה שזכתה לאחר הסיבוב (null עד שהגלגל מסתיים)
@@ -379,60 +318,6 @@ setUsers(usersWithScore);
   // const numberOfSectors = DESTINATIONS_POOL.length; // 8 מקטעים
   const numberOfSectors = destinations.length || 1;
   const sectorAngle = 360 / numberOfSectors; // 45 מעלות לכל מקטע
-
-  // const smartMatches =
-  // currentUser && users.length
-  //   ? users
-  //       .map((user) => {
-  //         let score = 0;
-
-  //         if (user.age && currentUser.age) {
-  //           const ageDiff = Math.abs(
-  //             user.age - currentUser.age
-  //           );
-
-  //           if (ageDiff <= 2) score += 20;
-  //           else if (ageDiff <= 5) score += 10;
-  //         }
-
-  //         const myInterests = (
-  //           currentUser.interests || []
-  //         ).map((s) => s.toLowerCase());
-
-  //         const shared = (
-  //           user.interests || []
-  //         ).filter((i) =>
-  //           myInterests.includes(i.toLowerCase())
-  //         );
-
-  //         score += shared.length * 15;
-
-  //         if (
-  //           user.isSmoker === currentUser.isSmoker
-  //         )
-  //           score += 10;
-
-  //         if (
-  //           user.keepsKosher === currentUser.keepsKosher
-  //         )
-  //           score += 10;
-
-  //         if (
-  //           user.keepsShabbat ===
-  //           currentUser.keepsShabbat
-  //         )
-  //           score += 10;
-
-  //         return {
-  //           ...user,
-  //           matchScore: Math.min(score, 100),
-  //         };
-  //       })
-  //       .sort(
-  //         (a, b) =>
-  //           b.matchScore - a.matchScore
-  //       )
-  //   : [];
 
   // ── פונקציה ראשית: מסובבת את הגלגל ──
   const spinWheel = () => {
@@ -485,26 +370,6 @@ setResult({
     });
   };
 
-  // ── אנימציות פידבק לכפתור הסיבוב ──
-  // בלחיצה — מקטין את הכפתור ל-0.96 מגודלו (נראה לחוץ)
-  const onSpinPressIn = () => {
-    if (isSpinning) return;
-    Animated.spring(spinBtnScale, {
-      toValue: 0.96,
-      useNativeDriver: Platform.OS !== "web",
-      speed: 30,
-      bounciness: 4,
-    }).start();
-  };
-  const onSpinPressOut = () => {
-    Animated.spring(spinBtnScale, {
-      toValue: 1,
-      useNativeDriver: Platform.OS !== "web",
-      speed: 30,
-      bounciness: 4,
-    }).start();
-  };
-
   // ── סוויפ על הגלגל מסובב אותו (חלופה ללחיצה על הכפתור) ──
   // spinRef מתעדכן בכל render כדי שה-PanResponder תמיד יקרא לגרסה העדכנית של spinWheel
   const spinRef = useRef(() => {});
@@ -525,6 +390,9 @@ setResult({
 
   return (
     <SafeAreaView style={styles.container}>
+      {/* ── רגע-הסיום של האונבורדינג (קצר, לפני הכניסה למוצר) ── */}
+      <CompletionOverlay visible={done} />
+
       {/* ── אזור הכותרת העליונה ── */}
       <View style={styles.header}>
         {/* כפתור החזרה — חץ ימינה (RTL) */}
@@ -534,6 +402,8 @@ setResult({
             pressed && { opacity: 0.5 }, // עמעום בלחיצה
           ]}
           onPress={() => router.back()}
+          accessibilityRole="button"
+          accessibilityLabel="חזרה"
         >
           <ChevronRight size={26} color={THEME.brand} strokeWidth={2} />
         </Pressable>
@@ -631,54 +501,55 @@ setResult({
       {/* ── כרטיס התוצאה ── */}
       <View style={styles.bubbleArea}>
         {result ? (
-          // אם יש תוצאה — מציג את היעד שנבחר ופרטי הפרטנר
-          <View style={styles.bubble}>
-            <View style={styles.bubbleHeader}>
-              <View style={styles.bubbleIconCircle}>
-                <MapPin size={18} color={THEME.onBrand} strokeWidth={2.2} />
+          // ── כרטיס-מסע: תלוש-יעד טורקיז → קו-ניקוב → סגנון והתאמה ──
+          <View style={styles.ticket}>
+            <View style={styles.ticketHeader}>
+              <Plane size={18} color={THEME.onBrand} strokeWidth={2.2} />
+              <View style={styles.ticketHeaderText}>
+                <Text style={styles.ticketEyebrow}>כרטיס המסע שלך</Text>
+                <Text style={styles.ticketDest} numberOfLines={1}>
+                  {result.name}
+                </Text>
               </View>
-              <Text style={styles.bubbleTitle}>נוסעים ל{result.name}!</Text>
-            </View>
-            {/* קו מפריד דק */}
-            <View style={styles.bubbleDivider} />
-            {/* פרטי הפרטנר */}
-            <View style={styles.bubblePartnerRow}>
-              <User size={16} color={THEME.brand} strokeWidth={1.8} />
-              <Text style={styles.bubblePartner}>{result.partner}</Text>
+              <MapPin size={20} color={THEME.onBrand} strokeWidth={2} />
             </View>
 
-            {bestMatch && (
-              <View style={styles.partnerDetails}>
-                <Text style={styles.bubbleInfo}>
-                  התאמה של {bestMatch.matchScore}% · גיל {bestMatch.age}
+            {/* קו-ניקוב עם חריצים בצדדים (מראה של תלוש) */}
+            <View style={styles.ticketPerf}>
+              <View style={[styles.ticketNotch, styles.ticketNotchRight]} />
+              <View style={styles.ticketDash} />
+              <View style={[styles.ticketNotch, styles.ticketNotchLeft]} />
+            </View>
+
+            <View style={styles.ticketBody}>
+              <View style={styles.ticketRow}>
+                <Text style={styles.ticketLabel}>שותף/ה לדרך</Text>
+                <View style={styles.ticketPartner}>
+                  <User size={15} color={THEME.brand} strokeWidth={2} />
+                  <Text style={styles.ticketPartnerName}>{result.partner}</Text>
+                </View>
+              </View>
+
+              {bestMatch ? (
+                <Text style={styles.ticketMeta}>
+                  {bestMatch.matchScore}% התאמה · גיל {bestMatch.age}
                   {bestMatch.city ? ` · ${bestMatch.city}` : ""}
                 </Text>
+              ) : null}
 
-                {bestMatch.interests?.length > 0 && (
-                  <View style={styles.partnerTagsRow}>
-                    {bestMatch.interests.slice(0, 6).map((it) => (
-                      <View key={it} style={styles.partnerTag}>
-                        <Text style={styles.partnerTagText}>{it}</Text>
+              {bestMatch?.interests?.length > 0 ? (
+                <View style={styles.ticketStyle}>
+                  <Text style={styles.ticketLabel}>סגנון משותף</Text>
+                  <View style={styles.ticketChips}>
+                    {bestMatch.interests.slice(0, 5).map((it) => (
+                      <View key={it} style={styles.ticketChip}>
+                        <Text style={styles.ticketChipText}>{it}</Text>
                       </View>
                     ))}
                   </View>
-                )}
-
-                {(() => {
-                  const lifestyle = [
-                    bestMatch.isSmoker != null &&
-                      (bestMatch.isSmoker ? "מעשן/ת" : "לא מעשן/ת"),
-                    bestMatch.keepsKosher != null &&
-                      (bestMatch.keepsKosher ? "כשר/ה" : "לא שומר/ת כשרות"),
-                    bestMatch.keepsShabbat != null &&
-                      (bestMatch.keepsShabbat ? "שומר/ת שבת" : "לא שומר/ת שבת"),
-                  ].filter(Boolean);
-                  return lifestyle.length > 0 ? (
-                    <Text style={styles.bubbleInfo}>{lifestyle.join(" · ")}</Text>
-                  ) : null;
-                })()}
-              </View>
-            )}
+                </View>
+              ) : null}
+            </View>
           </View>
         ) : (
           // אם אין תוצאה — מציג טקסט מנחה
@@ -698,6 +569,8 @@ setResult({
           style={styles.swipeHint}
           onPress={spinWheel}
           disabled={isSpinning}
+          accessibilityRole="button"
+          accessibilityLabel="סובב את הגלגל"
         >
           <RotateCw
             size={18}
@@ -716,19 +589,14 @@ setResult({
 
         {/* כפתור אישור — מוצג רק אחרי שיש תוצאה */}
         {result && !isSpinning ? (
-          <Pressable
-  style={({ pressed }) => [
-    styles.confirmBtn,
-    pressed && { opacity: 0.85 },
-    saving && { opacity: 0.6 },
-  ]}
-  onPress={saveTripToDB}
-  disabled={saving}
->
-            <Text style={styles.confirmBtnText}>
-              {saving ? "שומר..." : "זה היעד שלי!"}
-            </Text>
-          </Pressable>
+          <Button
+            label="זה היעד שלי"
+            onPress={saveTripToDB}
+            loading={saving}
+            disabled={saving}
+            style={styles.confirmCta}
+            accessibilityLabel="בחירת היעד הזה"
+          />
         ) : null}
 
         {/* כפתור דילוג — תמיד מוצג, מוביל למסך הבית בלי לבחור */}
@@ -736,6 +604,8 @@ setResult({
           style={({ pressed }) => [styles.skipBtn, pressed && { opacity: 0.5 }]}
           onPress={() => router.replace("/Home")}
           disabled={isSpinning}
+          accessibilityRole="button"
+          accessibilityLabel="דלג בלי לבחור יעד"
         >
           <Text style={styles.skipText}>דלגי בלי לבחור יעד</Text>
         </Pressable>
@@ -745,21 +615,15 @@ setResult({
 }
 
 // ── קבועי עיצוב משותפים ──
-// אובייקט הצל — נמצא בשימוש במספר מקומות (DRY)
-const SHADOW = {
-  shadowColor: "#000",
-  shadowOffset: { width: 0, height: 2 },
-  shadowOpacity: 0.08,
-  shadowRadius: 6,
-  elevation: 3, // צל באנדרואיד
-};
+// צל אחיד מהטוקנים (מסכים דורסים shadowOpacity מקומית לפי הצורך).
+const SHADOW = SHADOWS.sm;
 
 // ── הגדרת העיצובים ──
 const styles = StyleSheet.create({
   // המיכל הראשי של המסך
   container: {
     flex: 1,
-    backgroundColor: THEME.background, // אפור-ירוק עדין
+    backgroundColor: THEME.background, // נייר חם
     paddingHorizontal: 18,
   },
 
@@ -908,87 +772,110 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     marginVertical: 14,
   },
-  // הכרטיס עצמו (כשיש תוצאה)
-  bubble: {
+  // ── JourneyTicket (כרטיס-מסע) ──
+  ticket: {
+    width: "100%",
+    backgroundColor: THEME.surface,
+    borderRadius: 20,
+    borderWidth: 1.5,
+    borderColor: THEME.hairline,
+    overflow: "hidden",
+    ...SHADOW,
+  },
+  // תלוש-היעד — פס טורקיז עליון
+  ticketHeader: {
+    flexDirection: "row-reverse",
+    alignItems: "center",
+    gap: 12,
+    backgroundColor: THEME.brand,
+    paddingVertical: 14,
+    paddingHorizontal: 16,
+  },
+  ticketHeaderText: { flex: 1, alignItems: "flex-end" },
+  ticketEyebrow: {
+    fontFamily: FONTS.medium,
+    fontSize: 12,
+    color: "rgba(255,255,255,0.75)",
+    textAlign: "right",
+  },
+  ticketDest: {
+    fontFamily: FONTS.extraBold,
+    fontSize: 20,
+    color: THEME.onBrand,
+    textAlign: "right",
+    marginTop: 1,
+  },
+  // קו-הניקוב + החריצים בצדדים
+  ticketPerf: {
+    height: 16,
+    justifyContent: "center",
+    backgroundColor: THEME.surface,
+  },
+  ticketDash: {
+    marginHorizontal: 18,
+    height: 0,
+    borderTopWidth: 1.5,
+    borderStyle: "dashed",
+    borderColor: THEME.hairline,
+  },
+  ticketNotch: {
+    position: "absolute",
+    top: 0,
+    width: 16,
+    height: 16,
+    borderRadius: 8,
+    backgroundColor: THEME.background,
+  },
+  ticketNotchRight: { right: -8 },
+  ticketNotchLeft: { left: -8 },
+  // גוף הכרטיס
+  ticketBody: {
     backgroundColor: THEME.surface,
     paddingVertical: 14,
     paddingHorizontal: 16,
-    borderRadius: 16,
-    width: "100%",
-    ...SHADOW,
-    shadowOpacity: 0.12,
-  },
-  // אזור עליון של הכרטיס: אייקון + שם היעד
-  bubbleHeader: {
-    flexDirection: "row-reverse",
-    alignItems: "center",
     gap: 10,
   },
-  // עיגול האייקון (סיכת מפה)
-  bubbleIconCircle: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: THEME.brand,
-    justifyContent: "center",
+  ticketRow: {
+    flexDirection: "row-reverse",
     alignItems: "center",
+    justifyContent: "space-between",
   },
-  // כותרת הכרטיס — שם היעד
-  bubbleTitle: {
-    fontFamily: FONTS.extraBold,
-    fontSize: 18,
-    color: THEME.brand,
-    textAlign: "right",
-    flex: 1,
+  ticketLabel: {
+    fontFamily: FONTS.medium,
+    fontSize: 12,
+    color: THEME.textMuted,
   },
-  // קו מפריד דק בכרטיס
-  bubbleDivider: {
-    height: 1,
-    backgroundColor: THEME.divider,
-    marginVertical: 10,
-  },
-  // שורת פרטי הפרטנר
-  bubblePartnerRow: {
+  ticketPartner: {
     flexDirection: "row-reverse",
     alignItems: "center",
     gap: 6,
-    marginBottom: 4,
   },
-  // שם הפרטנר
-  bubblePartner: {
+  ticketPartnerName: {
     fontFamily: FONTS.bold,
     fontSize: 15,
-    color: THEME.brand,
+    color: THEME.text,
   },
-  // טקסט המידע על הפרטנר
-  bubbleInfo: {
-    fontSize: 14,
+  ticketMeta: {
     fontFamily: FONTS.regular,
-    textAlign: "right",
+    fontSize: 13,
     color: THEME.textSecondary,
-    lineHeight: 20,
+    textAlign: "right",
   },
-  // ── פרטי הפרטנר המורחבים ──
-  partnerDetails: {
-    marginTop: 6,
-    gap: 6,
-  },
-  partnerTagsRow: {
+  ticketStyle: { gap: 6, marginTop: 2 },
+  ticketChips: {
     flexDirection: "row-reverse",
     flexWrap: "wrap",
     gap: 6,
   },
-  partnerTag: {
+  ticketChip: {
     backgroundColor: THEME.brandLight,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: THEME.brand,
+    borderRadius: 999,
     paddingHorizontal: 10,
     paddingVertical: 4,
   },
-  partnerTagText: {
+  ticketChipText: {
+    fontFamily: FONTS.medium,
     fontSize: 12,
-    fontFamily: FONTS.regular,
     color: THEME.brand,
   },
   // ── רמז הסוויפ (במקום כפתור הסיבוב) ──
@@ -1026,47 +913,7 @@ const styles = StyleSheet.create({
     paddingBottom: 20,
     gap: 10, // רווח בין הכפתורים
   },
-  // עטיפת כפתור הסיבוב — לאנימציית הגודל
-  spinBtnWrapper: {
-    width: "100%",
-  },
-  // כפתור הסיבוב הראשי
-  spinBtn: {
-    backgroundColor: THEME.brand, // ירוק כהה
-    paddingVertical: 16,
-    borderRadius: 30, // פינות מעוגלות לגמרי
-    flexDirection: "row-reverse", // אייקון + טקסט בשורה אחת
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 10,
-    ...SHADOW,
-    shadowOpacity: 0.2,
-  },
-  // מצב מנוטרל של הכפתור (בזמן סיבוב)
-  spinBtnDisabled: {
-    backgroundColor: THEME.divider,
-  },
-  // טקסט הכפתור
-  spinBtnText: {
-    color: THEME.surface,
-    fontSize: 17,
-    fontFamily: FONTS.bold,
-  },
-  // כפתור אישור — לבן עם מסגרת ירוקה
-  confirmBtn: {
-    width: "100%",
-    backgroundColor: THEME.surface,
-    paddingVertical: 16,
-    borderRadius: 30,
-    alignItems: "center",
-    borderWidth: 1.5,
-    borderColor: THEME.brand,
-  },
-  confirmBtnText: {
-    color: THEME.brand,
-    fontSize: 17,
-    fontFamily: FONTS.bold,
-  },
+  confirmCta: { width: "100%" },
   // כפתור דילוג — קישור פשוט בלי רקע
   skipBtn: {
     paddingVertical: 8,
@@ -1075,7 +922,6 @@ const styles = StyleSheet.create({
   skipText: {
     color: THEME.textMuted,
     fontSize: 14,
-    fontFamily: FONTS.regular,
-    textDecorationLine: "underline", // קו תחתון
+    fontFamily: FONTS.medium,
   },
 });

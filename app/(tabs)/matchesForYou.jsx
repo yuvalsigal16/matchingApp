@@ -1,5 +1,4 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { Ionicons } from "@expo/vector-icons";
 import { useFocusEffect, useRouter } from "expo-router";
 import { useCallback, useEffect, useMemo, useState } from "react";
 
@@ -17,7 +16,6 @@ import { getEngagementPairs, logInteraction } from "../src/api/interactionServic
 import { getUser } from "../src/auth/authStore";
 
 import {
-  ActivityIndicator,
   Alert,
   Dimensions,
   FlatList,
@@ -27,15 +25,24 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
+import { Check, ChevronRight, MapPin, Sparkles, User, Users, X } from "lucide-react-native";
+
 import BottomNav from "../../components/BottomNav";
-import { COLORS, FONTS } from "../src/theme";
+import Screen from "../../components/ui/Screen";
+import Avatar from "../../components/ui/Avatar";
+import SectionLabel from "../../components/ui/SectionLabel";
+import Tappable from "../../components/ui/Tappable";
+import MatchReasons from "../../components/ui/MatchReasons";
+import { buildMatchReasons } from "../src/utils/matchReasons";
+import { computeIntroMatchScore } from "../src/matching/introQuestionnaireScore";
+import { computeBehavioralMatches } from "../src/matching/behavioralMatch";
+import { COLORS, FONTS, RADIUS, SHADOWS, SPACING, TYPOGRAPHY } from "../src/theme";
 
 const { width: SCREEN_W } = Dimensions.get("window");
-// רוחב כרטיס בגריד 2 עמודות (תואם paddingHorizontal:16 + מרווח 12).
-const GRID_CARD_W = (SCREEN_W - 16 * 2 - 12) / 2;
+// רוחב כרטיס בגריד 2 עמודות (תואם גוטר SPACING.xl + מרווח SPACING.md בין העמודות).
+const GRID_CARD_W = (SCREEN_W - SPACING.xl * 2 - SPACING.md) / 2;
 // רוחב כרטיס בשורת הקטגוריה ההתנהגותית (גלילה אופקית).
-const CARD_W = 150;
+const CARD_W = 156;
 
 // חישוב גיל מתאריך לידה (ISO string או Date)
 function computeAge(birthDate) {
@@ -62,21 +69,6 @@ function parseInterestNames(raw) {
     .map((it) => (typeof it === "string" ? it : it?.interestName || it?.InterestName))
     .filter(Boolean);
 }
-
-// משקלים לאלגוריתם ההתאמה — מרוכזים במקום אחד לכוונון קל.
-// הערך של כל קטגוריה הוא הניקוד המקסימלי שהיא יכולה לתרום.
-const WEIGHTS = {
-  age: 20,
-  interests: 30,
-  smoker: 10,
-  kosher: 10,
-  shabbat: 10,
-  spontaneity: 15,
-  lifestyle: 15,
-};
-
-// טווח ערכי הרמות בשאלון (1-5) → הפרש מקסימלי אפשרי הוא 4.
-const LEVEL_RANGE = 4;
 
 export default function MatchesScreen() {
   const router = useRouter();
@@ -220,87 +212,19 @@ export default function MatchesScreen() {
       return [];
     }
 
-    // תחומי העניין שלי (case-insensitive) — מחושב פעם אחת לכל ההתאמות.
-    const myInterests = (currentUser.interests || []).map((s) =>
-      String(s).toLowerCase(),
-    );
-
     return (
       users
         .filter((user) => user.name && user.name.trim().length > 0)
         .filter((user) => !dismissed.has(user.userID))
         .map((user) => {
-          let earned = 0; // נקודות שנצברו בפועל
-          let maxPossible = 0; // מקסימום נקודות על סמך הקטגוריות שניתן להשוות
+          // אחוז התאמה — אלגוריתם שאלון ההיכרות (חולץ ל-introQuestionnaireScore).
+          const matchScore = computeIntroMatchScore(currentUser, user);
 
-          // גיל — קרבה בגילים. נספר רק אם לשניהם יש גיל.
-          if (user.age != null && currentUser.age != null) {
-            maxPossible += WEIGHTS.age;
-            const ageDiff = Math.abs(user.age - currentUser.age);
-            if (ageDiff <= 2) earned += WEIGHTS.age;
-            else if (ageDiff <= 5) earned += WEIGHTS.age * 0.5;
-          }
+          // סיבות ההתאמה — תרגום אנושי של אותם אותות (עד 2), לתצוגה בכרטיס.
+          // נגזר מאותם הנתונים; אינו משנה את הניקוד. שדה נלווה, ניתן לשימוש חוזר.
+          const matchReasons = buildMatchReasons(currentUser, user, { limit: 2 });
 
-          // תחומי עניין — דמיון Jaccard (חיתוך חלקי איחוד), יחסי ולא חסום.
-          // נספר רק אם לשני הצדדים יש לפחות תחום עניין אחד.
-          const theirInterests = (user.interests || []).map((s) =>
-            String(s).toLowerCase(),
-          );
-          if (myInterests.length > 0 && theirInterests.length > 0) {
-            maxPossible += WEIGHTS.interests;
-            const mySet = new Set(myInterests);
-            const shared = theirInterests.filter((i) => mySet.has(i)).length;
-            const union = new Set([...myInterests, ...theirInterests]).size;
-            const jaccard = union > 0 ? shared / union : 0;
-            earned += jaccard * WEIGHTS.interests;
-          }
-
-          // שאלון — התאמות בוליאניות. נספרות רק כששני הצדדים ענו.
-          if (user.isSmoker != null && currentUser.isSmoker != null) {
-            maxPossible += WEIGHTS.smoker;
-            if (user.isSmoker === currentUser.isSmoker) earned += WEIGHTS.smoker;
-          }
-          if (user.keepsKosher != null && currentUser.keepsKosher != null) {
-            maxPossible += WEIGHTS.kosher;
-            if (user.keepsKosher === currentUser.keepsKosher)
-              earned += WEIGHTS.kosher;
-          }
-          if (user.keepsShabbat != null && currentUser.keepsShabbat != null) {
-            maxPossible += WEIGHTS.shabbat;
-            if (user.keepsShabbat === currentUser.keepsShabbat)
-              earned += WEIGHTS.shabbat;
-          }
-
-          // רמת ספונטניות (1-5) — ככל שקרוב יותר, ניקוד גבוה יותר (לינארי על הטווח).
-          if (
-            user.spontaneityLevel != null &&
-            currentUser.spontaneityLevel != null
-          ) {
-            maxPossible += WEIGHTS.spontaneity;
-            const diff = Math.abs(
-              user.spontaneityLevel - currentUser.spontaneityLevel,
-            );
-            earned += WEIGHTS.spontaneity * Math.max(0, 1 - diff / LEVEL_RANGE);
-          }
-
-          // רמת אורח חיים (1-5) — דומה.
-          if (
-            user.lifestyleLevel != null &&
-            currentUser.lifestyleLevel != null
-          ) {
-            maxPossible += WEIGHTS.lifestyle;
-            const diff = Math.abs(
-              user.lifestyleLevel - currentUser.lifestyleLevel,
-            );
-            earned += WEIGHTS.lifestyle * Math.max(0, 1 - diff / LEVEL_RANGE);
-          }
-
-          // נרמול לאחוז על סמך הקטגוריות שבאמת היה אפשר להשוות —
-          // כך פרופיל חלקי לא נענש על שדות חסרים.
-          const matchScore =
-            maxPossible > 0 ? Math.round((earned / maxPossible) * 100) : 0;
-
-          return { ...user, matchScore };
+          return { ...user, matchScore, matchReasons };
         })
         .sort((a, b) => b.matchScore - a.matchScore)
     );
@@ -313,63 +237,10 @@ export default function MatchesScreen() {
   // הרעיון: מוצאים משתמשים שהתנהגו כמוני (התעניינו באותם פרופילים),
   // ומציעים לי את מי *שהם* התעניינו בו ואני עוד לא.
   // =========================================
-  const behavioralMatches = useMemo(() => {
-    if (!currentUser || users.length === 0 || engagementPairs.length === 0) {
-      return [];
-    }
-    const myId = currentUser.userID;
-
-    // שלב 1: לכל משתמש, מפה של "במי התעניין" → משקל.
-    // engagement[userId] = { [targetId]: weight }
-    const engagement = {};
-    for (const p of engagementPairs) {
-      if (!engagement[p.fromUserID]) engagement[p.fromUserID] = {};
-      engagement[p.fromUserID][p.toUserID] = p.weight;
-    }
-
-    const myTargets = engagement[myId] || {};
-    if (Object.keys(myTargets).length === 0) return []; // Cold Start — עוד אין לי פעילות
-
-    // עזר: דמיון קוסינוס בין שתי מפות התעניינות (0 = שונה, 1 = זהה).
-    const cosine = (a, b) => {
-      let dot = 0, magA = 0, magB = 0;
-      for (const t in a) {
-        magA += a[t] * a[t];
-        if (b[t]) dot += a[t] * b[t];
-      }
-      for (const t in b) magB += b[t] * b[t];
-      return magA && magB ? dot / (Math.sqrt(magA) * Math.sqrt(magB)) : 0;
-    };
-
-    // שלב 2: לכל מועמד-מטרה, צובר ניקוד ממשתמשים דומים אליי שהתעניינו בו
-    // (ושאני עוד לא התעניינתי בו).
-    const scores = {}; // targetId -> ניקוד גולמי
-    for (const otherId in engagement) {
-      if (Number(otherId) === myId) continue;
-      const sim = cosine(myTargets, engagement[otherId]);
-      if (sim <= 0) continue;
-      for (const targetId in engagement[otherId]) {
-        if (Number(targetId) === myId || myTargets[targetId]) continue;
-        scores[targetId] =
-          (scores[targetId] || 0) + sim * engagement[otherId][targetId];
-      }
-    }
-
-    // שלב 3: נרמול ל-0-100 (יחסית לגבוה ביותר), מיפוי למשתמשים, מיון.
-    const max = Math.max(0, ...Object.values(scores));
-    if (max === 0) return [];
-
-    const usersById = new Map(users.map((u) => [String(u.userID), u]));
-    return Object.entries(scores)
-      .map(([targetId, raw]) => {
-        const u = usersById.get(String(targetId));
-        if (!u) return null; // לא ברשימת המוצגים (חסום/לא קיים)
-        return { ...u, behavioralScore: Math.round((raw / max) * 100) };
-      })
-      .filter(Boolean)
-      .filter((u) => !dismissed.has(u.userID))
-      .sort((a, b) => b.behavioralScore - a.behavioralScore);
-  }, [users, currentUser, engagementPairs, dismissed]);
+  const behavioralMatches = useMemo(
+    () => computeBehavioralMatches(currentUser, users, engagementPairs, dismissed),
+    [users, currentUser, engagementPairs, dismissed],
+  );
 
 
   // ✔ אישור בקשה - יוצר Match בשרת ופותח צ'אט
@@ -403,55 +274,94 @@ export default function MatchesScreen() {
   // 👤 מעבר לפרופיל — מתעד צפייה למנוע ההתנהגותי (fire and forget).
   const openProfile = useCallback((user) => {
     logInteraction(user.userID, "View");
+    // תמצית של המשתמש המחובר (רק שדות ההשוואה) — כדי שמסך הפרופיל יריץ את אותו
+    // buildMatchReasons ויסביר "למה אולי תתחברו", בלי fetch נוסף ובלי לשכפל לוגיקה.
+    const me = currentUser
+      ? {
+          interests: currentUser.interests,
+          age: currentUser.age,
+          spontaneityLevel: currentUser.spontaneityLevel,
+          lifestyleLevel: currentUser.lifestyleLevel,
+          isSmoker: currentUser.isSmoker,
+          keepsKosher: currentUser.keepsKosher,
+          keepsShabbat: currentUser.keepsShabbat,
+        }
+      : null;
+    // הקשר ההתאמה — כללי (שאלון היכרות), עם הציון שכבר חושב כאן.
+    const matchContext = { type: "general", score: user.matchScore };
     router.push({
       pathname: "/MatchProfileDetails",
       params: {
         user: JSON.stringify(user),
+        me: me ? JSON.stringify(me) : "",
+        matchContext: JSON.stringify(matchContext),
       },
     });
-  }, [router]);
+  }, [router, currentUser]);
 
-  // כרטיס התאמה אחיד — משמש גם בגריד וגם בשורת הקטגוריה ההתנהגותית.
-  const renderMatchCard = useCallback((user, score, cardWidth, inRow = false) => {
-    const imageUri = buildImageUri(user.profileImage);
-    return (
-      <TouchableOpacity
-        key={user.userID}
-        style={[styles.card, { width: cardWidth }, inRow && styles.cardFlipped]}
-        activeOpacity={0.9}
-        onPress={() => openProfile(user)}
-      >
-        <View style={styles.cardImageWrap}>
-          {imageUri ? (
-            <Image source={{ uri: imageUri }} style={styles.cardImage} />
-          ) : (
-            <View style={[styles.cardImage, styles.cardImageFallback]}>
-              <Ionicons name="person" size={44} color={COLORS.onBrand} />
+  // כרטיס "מטייל" אחד — משמש גם בגריד וגם ברצועה האופקית.
+  // בגריד: תמונה, תג התאמה, שם+גיל, ועד 2 "סיבות התאמה" אנושיות (מה מחבר ביניכם).
+  // ברצועה (inRow): אותו כרטיס בלי הצ'יפים ובלי תג האחוז — הרצועה היא גילוי התנהגותי
+  // ("אולי בקטע שלכם"), וכותרת הסקשן כבר נושאת את ה"למה"; עטוף ב-View הפוך שמתקן את היפוך ה-RTL של השורה.
+  const renderMatchCard = useCallback(
+    (user, score, cardWidth, inRow = false) => {
+      const imageUri = buildImageUri(user.profileImage);
+      const nameLine = `${user.name}${user.age != null ? `, ${user.age}` : ""}`;
+      const reasons = user.matchReasons || [];
+
+      return (
+        <View key={user.userID} style={[{ width: cardWidth }, inRow && styles.cardFlipped]}>
+          <Tappable
+            style={styles.card}
+            onPress={() => openProfile(user)}
+            accessibilityRole="button"
+            accessibilityLabel={`הצגת הפרופיל של ${nameLine}`}
+          >
+            <View style={styles.cardPhotoWrap}>
+              {imageUri ? (
+                <Image source={{ uri: imageUri }} style={styles.cardPhoto} />
+              ) : (
+                <View style={[styles.cardPhoto, styles.cardPhotoFallback]}>
+                  <User size={40} color={COLORS.brand} strokeWidth={1.6} />
+                </View>
+              )}
+
+              {/* תג אחוז ההתאמה — רק בגריד ("ההתאמות שלכם"), מוסבר ע"י הצ'יפים המשותפים.
+                  לא מוצג ברצועה ההתנהגותית (inRow) שם המספר הוא ציון גילוי, לא אחוז תאימות. */}
+              {score != null && !inRow && (
+                <View style={styles.scoreBadge}>
+                  <Sparkles size={11} color={COLORS.amberDark} strokeWidth={2.4} />
+                  <Text style={styles.scoreBadgeText}>{score}%</Text>
+                </View>
+              )}
             </View>
-          )}
 
-          <View style={styles.scoreBadge}>
-            <Ionicons name="sparkles" size={12} color={COLORS.amberDark} />
-            <Text style={styles.scoreBadgeText}>{score}%</Text>
-          </View>
+            <View style={styles.cardBody}>
+              <Text style={styles.cardName} numberOfLines={1}>
+                {nameLine}
+              </Text>
 
-          <View style={styles.cardNameBand}>
-            <Text style={styles.cardName} numberOfLines={1}>
-              {user.name}{user.age != null ? `, ${user.age}` : ""}
-            </Text>
-          </View>
+              {/* עיר — סימן מקום עדין שמחזק את זהות ה"טיול" בכרטיס */}
+              {user.city ? (
+                <View style={styles.cityRow}>
+                  <MapPin size={12} color={COLORS.textMuted} strokeWidth={2} />
+                  <Text style={styles.cityText} numberOfLines={1}>
+                    {user.city}
+                  </Text>
+                </View>
+              ) : null}
+
+              {/* סיבות ההתאמה — עד 2 נקודות-חיבור אנושיות, רק בגריד (רכיב משותף). */}
+              {!inRow && reasons.length > 0 && (
+                <MatchReasons reasons={reasons} style={styles.cardReasons} />
+              )}
+            </View>
+          </Tappable>
         </View>
-
-        <View style={styles.cardMetaRow}>
-          <Text style={styles.cardMeta} numberOfLines={1}>
-            {user.interests.length > 0
-              ? user.interests.slice(0, 2).join(" · ")
-              : "אין תחומי עניין"}
-          </Text>
-        </View>
-      </TouchableOpacity>
-    );
-  }, [openProfile]);
+      );
+    },
+    [openProfile],
+  );
 
   // renderItem + keyExtractor יציבים ל-FlatList — מונעים רינדור מיותר של כרטיסים.
   const keyExtractor = useCallback((item) => String(item.userID), []);
@@ -464,41 +374,53 @@ export default function MatchesScreen() {
     [renderMatchCard],
   );
 
+  // כותרת המסך — חץ חזרה מימין (RTL) + כותרת. משמשת גם בטעינה וגם בתוכן.
+  const header = (
+    <View style={styles.header}>
+      <TouchableOpacity
+        onPress={() => router.back()}
+        hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+        accessibilityRole="button"
+        accessibilityLabel="חזרה"
+      >
+        <ChevronRight size={26} color={COLORS.brand} strokeWidth={2.2} />
+      </TouchableOpacity>
+      <Text style={styles.headerTitle} numberOfLines={1}>
+        התאמות עבורך
+      </Text>
+      <View style={styles.headerSpacer} />
+    </View>
+  );
+
+  // מצב טעינה — שלד סטטי של כרטיסים (במקום ספינר), כדי שהמעבר לתוכן ירגיש חלק.
   if (loading || !currentUser) {
     return (
-      <SafeAreaView style={styles.container}>
-        <View
-          style={{
-            flex: 1,
-            justifyContent: "center",
-            alignItems: "center",
-            gap: 12,
-          }}
-        >
-          <ActivityIndicator size="large" color={COLORS.brand} />
-          <Text style={styles.placeholder}>טוען התאמות...</Text>
+      <Screen>
+        {header}
+        <View style={styles.content}>
+          <View style={styles.skelIntro} />
+          {[0, 1].map((row) => (
+            <View key={row} style={styles.gridRow}>
+              {[0, 1].map((col) => (
+                <View key={col} style={[styles.card, { width: GRID_CARD_W }]}>
+                  <View style={styles.skelPhoto} />
+                  <View style={styles.cardBody}>
+                    <View style={styles.skelLine} />
+                    <View style={styles.skelLineShort} />
+                  </View>
+                </View>
+              ))}
+            </View>
+          ))}
         </View>
-      </SafeAreaView>
+        <BottomNav active="home" />
+      </Screen>
     );
   }
 
   return (
-    <SafeAreaView style={styles.container}>
-      {/* Header */}
-      <View style={styles.headerRow}>
-        <TouchableOpacity
-          onPress={() => router.back()}
-          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-          accessibilityRole="button"
-          accessibilityLabel="חזרה"
-        >
-          <Ionicons name="arrow-forward" size={26} color={COLORS.brand} />
-        </TouchableOpacity>
-
-        <Text style={styles.headerTitle}>התאמות עבורך</Text>
-
-        <View style={{ width: 26 }} />
-      </View>
+    <Screen>
+      {header}
 
       <FlatList
         data={smartMatches}
@@ -510,70 +432,70 @@ export default function MatchesScreen() {
         showsVerticalScrollIndicator={false}
         ListHeaderComponent={
           <>
-            {/* בקשות */}
-            <Text style={styles.sectionTitle}>בקשות לשיחה</Text>
+            {/* משפט פתיחה חם — ממסגר את החוויה לפני שמגיעים לאנשים */}
+            <Text style={styles.intro}>אלה האנשים שהכי מתאימים לכם למסע הבא.</Text>
 
-            {requests.length === 0 ? (
-              <Text style={styles.placeholder}>אין בקשות חדשות</Text>
-            ) : (
-              requests.map((req) => {
-                const name =
-                  [req.fromFirstName, req.fromLastName]
-                    .filter(Boolean)
-                    .join(" ")
-                    .trim() || `משתמש #${req.fromUserID}`;
-                const age = computeAge(req.fromBirthDate);
-                const imageUri = buildImageUri(req.fromProfileImage);
-
-                return (
-                  <View key={req.requestID} style={styles.requestCard}>
-                    {imageUri ? (
-                      <Image source={{ uri: imageUri }} style={styles.avatar} />
-                    ) : (
-                      <View style={[styles.avatar, styles.avatarFallback]}>
-                        <Ionicons name="person" size={24} color={COLORS.onBrand} />
+            {/* בקשות — מוצגות רק כשיש, וממוסגרות חיובי ("מבקשים להכיר") */}
+            {requests.length > 0 && (
+              <View style={styles.block}>
+                <SectionLabel
+                  title="מבקשים להכיר אתכם"
+                  count={requests.length}
+                  style={styles.blockLabel}
+                />
+                {requests.map((req) => {
+                  const name =
+                    [req.fromFirstName, req.fromLastName]
+                      .filter(Boolean)
+                      .join(" ")
+                      .trim() || `משתמש #${req.fromUserID}`;
+                  const age = computeAge(req.fromBirthDate);
+                  return (
+                    <View key={req.requestID} style={styles.requestCard}>
+                      <Avatar uri={req.fromProfileImage} name={name} size="md" />
+                      <View style={styles.requestInfo}>
+                        <Text style={styles.requestName} numberOfLines={1}>
+                          {name}
+                        </Text>
+                        <Text style={styles.requestMeta} numberOfLines={1}>
+                          {age != null
+                            ? `מבקש/ת להכיר · בן/בת ${age}`
+                            : "מבקש/ת להכיר אתכם"}
+                        </Text>
                       </View>
-                    )}
-
-                    <View style={{ flex: 1 }}>
-                      <Text style={styles.name}>{name}</Text>
-                      {age != null && <Text style={styles.age}>גיל {age}</Text>}
+                      <View style={styles.requestActions}>
+                        <TouchableOpacity
+                          onPress={() => handleAccept(req.requestID)}
+                          hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
+                          style={[styles.reqBtn, styles.reqAccept]}
+                          accessibilityRole="button"
+                          accessibilityLabel={`אישור בקשה מ-${name}`}
+                        >
+                          <Check size={20} color={COLORS.success} strokeWidth={2.6} />
+                        </TouchableOpacity>
+                        <TouchableOpacity
+                          onPress={() => handleReject(req.requestID)}
+                          hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
+                          style={[styles.reqBtn, styles.reqReject]}
+                          accessibilityRole="button"
+                          accessibilityLabel={`דחיית בקשה מ-${name}`}
+                        >
+                          <X size={20} color={COLORS.danger} strokeWidth={2.6} />
+                        </TouchableOpacity>
+                      </View>
                     </View>
-
-                    <View style={styles.actions}>
-                      <TouchableOpacity
-                        onPress={() => handleAccept(req.requestID)}
-                        hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-                        accessibilityRole="button"
-                        accessibilityLabel={`אישור בקשה מ-${name}`}
-                      >
-                        <Ionicons name="checkmark-circle" size={30} color={COLORS.success} />
-                      </TouchableOpacity>
-
-                      <TouchableOpacity
-                        onPress={() => handleReject(req.requestID)}
-                        hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-                        accessibilityRole="button"
-                        accessibilityLabel={`דחיית בקשה מ-${name}`}
-                      >
-                        <Ionicons name="close-circle" size={30} color={COLORS.danger} />
-                      </TouchableOpacity>
-                    </View>
-                  </View>
-                );
-              })
+                  );
+                })}
+              </View>
             )}
 
-            {/* קטגוריה התנהגותית — "אנשים שאולי מתאימים לך" (מוסתרת אם ריקה) */}
+            {/* רצועה התנהגותית — "אולי בקטע שלכם" (מוסתרת אם ריקה) */}
             {behavioralMatches.length > 0 && (
-              <View style={styles.behavioralSection}>
-                <View style={styles.sectionHeaderRow}>
-                  <Text style={styles.sectionTitleInline}>אנשים שאולי מתאימים לך</Text>
-                  <Ionicons name="people-outline" size={18} color={COLORS.brand} />
+              <View style={styles.railSection}>
+                <View style={styles.railHeaderPad}>
+                  <SectionLabel title="אולי בקטע שלכם" style={styles.railLabel} />
+                  <Text style={styles.railSub}>על סמך הפעילות שלכם באפליקציה</Text>
                 </View>
-                <Text style={styles.sectionSubtitle}>
-                  על סמך הפעילות שלך באפליקציה
-                </Text>
                 <FlatList
                   horizontal
                   data={behavioralMatches}
@@ -586,256 +508,268 @@ export default function MatchesScreen() {
               </View>
             )}
 
-            {/* התאמות חכמות (מבוסס-תוכן) */}
-            <View style={styles.sectionHeaderRow}>
-              <Text style={styles.sectionTitleInline}>התאמות חכמות עבורך</Text>
-              <Ionicons name="sparkles-outline" size={18} color={COLORS.brand} />
-            </View>
+            {/* כותרת הגריד — ההתאמות החכמות (מבוסס-תוכן) */}
+            {smartMatches.length > 0 && (
+              <SectionLabel
+                title="ההתאמות שלכם"
+                count={smartMatches.length}
+                style={styles.smartLabel}
+              />
+            )}
           </>
         }
         ListEmptyComponent={
-          <Text style={styles.placeholder}>אין משתמשים להציג כרגע</Text>
+          <View style={styles.empty}>
+            <View style={styles.emptyIcon}>
+              <Users size={30} color={COLORS.brand} strokeWidth={1.8} />
+            </View>
+            <Text style={styles.emptyTitle}>עדיין אין התאמות</Text>
+            <Text style={styles.emptySub}>
+              השלימו את הפרופיל וההעדפות — וכך נמצא לכם שותפים שבאמת מתאימים לכם.
+            </Text>
+          </View>
         }
       />
 
       <BottomNav active="home" />
-    </SafeAreaView>
+    </Screen>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: COLORS.background,
-  },
-
-  headerRow: {
+  // ── כותרת ──
+  header: {
     flexDirection: "row-reverse",
-    justifyContent: "space-between",
     alignItems: "center",
-    paddingHorizontal: 20,
-    paddingTop: 20,
-    paddingBottom: 10,
+    justifyContent: "space-between",
+    paddingHorizontal: SPACING.xl,
+    paddingTop: SPACING.md,
+    paddingBottom: SPACING.sm,
   },
-
   headerTitle: {
-    fontSize: 20,
-    fontFamily: FONTS.bold,
-    color: COLORS.brand,
+    ...TYPOGRAPHY.h1,
+    color: COLORS.text,
+    textAlign: "right",
+    flex: 1,
+    marginHorizontal: SPACING.md,
   },
+  headerSpacer: { width: 26 },
 
   content: {
-    paddingHorizontal: 16,
-    paddingTop: 10,
-    paddingBottom: 40,
+    paddingHorizontal: SPACING.xl,
+    paddingTop: SPACING.xs,
+    paddingBottom: SPACING.xxxl,
   },
 
-  sectionTitle: {
-    fontSize: 17,
-    fontFamily: FONTS.bold,
-    marginTop: 18,
-    marginBottom: 10,
+  intro: {
+    fontFamily: FONTS.medium,
+    fontSize: 15,
+    lineHeight: 22,
+    color: COLORS.textSecondary,
     textAlign: "right",
-    color: COLORS.brand,
+    marginBottom: SPACING.xl,
   },
+
+  // ── בלוק בקשות ──
+  block: { marginBottom: SPACING.lg },
+  blockLabel: { marginBottom: SPACING.sm },
 
   requestCard: {
     flexDirection: "row-reverse",
     alignItems: "center",
+    gap: SPACING.md,
     backgroundColor: COLORS.surface,
-    padding: 12,
-    borderRadius: 16,
-    marginBottom: 10,
-    shadowColor: COLORS.shadow,
-    shadowOpacity: 0.05,
-    shadowRadius: 6,
-    elevation: 2,
+    borderRadius: RADIUS.lg,
+    borderWidth: 1,
+    borderColor: COLORS.hairline,
+    padding: SPACING.md,
+    marginBottom: SPACING.sm,
+    ...SHADOWS.sm,
   },
-
-  avatar: {
-    width: 45,
-    height: 45,
-    borderRadius: 22,
-    backgroundColor: COLORS.divider,
-    marginLeft: 10,
-  },
-
-  name: {
-    fontSize: 16,
-    fontFamily: FONTS.bold,
+  requestInfo: { flex: 1, alignItems: "flex-end" },
+  requestName: {
+    fontFamily: FONTS.semibold,
+    fontSize: 15,
+    color: COLORS.text,
     textAlign: "right",
-    color: COLORS.brand,
   },
-
-  age: {
+  requestMeta: {
+    fontFamily: FONTS.regular,
     fontSize: 13,
     color: COLORS.textSecondary,
     textAlign: "right",
     marginTop: 2,
-    fontFamily: FONTS.regular,
   },
-
-  actions: {
-    flexDirection: "row",
-    gap: 10,
-  },
-
-  placeholder: {
-    color: COLORS.textMuted,
-    textAlign: "center",
-    marginTop: 10,
-    fontFamily: FONTS.regular,
-  },
-
-  avatarFallback: {
-    backgroundColor: COLORS.brand,
+  requestActions: { flexDirection: "row-reverse", gap: SPACING.sm },
+  reqBtn: {
+    width: 40,
+    height: 40,
+    borderRadius: RADIUS.pill,
     justifyContent: "center",
     alignItems: "center",
   },
+  reqAccept: { backgroundColor: COLORS.successLight },
+  reqReject: { backgroundColor: COLORS.dangerLight },
 
-  // =========================
-  // SMART MATCHES (modern grid cards)
-  // =========================
-
-  // כותרת קטע עם אייקון (במקום אמוג'י בטקסט).
-  sectionHeaderRow: {
-    flexDirection: "row-reverse",
-    alignItems: "center",
-    gap: 6,
-    marginTop: 18,
-    marginBottom: 10,
+  // ── רצועת "אולי בקטע שלכם" (התנהגותי) — בולטת לקצוות המסך ──
+  railSection: {
+    marginBottom: SPACING.lg,
+    marginHorizontal: -SPACING.xl,
   },
-
-  sectionTitleInline: {
-    fontSize: 17,
-    fontFamily: FONTS.bold,
-    color: COLORS.brand,
-    textAlign: "right",
-  },
-
-  grid: {
-    flexDirection: "row-reverse",
-    flexWrap: "wrap",
-    justifyContent: "flex-start",
-    gap: 12,
-    marginTop: 4,
-  },
-
-  // שורת ה-FlatList (numColumns=2) — משחזרת את פריסת ה-grid הקודמת:
-  // RTL, מרווח אופקי 12 בין העמודות, ומרווח 12 בין השורות (יחד עם marginBottom של card).
-  gridRow: {
-    flexDirection: "row-reverse",
-    justifyContent: "flex-start",
-    gap: 12,
-    marginBottom: 12,
-  },
-
-  // ── Behavioral category row ──
-  behavioralSection: {
-    marginTop: 6,
-    marginBottom: 8,
-  },
-
-  // היפוך אופקי כדי שהשורה ה"נטפליקסית" תתחיל מימין (RTL).
-  rowScroll: {
-    transform: [{ scaleX: -1 }],
-  },
-  cardFlipped: {
-    transform: [{ scaleX: -1 }],
-  },
-
-  sectionSubtitle: {
-    fontSize: 12,
+  railHeaderPad: { paddingHorizontal: SPACING.xl },
+  railLabel: { marginBottom: 2 },
+  railSub: {
+    fontFamily: FONTS.regular,
+    fontSize: 13,
     color: COLORS.textMuted,
     textAlign: "right",
-    marginTop: -6,
-    marginBottom: 10,
-    fontFamily: FONTS.regular,
+    marginBottom: SPACING.md,
   },
-
+  // היפוך אופקי כדי שהרצועה תתחיל מימין (RTL); כל כרטיס מתהפך בחזרה ב-cardFlipped.
+  rowScroll: { transform: [{ scaleX: -1 }] },
   rowContent: {
     flexDirection: "row",
-    gap: 12,
+    gap: SPACING.md,
+    paddingHorizontal: SPACING.xl,
     paddingVertical: 2,
   },
 
+  smartLabel: { marginTop: SPACING.xs, marginBottom: SPACING.md },
+
+  // ── גריד ההתאמות ──
+  gridRow: {
+    flexDirection: "row-reverse",
+    justifyContent: "flex-start",
+    gap: SPACING.md,
+    marginBottom: SPACING.md + 2,
+  },
+
+  // ── כרטיס מטייל ──
   card: {
     backgroundColor: COLORS.surface,
-    borderRadius: 18,
+    borderRadius: RADIUS.xl,
+    borderWidth: 1,
+    borderColor: COLORS.hairline,
     overflow: "hidden",
-    marginBottom: 12,
-    shadowColor: COLORS.shadow,
-    shadowOpacity: 0.1,
-    shadowRadius: 10,
-    shadowOffset: { width: 0, height: 4 },
-    elevation: 4,
+    ...SHADOWS.sm,
   },
+  cardFlipped: { transform: [{ scaleX: -1 }] },
 
-  cardImageWrap: {
+  cardPhotoWrap: {
     width: "100%",
-    height: 180,
-    backgroundColor: COLORS.divider,
+    height: 160,
+    backgroundColor: COLORS.backgroundSunk,
   },
-
-  cardImage: {
-    width: "100%",
-    height: "100%",
-  },
-
-  cardImageFallback: {
-    backgroundColor: COLORS.brand,
+  cardPhoto: { width: "100%", height: "100%" },
+  cardPhotoFallback: {
+    backgroundColor: COLORS.brandLight,
     justifyContent: "center",
     alignItems: "center",
   },
 
+  // תג התאמה — ענבר (צבע ה"התאמה" של המערכת), מוסבר ע"י הצ'יפים המשותפים שמתחת.
   scoreBadge: {
     position: "absolute",
-    top: 10,
-    right: 10,
+    top: SPACING.sm,
+    right: SPACING.sm,
     flexDirection: "row-reverse",
     alignItems: "center",
     gap: 3,
     backgroundColor: COLORS.amberLight,
     paddingVertical: 4,
     paddingHorizontal: 8,
-    borderRadius: 12,
+    borderRadius: RADIUS.pill,
   },
-
   scoreBadgeText: {
-    fontSize: 12,
     fontFamily: FONTS.bold,
+    fontSize: 12,
     color: COLORS.amberDark,
   },
 
-  cardNameBand: {
-    position: "absolute",
-    left: 0,
-    right: 0,
-    bottom: 0,
-    paddingHorizontal: 10,
-    paddingVertical: 8,
-    backgroundColor: "rgba(0,0,0,0.45)",
+  cardBody: {
+    paddingHorizontal: SPACING.md,
+    paddingTop: SPACING.sm + 2,
+    paddingBottom: SPACING.md,
   },
-
   cardName: {
-    color: "#FFFFFF",
+    fontFamily: FONTS.semibold,
     fontSize: 15,
-    fontFamily: FONTS.bold,
+    color: COLORS.text,
     textAlign: "right",
   },
-
-  cardMetaRow: {
+  cityRow: {
     flexDirection: "row-reverse",
     alignItems: "center",
-    paddingHorizontal: 10,
-    paddingVertical: 10,
+    gap: 4,
+    marginTop: 3,
+  },
+  cityText: {
+    fontFamily: FONTS.regular,
+    fontSize: 12.5,
+    color: COLORS.textMuted,
+    textAlign: "right",
+    flexShrink: 1,
   },
 
-  cardMeta: {
-    fontSize: 12,
+  // מרווח עליון לסיבות ההתאמה (הרכיב המשותף MatchReasons מטפל בשאר).
+  cardReasons: { marginTop: SPACING.sm },
+
+  // ── מצב ריק ──
+  empty: {
+    alignItems: "center",
+    paddingTop: SPACING.xxxl,
+    paddingHorizontal: SPACING.lg,
+  },
+  emptyIcon: {
+    width: 64,
+    height: 64,
+    borderRadius: RADIUS.pill,
+    backgroundColor: COLORS.brandLight,
+    justifyContent: "center",
+    alignItems: "center",
+    marginBottom: SPACING.lg,
+  },
+  emptyTitle: {
+    ...TYPOGRAPHY.h3,
+    color: COLORS.text,
+    textAlign: "center",
+    marginBottom: SPACING.xs,
+  },
+  emptySub: {
     fontFamily: FONTS.regular,
+    fontSize: 15,
+    lineHeight: 22,
     color: COLORS.textSecondary,
-    textAlign: "right",
-    flex: 1,
+    textAlign: "center",
+  },
+
+  // ── שלד טעינה (סטטי) ──
+  skelIntro: {
+    height: 16,
+    width: "70%",
+    borderRadius: RADIUS.sm,
+    backgroundColor: COLORS.backgroundSunk,
+    alignSelf: "flex-end",
+    marginBottom: SPACING.xl,
+  },
+  skelPhoto: {
+    width: "100%",
+    height: 160,
+    backgroundColor: COLORS.backgroundSunk,
+  },
+  skelLine: {
+    height: 12,
+    width: "70%",
+    borderRadius: 6,
+    backgroundColor: COLORS.backgroundSunk,
+    alignSelf: "flex-end",
+  },
+  skelLineShort: {
+    height: 12,
+    width: "45%",
+    borderRadius: 6,
+    backgroundColor: COLORS.backgroundSunk,
+    alignSelf: "flex-end",
+    marginTop: 8,
   },
 });

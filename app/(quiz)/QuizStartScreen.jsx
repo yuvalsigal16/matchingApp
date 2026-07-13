@@ -248,8 +248,8 @@ const styles = StyleSheet.create({
   dot: {
     width: 8, height: 8,
     borderRadius: 4,         // עיגול מושלם
-    backgroundColor: "#7FB3B3",
-    opacity: 0.35,           // שקוף חלקית — מעומם
+    backgroundColor: COLORS.brand,
+    opacity: 0.25,           // שקוף חלקית — מעומם
   },
 
   // נקודה פעילה (השלב הנוכחי) — מורחבת ואטומה
@@ -298,7 +298,7 @@ const styles = StyleSheet.create({
     width: width * 0.62, // 62% מרוחב המסך
     height: 6,
     borderRadius: 3,
-    backgroundColor: "#C8E0E2", // כחול-אפור בהיר
+    backgroundColor: COLORS.brandLight, // גוון מותג רך
     overflow: "hidden",         // חותך את המילוי שלא יצא מחוץ לרדיוס
   },
 
@@ -313,7 +313,7 @@ const styles = StyleSheet.create({
   progressLabel: {
     marginTop: 10,
     fontSize: 13,
-    color: "#2D6A6F",    // גוון ביניים של הteal
-    fontFamily: FONTS.bold,
+    color: COLORS.textSecondary,
+    fontFamily: FONTS.medium,
   },
 });

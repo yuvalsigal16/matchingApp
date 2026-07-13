@@ -1,12 +1,25 @@
-import { Ionicons } from "@expo/vector-icons";
+import { Ionicons } from "@expo/vector-icons"; // רק ללוגואים של מותגים (אין ב-lucide)
 import DateTimePicker from "@react-native-community/datetimepicker";
 import * as ImagePicker from "expo-image-picker";
 import { useRouter } from "expo-router";
 import {
+  Calendar,
+  Camera,
   Cigarette, // מעשן
   CigaretteOff, // לא מעשן
-  MoonStar, // שומר שבת — סמל של מנוחה ושבת קודש
-  UtensilsCrossed, // שומר כשרות — סמל של כללי אכילה
+  Compass, // ברירת-מחדל לתחום עניין
+  Image as ImageIcon,
+  Landmark, // תרבות
+  Leaf, // טבע
+  MoonStar, // שומר שבת
+  Mountain, // אקסטרים
+  Music, // מוזיקה
+  PartyPopper, // מסיבות
+  ShoppingBag, // שופינג
+  Umbrella, // בטן גב
+  User,
+  Utensils, // קולינריה
+  UtensilsCrossed, // שומר כשרות
 } from "lucide-react-native";
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
@@ -14,17 +27,14 @@ import {
   Alert,
   Animated,
   Image,
-  KeyboardAvoidingView,
   Modal,
   Platform,
   Pressable,
-  ScrollView,
   StyleSheet,
   Text,
   TextInput,
   View,
 } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
 import {
   addUserInterest,
   getAllInterests,
@@ -43,7 +53,23 @@ import {
   uploadProfileImage,
 } from "../src/api/userProfileService";
 import { getUser } from "../src/auth/authStore";
-import { COLORS, FONTS } from "../src/theme";
+import { COLORS, FONTS, RADIUS, SHADOWS, SPACING } from "../src/theme";
+import QuizShell from "../../components/ui/QuizShell";
+import Tappable from "../../components/ui/Tappable";
+
+// אייקון לכל תחום עניין (לפי שם מהשרת) — הופך את שלב תחומי העניין לוויזואלי
+// ו"טיולי" במקום רשימת מלל. ברירת מחדל: מצפן.
+const INTEREST_ICONS = {
+  "אקסטרים": Mountain,
+  "טבע": Leaf,
+  "תרבות": Landmark,
+  "קולינריה": Utensils,
+  "שופינג": ShoppingBag,
+  "בטן גב": Umbrella,
+  "מוזיקה": Music,
+  "מסיבות": PartyPopper,
+};
+const interestIcon = (name) => INTEREST_ICONS[name] || Compass;
 
 const GENDER_OPTIONS = [
   { label: "זכר", value: "Male" },
@@ -216,7 +242,8 @@ function useCitySearch(query) {
 const QUESTIONS = [
   {
     id: "bio",
-    title: "קצת על עצמי",
+    title: "קצת עליכם",
+    subtitle: "נעים להכיר - הפרטים האלה עוזרים לנו למצוא לכם התאמות מדויקות.",
     type: "fields",
     fields: [
       { key: "firstName", label: "שם פרטי" },
@@ -229,7 +256,8 @@ const QUESTIONS = [
   },
   {
     id: "interests",
-    title: "תחומי עניין של טיול מושלם",
+    title: "מה עושה טיול למושלם?",
+    subtitle: "בחרו כל מה שמדבר אליכם - לפי זה נחבר אתכם לאנשים בקצב שלכם.",
     type: "multi-select",
     options: [
       "אקסטרים",
@@ -244,7 +272,8 @@ const QUESTIONS = [
   },
   {
     id: "smoking",
-    title: "מעשן?",
+    title: "מעשנים?",
+    subtitle: "רק כדי להתאים אתכם למי שנוח לכם איתו לאורך הדרך.",
     type: "single-select",
     options: [
       { value: "מעשן/ת", label: "מעשן/ת", Icon: Cigarette },
@@ -254,6 +283,7 @@ const QUESTIONS = [
   {
     id: "religion",
     title: "מסורת ואורח חיים",
+    subtitle: "נוודא שנתאים לכם שותפים שמכבדים את מה שחשוב לכם.",
     type: "yes-no-list",
     options: [
       { key: "shabbat", label: "שומר/ת שבת?", Icon: MoonStar },
@@ -262,19 +292,22 @@ const QUESTIONS = [
   },
   {
     id: "spontaneous",
-    title: "כמה אני ספונטני?",
+    title: "כמה אתם ספונטניים?",
+    subtitle: "מתכננים כל דקה, או קמים בבוקר ופשוט טסים?",
     type: "rating",
     labels: ["אולי בפעם אחרת", "מי טס מחר?"],
   },
   {
     id: "lifestyle",
-    title: "אורח החיים שלי בטיול",
+    title: "איזה סוג מטיילים אתם?",
+    subtitle: "תרמיל וגבינה על הדשא, או מלון עם נוף? אין תשובה נכונה.",
     type: "rating",
     labels: ["פשוט", "יוקרתי"],
   },
   {
     id: "social",
-    title: "אפשר למצוא אותי ב:",
+    title: "איפה אפשר למצוא אתכם?",
+    subtitle: "לא חובה - אפשר לדלג. הפרטים יוצגו רק להתאמות מאושרות.",
     type: "social-links",
   },
 ];
@@ -346,6 +379,39 @@ function getIsAnswered(question, answers) {
   }
 }
 
+// מחזיר רמז ידידותי *למה* אי אפשר להמשיך עדיין (למקום כפתור מושבת ואילם).
+// קריאה-בלבד; משקף את אותה לוגיקה של getIsAnswered בלי לשנות אותה.
+function getValidationHint(question, answers) {
+  switch (question.type) {
+    case "fields": {
+      if (!(answers.firstName || "").trim() || !(answers.lastName || "").trim())
+        return "מלאו שם פרטי ושם משפחה";
+      const d = answers.birthDate;
+      if (!(d instanceof Date) || isNaN(d.getTime())) return "בחרו תאריך לידה";
+      const today = new Date();
+      let age = today.getFullYear() - d.getFullYear();
+      const m = today.getMonth() - d.getMonth();
+      if (m < 0 || (m === 0 && today.getDate() < d.getDate())) age--;
+      if (age < 18) return "צריך להיות בני 18 ומעלה";
+      if (age > 120) return "בדקו את תאריך הלידה";
+      if (!(answers.city && typeof answers.city === "object" && answers.city.city))
+        return "בחרו עיר מתוך הרשימה";
+      if (question.hasGender && !answers.gender) return "בחרו מגדר";
+      return "";
+    }
+    case "multi-select":
+      return "בחרו לפחות תחום עניין אחד";
+    case "single-select":
+      return "בחרו אפשרות אחת";
+    case "yes-no-list":
+      return "השיבו על שתי השאלות";
+    case "rating":
+      return "בחרו דרגה בסולם";
+    default:
+      return "";
+  }
+}
+
 // ─── Component ────────────────────────────────────────────────────────────────
 
 export default function QuizScreen() {
@@ -388,10 +454,12 @@ export default function QuizScreen() {
 
   const fadeAnim = useRef(new Animated.Value(1)).current;
   const slideAnim = useRef(new Animated.Value(0)).current;
-  const nextBtnScale = useRef(new Animated.Value(1)).current;
 
   const currentQ = QUESTIONS[step];
   const answered = getIsAnswered(currentQ, answers);
+  const isLastStep = step === QUESTIONS.length - 1;
+  // רמז מוצג מעל ה-CTA כשהוא מושבת — מסביר מה חסר במקום כפתור אילם.
+  const validationHint = !answered ? getValidationHint(currentQ, answers) : "";
 
   const { suggestions: citySuggestions, loading: cityLoading } =
     useCitySearch(cityInputText);
@@ -751,27 +819,14 @@ export default function QuizScreen() {
     }
   };
 
+  // חזרה לשלב הקודם — מאפשר לתקן תשובות (השתמש באותה אנימציית מעבר).
+  const handleBack = () => {
+    if (step > 0 && !submitting) animateTransition(step - 1);
+  };
+
   const updateAnswer = useCallback((key, value) => {
     setAnswers((prev) => ({ ...prev, [key]: value }));
   }, []);
-
-  const onNextPressIn = () => {
-    if (!answered) return;
-    Animated.spring(nextBtnScale, {
-      toValue: 0.96,
-      useNativeDriver: true,
-      speed: 30,
-      bounciness: 4,
-    }).start();
-  };
-  const onNextPressOut = () => {
-    Animated.spring(nextBtnScale, {
-      toValue: 1,
-      useNativeDriver: true,
-      speed: 30,
-      bounciness: 4,
-    }).start();
-  };
 
   // Scroll city input into view after keyboard animation completes
   const handleCityFocus = useCallback(() => {
@@ -788,18 +843,22 @@ export default function QuizScreen() {
       <Pressable
         style={styles.avatarCircle}
         onPress={() => setImagePickerVisible(true)}
+        accessibilityRole="button"
+        accessibilityLabel={
+          profileImageUri ? "החלפת תמונת פרופיל" : "הוספת תמונת פרופיל"
+        }
       >
         {profileImageUri ? (
           <Image source={{ uri: profileImageUri }} style={styles.avatarImage} />
         ) : (
-          <Ionicons name="person" size={48} color={COLORS.textMuted} />
+          <User size={44} color={COLORS.brand} strokeWidth={1.6} />
         )}
         <View style={styles.cameraBadge}>
-          <Ionicons name="camera" size={16} color={COLORS.onBrand} />
+          <Camera size={15} color={COLORS.onBrand} strokeWidth={2.2} />
         </View>
       </Pressable>
       <Text style={styles.imagePickerHint}>
-        {profileImageUri ? "הקש להחלפת תמונה" : "הוסף תמונת פרופיל"}
+        {profileImageUri ? "הקישו להחלפת התמונה" : "הוסיפו תמונת פרופיל"}
       </Text>
     </View>
   );
@@ -818,13 +877,23 @@ export default function QuizScreen() {
         <Pressable style={styles.modalCard} onPress={() => {}}>
           <Text style={styles.modalTitle}>בחירת תמונת פרופיל</Text>
 
-          <Pressable style={styles.modalBtn} onPress={takePhoto}>
-            <Ionicons name="camera" size={22} color={COLORS.brand} />
+          <Pressable
+            style={styles.modalBtn}
+            onPress={takePhoto}
+            accessibilityRole="button"
+            accessibilityLabel="צילום במצלמה"
+          >
+            <Camera size={22} color={COLORS.brand} strokeWidth={2} />
             <Text style={styles.modalBtnText}>צילום במצלמה</Text>
           </Pressable>
 
-          <Pressable style={styles.modalBtn} onPress={pickFromGallery}>
-            <Ionicons name="images" size={22} color={COLORS.brand} />
+          <Pressable
+            style={styles.modalBtn}
+            onPress={pickFromGallery}
+            accessibilityRole="button"
+            accessibilityLabel="בחירה מהגלריה"
+          >
+            <ImageIcon size={22} color={COLORS.brand} strokeWidth={2} />
             <Text style={styles.modalBtnText}>בחירה מהגלריה</Text>
           </Pressable>
 
@@ -852,6 +921,9 @@ export default function QuizScreen() {
               style={[styles.segment, isSelected && styles.segmentActive]}
               // כאן אנחנו שומרים את ה-value (הערך באנגלית) שיישלח ל-SQL
               onPress={() => updateAnswer("gender", opt.value)}
+              accessibilityRole="radio"
+              accessibilityState={{ selected: isSelected }}
+              accessibilityLabel={opt.label}
             >
               <Text
                 style={[
@@ -947,36 +1019,43 @@ export default function QuizScreen() {
     );
   };
 
-  const renderFields = () => {
-    const rows = [];
-    if (currentQ.hasImagePicker) {
-      rows.push(renderImagePicker());
-    }
-    for (const f of currentQ.fields) {
-      if (f.key === "city") {
-        rows.push(renderCityInput());
-      } else if (f.key === "birthDate") {
-        rows.push(renderBirthDateInput());
-      } else {
-        rows.push(
-          <TextInput
-            key={f.key}
-            style={styles.input}
-            placeholder={f.label}
-            placeholderTextColor={COLORS.textMuted}
-            textAlign="right"
-            onChangeText={(val) => updateAnswer(f.key, val)}
-            value={answers[f.key] || ""}
-          />,
-        );
-      }
-      // ה-segmented control של מגדר מוצג מיד אחרי שדה תאריך הלידה
-      if (f.key === "birthDate" && currentQ.hasGender) {
-        rows.push(renderGenderSelector());
-      }
-    }
-    return rows;
-  };
+  // שלב ה-bio בפריסה קלה וסרוקה: תמונת פרופיל כ"גיבור" למעלה, שם פרטי+משפחה
+  // בשתי עמודות, ואז תאריך/עיר/מגדר עם תוויות ברורות. אותם מפתחות ולוגיקה.
+  const renderFields = () => (
+    <View style={styles.bioWrap}>
+      {currentQ.hasImagePicker ? renderImagePicker() : null}
+
+      <Text style={styles.fieldLabel}>שם פרטי</Text>
+      <TextInput
+        style={styles.input}
+        placeholder="שם פרטי"
+        placeholderTextColor={COLORS.textMuted}
+        textAlign="right"
+        onChangeText={(val) => updateAnswer("firstName", val)}
+        value={answers.firstName || ""}
+        accessibilityLabel="שם פרטי"
+      />
+
+      <Text style={styles.fieldLabel}>שם משפחה</Text>
+      <TextInput
+        style={styles.input}
+        placeholder="שם משפחה"
+        placeholderTextColor={COLORS.textMuted}
+        textAlign="right"
+        onChangeText={(val) => updateAnswer("lastName", val)}
+        value={answers.lastName || ""}
+        accessibilityLabel="שם משפחה"
+      />
+
+      <Text style={styles.fieldLabel}>תאריך לידה</Text>
+      {renderBirthDateInput()}
+
+      <Text style={styles.fieldLabel}>מקום מגורים</Text>
+      {renderCityInput()}
+
+      {currentQ.hasGender ? renderGenderSelector() : null}
+    </View>
+  );
 
   // ── שדה תאריך לידה: כפתור שמציג את התאריך הנבחר ופותח לוח שנה ────────────────
   const renderBirthDateInput = () => {
@@ -1038,8 +1117,10 @@ export default function QuizScreen() {
         <Pressable
           style={styles.dateInputBtn}
           onPress={() => setBirthDatePickerVisible(true)}
+          accessibilityRole="button"
+          accessibilityLabel="בחירת תאריך לידה"
         >
-          <Ionicons name="calendar-outline" size={20} color={COLORS.textMuted} />
+          <Calendar size={20} color={COLORS.textMuted} strokeWidth={2} />
           <Text
             style={[
               styles.dateInputText,
@@ -1101,6 +1182,7 @@ export default function QuizScreen() {
       ? interestOptions.map((o) => ({
           value: o.interestID,
           label: o.interestName,
+          Icon: interestIcon(o.interestName),
         }))
       : currentQ.options.map((o) =>
           typeof o === "string" ? { value: o, label: o } : o,
@@ -1108,46 +1190,84 @@ export default function QuizScreen() {
 
     const currentVal = answers[currentQ.id] || [];
 
-    return (
-      <View style={styles.optionsContainer}>
-        {items.map((item) => {
-          const isSelected = currentVal.includes(item.value);
-          const Icon = item.Icon;
-          return (
-            <Pressable
-              key={String(item.value)}
-              style={({ pressed }) => [
-                styles.optionBtn,
-                isSelected && styles.selectedBtn,
-                pressed && !isSelected && styles.pressedBtn,
-              ]}
-              onPress={() => {
-                if (currentQ.type === "single-select") {
-                  updateAnswer(currentQ.id, [item.value]);
-                } else {
+    // ── תחומי עניין: שבבים (chips) עם אייקון, בעטיפה גמישה — סריקה מהירה ותחושת "טיול" ──
+    if (isInterests) {
+      return (
+        <View style={styles.chipsWrap}>
+          {items.map((item) => {
+            const isSelected = currentVal.includes(item.value);
+            const Icon = item.Icon;
+            return (
+              <Tappable
+                key={String(item.value)}
+                style={[styles.chip, isSelected && styles.chipSelected]}
+                onPress={() => {
                   const next = isSelected
                     ? currentVal.filter((i) => i !== item.value)
                     : [...currentVal, item.value];
                   updateAnswer(currentQ.id, next);
-                }
-              }}
-            >
-              <View style={styles.optionLabelRow}>
+                }}
+                accessibilityRole="checkbox"
+                accessibilityState={{ checked: isSelected }}
+                accessibilityLabel={item.label}
+              >
                 {Icon ? (
                   <Icon
-                    size={20}
+                    size={18}
                     color={isSelected ? COLORS.onBrand : COLORS.brand}
                     strokeWidth={2}
                   />
                 ) : null}
                 <Text
-                  style={[styles.optionText, isSelected && styles.selectedText]}
+                  style={[styles.chipText, isSelected && styles.chipTextSelected]}
                 >
                   {item.label}
                 </Text>
-              </View>
-              {isSelected && <Text style={styles.checkmark}>✓</Text>}
-            </Pressable>
+              </Tappable>
+            );
+          })}
+        </View>
+      );
+    }
+
+    // ── single-select (מעשנים): שני אריחי-בחירה גדולים — ברור ש"בוחרים אחד" ──
+    return (
+      <View style={styles.tilesRow}>
+        {items.map((item) => {
+          const isSelected = currentVal.includes(item.value);
+          const Icon = item.Icon;
+          return (
+            <Tappable
+              key={String(item.value)}
+              style={[styles.choiceTile, isSelected && styles.choiceTileSelected]}
+              onPress={() => updateAnswer(currentQ.id, [item.value])}
+              accessibilityRole="radio"
+              accessibilityState={{ selected: isSelected }}
+              accessibilityLabel={item.label}
+            >
+              {Icon ? (
+                <View
+                  style={[
+                    styles.choiceTileIcon,
+                    isSelected && styles.choiceTileIconSelected,
+                  ]}
+                >
+                  <Icon
+                    size={26}
+                    color={isSelected ? COLORS.onBrand : COLORS.brand}
+                    strokeWidth={2}
+                  />
+                </View>
+              ) : null}
+              <Text
+                style={[
+                  styles.choiceTileText,
+                  isSelected && styles.choiceTileTextSelected,
+                ]}
+              >
+                {item.label}
+              </Text>
+            </Tappable>
           );
         })}
       </View>
@@ -1175,6 +1295,9 @@ export default function QuizScreen() {
                     pressed && !isSelected && styles.pressedBtn,
                   ]}
                   onPress={() => updateAnswer(item.key, val)}
+                  accessibilityRole="radio"
+                  accessibilityState={{ selected: isSelected }}
+                  accessibilityLabel={`${item.label} ${val}`}
                 >
                   <Text
                     style={[
@@ -1192,60 +1315,72 @@ export default function QuizScreen() {
       );
     });
 
-  const renderRating = () => (
-    <View style={styles.ratingWrapper}>
-      <View style={styles.ratingRow}>
-        {[1, 2, 3, 4, 5].map((num) => {
-          const isSelected = answers[currentQ.id] === num;
-          return (
-            <Pressable
-              key={num}
-              style={({ pressed }) => [
-                styles.rateCircle,
-                isSelected && styles.selectedRate,
-                pressed && !isSelected && styles.pressedBtn,
-              ]}
-              onPress={() => updateAnswer(currentQ.id, num)}
-            >
-              <Text
-                style={[styles.rateText, isSelected && styles.selectedRateText]}
+  const renderRating = () => {
+    const val = answers[currentQ.id];
+    return (
+      <View style={styles.ratingWrapper}>
+        <View style={styles.ratingScale}>
+          {/* קו-סולם רציף מאחורי העיגולים — הופך 5 בועות לסקאלה אחת */}
+          <View style={styles.ratingTrack} />
+          {[1, 2, 3, 4, 5].map((num) => {
+            const isSelected = val === num;
+            return (
+              <Pressable
+                key={num}
+                style={({ pressed }) => [
+                  styles.rateCircle,
+                  isSelected && styles.selectedRate,
+                  pressed && !isSelected && styles.pressedBtn,
+                ]}
+                onPress={() => updateAnswer(currentQ.id, num)}
+                accessibilityRole="radio"
+                accessibilityState={{ selected: isSelected }}
+                accessibilityLabel={`דרגה ${num} מתוך 5`}
               >
-                {num}
-              </Text>
-            </Pressable>
-          );
-        })}
+                <Text
+                  style={[styles.rateText, isSelected && styles.selectedRateText]}
+                >
+                  {num}
+                </Text>
+              </Pressable>
+            );
+          })}
+        </View>
+        <View style={styles.labelRow}>
+          <Text style={styles.anchorText}>{currentQ.labels[0]}</Text>
+          <Text style={styles.anchorText}>{currentQ.labels[1]}</Text>
+        </View>
       </View>
-      <View style={styles.labelRow}>
-        <Text style={styles.subText}>{currentQ.labels[0]}</Text>
-        <Text style={styles.subText}>{currentQ.labels[1]}</Text>
-      </View>
-    </View>
-  );
+    );
+  };
 
   const renderSocialLinks = () => (
     <View style={styles.socialContainer}>
       {/* Instagram */}
       <View style={styles.socialInputRow}>
-        <Ionicons name="logo-instagram" size={22} color="#E1306C" />
+        <Ionicons name="logo-instagram" size={22} color={COLORS.brand} />
         <TextInput
           style={styles.socialInput}
           placeholder="שם משתמש באינסטגרם"
           placeholderTextColor={COLORS.textMuted}
           onChangeText={(val) => updateAnswer("instagram", val)}
           value={answers.instagram || ""}
+          autoCapitalize="none"
+          accessibilityLabel="שם משתמש באינסטגרם"
         />
       </View>
 
       {/* Facebook */}
       <View style={styles.socialInputRow}>
-        <Ionicons name="logo-facebook" size={22} color={COLORS.primary} />
+        <Ionicons name="logo-facebook" size={22} color={COLORS.brand} />
         <TextInput
           style={styles.socialInput}
           placeholder="שם משתמש בפייסבוק"
           placeholderTextColor={COLORS.textMuted}
           onChangeText={(val) => updateAnswer("facebook", val)}
           value={answers.facebook || ""}
+          autoCapitalize="none"
+          accessibilityLabel="שם משתמש בפייסבוק"
         />
       </View>
 
@@ -1276,143 +1411,129 @@ export default function QuizScreen() {
   // ─── Render ───────────────────────────────────────────────────────────────
 
   return (
-    <SafeAreaView style={styles.container}>
+    <>
       {renderImagePickerModal()}
-      <KeyboardAvoidingView
-        style={styles.flex}
-        behavior={Platform.OS === "ios" ? "padding" : "height"}
-        keyboardVerticalOffset={Platform.OS === "ios" ? 0 : 20}
+      <QuizShell
+        step={step + 1}
+        total={QUESTIONS.length}
+        onBack={step > 0 ? handleBack : undefined}
+        title={currentQ.title}
+        subtitle={currentQ.subtitle}
+        fade={fadeAnim}
+        slide={slideAnim}
+        scrollRef={scrollViewRef}
+        hint={validationHint}
+        error={submitError}
+        ctaLabel={isLastStep ? "סיום" : "המשך"}
+        onNext={handleNext}
+        loading={submitting}
+        disabled={!answered || submitting}
       >
-        <View style={styles.stepsWrapper}>
-          {QUESTIONS.map((_, index) => {
-            const isActive = index <= step;
-
-            return (
-              <View
-                key={index}
-                style={[styles.stepDot, isActive && styles.stepDotActive]}
-              />
-            );
-          })}
-        </View>
-
-        {/* Animated content */}
-        <Animated.View
-          style={[
-            styles.contentWrapper,
-            { opacity: fadeAnim, transform: [{ translateY: slideAnim }] },
-          ]}
-        >
-          <Text style={styles.title}>{currentQ.title}</Text>
-
-          <ScrollView
-            ref={scrollViewRef}
-            style={styles.scrollView}
-            contentContainerStyle={styles.scrollArea}
-            showsVerticalScrollIndicator={false}
-            keyboardShouldPersistTaps="handled"
-          >
-            {renderQuestionContent()}
-          </ScrollView>
-        </Animated.View>
-
-        {/* Footer */}
-        <View style={styles.footer}>
-          {submitError ? (
-            <Text style={styles.submitErrorText}>{submitError}</Text>
-          ) : null}
-          <Animated.View
-            style={[
-              styles.nextBtnWrapper,
-              { transform: [{ scale: nextBtnScale }] },
-            ]}
-          >
-            <Pressable
-              style={[
-                styles.nextBtn,
-                (!answered || submitting) && styles.nextBtnDisabled,
-              ]}
-              onPress={handleNext}
-              onPressIn={onNextPressIn}
-              onPressOut={onNextPressOut}
-              disabled={!answered || submitting}
-            >
-              {submitting ? (
-                <ActivityIndicator color={COLORS.onBrand} />
-              ) : (
-                <Text
-                  style={[
-                    styles.nextBtnText,
-                    !answered && styles.nextBtnTextDisabled,
-                  ]}
-                >
-                  {step === QUESTIONS.length - 1 ? "סיום" : "נמשיך הלאה?"}
-                </Text>
-              )}
-            </Pressable>
-          </Animated.View>
-
-        </View>
-      </KeyboardAvoidingView>
-    </SafeAreaView>
+        {renderQuestionContent()}
+      </QuizShell>
+    </>
   );
 }
 
 // ─── Styles ───────────────────────────────────────────────────────────────────
 
-const SHADOW = {
-  shadowColor: "#000",
-  shadowOffset: { width: 0, height: 2 },
-  shadowOpacity: 0.08,
-  shadowRadius: 6,
-  elevation: 3,
-};
+// צל אחיד ועדין מהטוקנים — במקום צל אפור כבד על כל כרטיס (מרגיש "טופס").
+const SHADOW = SHADOWS.sm;
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: COLORS.background },
-  flex: { flex: 1, alignItems: "center" },
+  // ── Bio layout ──
+  bioWrap: { width: "100%" },
+  nameRow: { flexDirection: "row-reverse", gap: SPACING.md },
+  nameCol: { flex: 1 },
+  fieldLabel: {
+    fontFamily: FONTS.medium,
+    fontSize: 13,
+    color: COLORS.textSecondary,
+    textAlign: "right",
+    marginBottom: 6,
+  },
 
-  stepsWrapper: {
+  // ── Interest chips ──
+  chipsWrap: {
+    width: "100%",
     flexDirection: "row-reverse",
+    flexWrap: "wrap",
+    gap: SPACING.sm + 2,
+    paddingTop: SPACING.xs,
+  },
+  chip: {
+    flexDirection: "row-reverse",
+    alignItems: "center",
+    gap: 7,
+    paddingVertical: 11,
+    paddingHorizontal: 16,
+    borderRadius: RADIUS.pill,
+    backgroundColor: COLORS.surface,
+    borderWidth: 1.5,
+    borderColor: COLORS.hairline,
+  },
+  chipSelected: { backgroundColor: COLORS.brand, borderColor: COLORS.brand },
+  chipText: { fontFamily: FONTS.medium, fontSize: 15, color: COLORS.text },
+  chipTextSelected: { color: COLORS.onBrand, fontFamily: FONTS.bold },
+
+  // ── Single-select choice tiles ──
+  tilesRow: {
+    width: "100%",
+    flexDirection: "row-reverse",
+    gap: SPACING.md,
+    paddingTop: SPACING.sm,
+  },
+  choiceTile: {
+    flex: 1,
+    alignItems: "center",
+    paddingVertical: SPACING.xl,
+    paddingHorizontal: SPACING.md,
+    borderRadius: RADIUS.lg,
+    backgroundColor: COLORS.surface,
+    borderWidth: 1.5,
+    borderColor: COLORS.hairline,
+    gap: SPACING.md,
+  },
+  choiceTileSelected: {
+    backgroundColor: COLORS.brand,
+    borderColor: COLORS.brand,
+  },
+  choiceTileIcon: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    backgroundColor: COLORS.brandLight,
     justifyContent: "center",
     alignItems: "center",
-    marginTop: 22,
-    marginBottom: 8,
-    gap: 10,
   },
-
-  stepDot: {
-    width: 12,
-    height: 12,
-    borderRadius: 6,
-    backgroundColor: COLORS.divider,
-  },
-
-  stepDotActive: {
-    backgroundColor: COLORS.brand,
-    width: 26,
-  },
-
-  // ── Content ──
-  contentWrapper: {
-    flex: 1,
-    width: "100%",
-    alignItems: "center",
-  },
-  title: {
-    fontSize: 26,
-    fontFamily: FONTS.extraBold,
-    marginTop: 22,
-    marginBottom: 28,
-    textAlign: "center",
-    paddingHorizontal: 24,
+  choiceTileIconSelected: { backgroundColor: "rgba(255,255,255,0.16)" },
+  choiceTileText: {
+    fontFamily: FONTS.semibold,
+    fontSize: 16,
     color: COLORS.text,
   },
-  scrollView: { width: "100%" },
-  scrollArea: {
+  choiceTileTextSelected: { color: COLORS.onBrand },
+
+  // ── Rating scale additions ──
+  ratingScale: {
+    flexDirection: "row",
+    justifyContent: "space-between",
     alignItems: "center",
-    paddingHorizontal: 22,
-    paddingBottom: 40,
+    width: "100%",
+    position: "relative",
+  },
+  ratingTrack: {
+    position: "absolute",
+    left: 29,
+    right: 29,
+    height: 3,
+    borderRadius: 2,
+    backgroundColor: COLORS.hairline,
+  },
+  anchorText: {
+    fontSize: 13,
+    color: COLORS.textSecondary,
+    fontFamily: FONTS.medium,
   },
 
   // ── Image picker (avatar) ──
@@ -1518,15 +1639,16 @@ const styles = StyleSheet.create({
   input: {
     backgroundColor: COLORS.surface,
     width: "100%",
-    paddingVertical: 16,
-    paddingHorizontal: 18,
-    borderRadius: 14,
-    marginBottom: 14,
+    paddingVertical: 15,
+    paddingHorizontal: 16,
+    borderRadius: RADIUS.lg,
+    marginBottom: SPACING.md,
     fontSize: 16,
     fontFamily: FONTS.regular,
     textAlign: "right",
     color: COLORS.text,
-    ...SHADOW,
+    borderWidth: 1.5,
+    borderColor: COLORS.hairline,
   },
 
   // ── שדה תאריך לידה (לחיץ — פותח לוח שנה native) ──
@@ -1535,12 +1657,13 @@ const styles = StyleSheet.create({
     alignItems: "center",
     backgroundColor: COLORS.surface,
     width: "100%",
-    paddingVertical: 16,
-    paddingHorizontal: 18,
-    borderRadius: 14,
-    marginBottom: 14,
+    paddingVertical: 15,
+    paddingHorizontal: 16,
+    borderRadius: RADIUS.lg,
+    marginBottom: SPACING.md,
     gap: 10,
-    ...SHADOW,
+    borderWidth: 1.5,
+    borderColor: COLORS.hairline,
   },
   dateInputText: {
     flex: 1,
@@ -1557,23 +1680,23 @@ const styles = StyleSheet.create({
   genderCard: {
     width: "100%",
     backgroundColor: COLORS.surface,
-    borderRadius: 14,
+    borderRadius: RADIUS.lg,
     paddingVertical: 14,
     paddingHorizontal: 14,
-    marginBottom: 14,
-    ...SHADOW,
+    marginBottom: SPACING.md,
+    borderWidth: 1.5,
+    borderColor: COLORS.hairline,
   },
   genderLabel: {
-    fontSize: 11,
-    fontFamily: FONTS.bold,
-    color: COLORS.textMuted,
+    fontSize: 13,
+    fontFamily: FONTS.medium,
+    color: COLORS.textSecondary,
     textAlign: "right",
     marginBottom: 10,
-    letterSpacing: 0.6,
   },
   segmentedControl: {
-    flexDirection: "row",
-    backgroundColor: COLORS.background,
+    flexDirection: "row-reverse",
+    backgroundColor: COLORS.backgroundSunk,
     borderRadius: 10,
     padding: 3,
   },
@@ -1611,9 +1734,10 @@ const styles = StyleSheet.create({
     flexDirection: "row-reverse",
     alignItems: "center",
     backgroundColor: COLORS.surface,
-    borderRadius: 14,
-    paddingHorizontal: 18,
-    ...SHADOW,
+    borderRadius: RADIUS.lg,
+    paddingHorizontal: 16,
+    borderWidth: 1.5,
+    borderColor: COLORS.hairline,
   },
   cityTextInput: {
     flex: 1,
@@ -1702,14 +1826,15 @@ const styles = StyleSheet.create({
   yesNoContainer: {
     width: "100%",
     backgroundColor: COLORS.surface,
-    borderRadius: 14,
-    paddingVertical: 14,
+    borderRadius: RADIUS.lg,
+    paddingVertical: 12,
     paddingHorizontal: 16,
-    marginBottom: 14,
+    marginBottom: SPACING.md,
     flexDirection: "row-reverse",
     justifyContent: "space-between",
     alignItems: "center",
-    ...SHADOW,
+    borderWidth: 1.5,
+    borderColor: COLORS.hairline,
   },
   // עוטף את האייקון והתווית של שאלת "כן/לא" — אייקון בצד ימין, טקסט צמוד לידו
   yesNoLabelRow: {
@@ -1725,18 +1850,20 @@ const styles = StyleSheet.create({
     flexShrink: 1,
     textAlign: "right",
   },
-  yesNoButtonsRow: { flexDirection: "row", gap: 10, marginLeft: 10 },
+  yesNoButtonsRow: { flexDirection: "row-reverse", gap: 8 },
   smallOptionBtn: {
-    paddingVertical: 9,
+    minWidth: 60,
+    minHeight: 44,
     paddingHorizontal: 18,
-    borderRadius: 10,
-    backgroundColor: COLORS.background,
+    borderRadius: RADIUS.md,
+    backgroundColor: COLORS.backgroundSunk,
+    justifyContent: "center",
+    alignItems: "center",
   },
-  smallOptionText: { fontSize: 16, fontFamily: FONTS.regular, color: COLORS.text },
+  smallOptionText: { fontSize: 16, fontFamily: FONTS.medium, color: COLORS.text },
 
   // ── Rating ──
-  ratingWrapper: { alignItems: "center", width: "100%", marginTop: 24 },
-  ratingRow: { flexDirection: "row", justifyContent: "center", gap: 14 },
+  ratingWrapper: { alignItems: "center", width: "100%", marginTop: SPACING.xl },
   rateCircle: {
     width: 58,
     height: 58,
@@ -1744,18 +1871,22 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.surface,
     justifyContent: "center",
     alignItems: "center",
-    ...SHADOW,
+    borderWidth: 1.5,
+    borderColor: COLORS.hairline,
   },
-  selectedRate: { backgroundColor: COLORS.brand, shadowOpacity: 0.2 },
-  rateText: { fontSize: 18, fontFamily: FONTS.regular, color: COLORS.text },
+  selectedRate: {
+    backgroundColor: COLORS.brand,
+    borderColor: COLORS.brand,
+    transform: [{ scale: 1.08 }],
+  },
+  rateText: { fontSize: 18, fontFamily: FONTS.medium, color: COLORS.text },
   selectedRateText: { color: COLORS.onBrand, fontFamily: FONTS.bold },
   labelRow: {
     flexDirection: "row",
     justifyContent: "space-between",
-    width: "90%",
-    marginTop: 16,
+    width: "100%",
+    marginTop: SPACING.lg,
   },
-  subText: { fontSize: 13, color: COLORS.textSecondary, fontFamily: FONTS.bold },
 
   // ── Social links ──
   socialContainer: { width: "100%", alignItems: "center" },
@@ -1763,23 +1894,18 @@ const styles = StyleSheet.create({
     flexDirection: "row-reverse",
     width: "100%",
     backgroundColor: COLORS.surface,
-    borderRadius: 16,
-    marginBottom: 14,
+    borderRadius: RADIUS.lg,
+    marginBottom: SPACING.md,
     alignItems: "center",
     paddingHorizontal: 16,
-    height: 60,
-    borderWidth: 1,
-    borderColor: COLORS.border,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 4,
-    elevation: 2,
+    height: 58,
+    gap: 10,
+    borderWidth: 1.5,
+    borderColor: COLORS.hairline,
   },
-  socialIcon: { fontSize: 24, padding: 10 },
   socialInput: {
     flex: 1,
-    paddingVertical: 17,
+    paddingVertical: 16,
     fontSize: 16,
     fontFamily: FONTS.regular,
     textAlign: "right",
@@ -1795,35 +1921,4 @@ const styles = StyleSheet.create({
     lineHeight: 18,
   },
 
-  // ── Footer ──
-  footer: {
-    width: "100%",
-    alignItems: "center",
-    paddingTop: 12,
-    paddingBottom: 20,
-    backgroundColor: COLORS.background,
-  },
-  nextBtnWrapper: { width: "72%", marginBottom: 12 },
-  nextBtn: {
-    backgroundColor: COLORS.brand,
-    paddingVertical: 16,
-    borderRadius: 30,
-    alignItems: "center",
-    ...SHADOW,
-    shadowOpacity: 0.2,
-  },
-  nextBtnDisabled: {
-    backgroundColor: COLORS.divider,
-    shadowOpacity: 0,
-    elevation: 0,
-  },
-  nextBtnText: { fontFamily: FONTS.bold, fontSize: 18, color: COLORS.onBrand },
-  nextBtnTextDisabled: { color: COLORS.textMuted },
-  backBtn: { paddingVertical: 6, paddingHorizontal: 10 },
-  backLink: {
-    textDecorationLine: "underline",
-    color: COLORS.textMuted,
-    fontSize: 15,
-    fontFamily: FONTS.regular,
-  },
 });
