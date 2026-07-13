@@ -12,6 +12,7 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useFocusEffect, useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
+import { MapPin } from "lucide-react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
 import { buildImageUri } from "../src/utils/image";
@@ -162,10 +163,12 @@ export default function ActiveChatsScreen() {
   };
 
   const renderChat = ({ item }) => {
+    // צ'אט שמקורו בטיול — יש לו יעד אמיתי (לא ה-placeholder "טיול"). הצ'יפ מסמן זאת.
+    const isTrip = item.tripName && item.tripName !== "טיול";
     const preview = item.lastMessage
       ? item.lastMessage
-      : item.tripName
-        ? `טיול משותף: ${item.tripName}`
+      : isTrip
+        ? "התחילו לתכנן יחד"
         : "התחילו לשוחח";
     const time = item.lastMessageTime ? formatChatTime(item.lastMessageTime) : "";
     const unread = item.unreadCount || 0; // מוצג רק אם קיים נתון (כרגע השרת לא מספק)
@@ -179,9 +182,20 @@ export default function ActiveChatsScreen() {
         {renderAvatar(item)}
 
         <View style={styles.chatInfo}>
-          <Text style={styles.chatName} numberOfLines={1}>
-            {item.otherUserName}
-          </Text>
+          <View style={styles.nameRow}>
+            <Text style={styles.chatName} numberOfLines={1}>
+              {item.otherUserName}
+            </Text>
+            {/* צ'יפ הקשר-טיול — רק לצ'אטים שמקורם בטיול; צ'אטים כלליים נשארים כמו שהם. */}
+            {isTrip ? (
+              <View style={styles.tripChip}>
+                <MapPin size={11} color={COLORS.brand} strokeWidth={2.2} />
+                <Text style={styles.tripChipText} numberOfLines={1}>
+                  {item.tripName}
+                </Text>
+              </View>
+            ) : null}
+          </View>
           <Text
             style={[styles.chatPreview, unread > 0 && styles.chatPreviewUnread]}
             numberOfLines={1}
@@ -279,7 +293,7 @@ const styles = StyleSheet.create({
     fontSize: 26,
     fontFamily: FONTS.bold,
     color: COLORS.text,
-    textAlign: "right",
+    textAlign: "center",
     paddingHorizontal: 20,
     paddingTop: 6,
     paddingBottom: 12,
@@ -322,11 +336,34 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     gap: 3,
   },
+  nameRow: {
+    flexDirection: "row-reverse",
+    alignItems: "center",
+    gap: 6,
+  },
   chatName: {
     fontSize: 16,
     fontFamily: FONTS.bold,
     color: COLORS.text,
     textAlign: "right",
+    flexShrink: 1, // שם ארוך יתקצר לפני שהצ'יפ נדחק
+  },
+  // צ'יפ הקשר-טיול — גוון מותג עדין, MapPin + יעד. סימון קליל ולא דומיננטי.
+  tripChip: {
+    flexDirection: "row-reverse",
+    alignItems: "center",
+    gap: 3,
+    backgroundColor: COLORS.brandLight,
+    paddingHorizontal: 7,
+    paddingVertical: 2,
+    borderRadius: 999,
+    flexShrink: 0,
+    maxWidth: 130,
+  },
+  tripChipText: {
+    fontSize: 12,
+    fontFamily: FONTS.medium,
+    color: COLORS.brand,
   },
   chatPreview: {
     fontSize: 14,

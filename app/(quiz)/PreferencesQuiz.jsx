@@ -8,10 +8,19 @@ import LottieView from "lottie-react-native"; // אנימציית פתיחה
 import {
   Calendar,
   Cigarette,
+  Compass,
   Gem,
   Home,
+  Landmark,
+  Leaf,
   MoonStar,
+  Mountain,
+  Music,
+  PartyPopper,
   Plane,
+  ShoppingBag,
+  Umbrella,
+  Utensils,
   UtensilsCrossed,
   Zap,
 } from "lucide-react-native";
@@ -20,16 +29,13 @@ import {
   ActivityIndicator, // אינדיקטור טעינה (ספינר עגול)
   Animated, // לאנימציות מעבר בין שאלות
   Dimensions, // למדידת רוחב המסך (גודל אנימציית הפתיחה)
-  KeyboardAvoidingView, // מזיז את התוכן כשהמקלדת עולה
   Platform, // מאפשר לבדוק אם זה iOS או Android
   Pressable, // כפתור עם פידבק לחיצה
-  ScrollView, // מאפשר גלילה
   StyleSheet, // הגדרת עיצובים
   Text,
   TextInput, // שדה קלט
   View,
 } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
 
 // ── שירותי API ──
 import { getAllInterests } from "../src/api/interestService"; // טעינת תחומי עניין
@@ -47,7 +53,23 @@ import {
 } from "../src/api/tripService";
 import { BASE_URL } from "../src/api/config";
 import { getToken, getUser } from "../src/auth/authStore";
-import { COLORS, FONTS } from "../src/theme";
+import { COLORS, FONTS, RADIUS, SHADOWS, SPACING } from "../src/theme";
+import QuizShell from "../../components/ui/QuizShell";
+import CompletionOverlay from "../../components/ui/CompletionOverlay";
+import Tappable from "../../components/ui/Tappable";
+
+// אייקון לכל תחום עניין (לפי שם מהשרת) — זהה ל-Quiz, לרצף ויזואלי.
+const INTEREST_ICONS = {
+  "אקסטרים": Mountain,
+  "טבע": Leaf,
+  "תרבות": Landmark,
+  "קולינריה": Utensils,
+  "שופינג": ShoppingBag,
+  "בטן גב": Umbrella,
+  "מוזיקה": Music,
+  "מסיבות": PartyPopper,
+};
+const interestIcon = (name) => INTEREST_ICONS[name] || Compass;
 
 // ── פונקציות עזר לתאריכים ──
 
@@ -214,12 +236,39 @@ function getIsAnswered(question, data) {
   }
 }
 
+// רמז ידידותי *למה* אי אפשר להמשיך (למקום כפתור מושבת ואילם). קריאה-בלבד.
+function getValidationHint(question, data) {
+  switch (question.type) {
+    case "field":
+      return question.optional ? "" : "יש למלא שדה זה";
+    case "dates": {
+      const start = data.startDate;
+      if (!(start instanceof Date) || isNaN(start)) return "בחרו תאריך יציאה";
+      if (!data.oneWay) {
+        const end = data.endDate;
+        if (!(end instanceof Date) || isNaN(end)) return "בחרו תאריך חזרה";
+        if (end < start) return "תאריך החזרה חייב להיות אחרי היציאה";
+      }
+      return "";
+    }
+    case "single-select":
+      return "בחרו אפשרות אחת";
+    case "age":
+      return "כוונו את טווח הגילאים";
+    case "multi-select":
+      return "בחרו לפחות תחום עניין אחד";
+    default:
+      return "";
+  }
+}
+
 // ─── הקומפוננטה הראשית ───────────────────────────────────────────────────────
 
 export default function PreferencesQuizScreen() {
   const router = useRouter();
   const { mode, tripId } = useLocalSearchParams();
   const [step, setStep] = useState(0);
+  const [done, setDone] = useState(false); // רגע-סיום קצר לפני היציאה מהאונבורדינג
 
   // כל הנתונים שנאספו מהמשתמש — אובייקט אחד עם כל השדות
   const [data, setData] = useState({
@@ -261,13 +310,16 @@ export default function PreferencesQuizScreen() {
 
   const fadeAnim = useRef(new Animated.Value(1)).current; // שקיפות בין מעברים
   const slideAnim = useRef(new Animated.Value(0)).current; // החלקה בין מעברים
-  const nextBtnScale = useRef(new Animated.Value(1)).current; // גודל כפתור "המשך"
 
   const currentQ = QUESTIONS[step]; // השאלה הנוכחית
   const realQuestions = QUESTIONS.filter((q) => q.type !== "intro");
 
   const currentStepIndex = realQuestions.findIndex((q) => q.id === currentQ.id);
   const answered = mode === "editTrip" || getIsAnswered(currentQ, data);
+  const isLastStep = step === QUESTIONS.length - 1;
+  const isIntro = currentQ.type === "intro";
+  // רמז מוצג מעל ה-CTA כשהוא מושבת (לא ב-intro / edit).
+  const validationHint = !answered ? getValidationHint(currentQ, data) : "";
 
   // ── טעינת תחומי עניין מהשרת — פעם אחת בעת טעינת הקומפוננטה ──
   useEffect(() => {
@@ -552,10 +604,13 @@ export default function PreferencesQuizScreen() {
       try {
         if (mode === "editTrip") {
           await updateFullTrip();
+          router.replace("/(tabs)/myTrips");
         } else {
           await submitFullTrip();
+          // רגע-סיום קצר לפני הכניסה למוצר (רק בסיום אונבורדינג, לא בעריכה).
+          setDone(true);
+          setTimeout(() => router.replace("/(tabs)/myTrips"), 1500);
         }
-        router.replace("/(tabs)/myTrips");
       } catch (err) {
         setSubmitError(err.message);
       } finally {
@@ -575,27 +630,6 @@ export default function PreferencesQuizScreen() {
     else router.back();
   };
 
-  // ── אנימציות פידבק לכפתור "המשך" ──
-  // בלחיצה — מקטין את הכפתור מעט (אפקט "נלחץ")
-  const onNextPressIn = () => {
-    if (!answered) return;
-    Animated.spring(nextBtnScale, {
-      toValue: 0.96,
-      useNativeDriver: true,
-      speed: 30,
-      bounciness: 4,
-    }).start();
-  };
-  // בשחרור — מחזיר לגודל המלא
-  const onNextPressOut = () => {
-    Animated.spring(nextBtnScale, {
-      toValue: 1,
-      useNativeDriver: true,
-      speed: 30,
-      bounciness: 4,
-    }).start();
-  };
-
   // ─── פונקציות רנדור לכל סוג שאלה ──────────────────────────────────────────
   // כל סוג שאלה מטופל בפונקציה נפרדת — ארגון נקי וקל לתחזוקה
 
@@ -608,6 +642,7 @@ export default function PreferencesQuizScreen() {
         loop
         style={styles.introLottie}
       />
+      <Text style={styles.introTitle}>{currentQ.title}</Text>
       <Text style={styles.introSubtitle}>{currentQ.subtitle}</Text>
     </View>
   );
@@ -898,29 +933,22 @@ export default function PreferencesQuizScreen() {
 
   // ── שאלת בחירה יחידה (single-select) — בחירת מגדר ──
   const renderSingleSelect = () => (
-    <View style={styles.optionsContainer}>
-      {/* רנדור של כל אופציה כפרטה לחיצה */}
+    <View style={styles.chipsWrap}>
       {currentQ.options.map((opt) => {
         const isSelected = data[currentQ.id] === opt;
         return (
-          <Pressable
+          <Tappable
             key={opt}
-            // סגנון דינמי: רגיל / נבחר / נלחץ
-            style={({ pressed }) => [
-              styles.optionBtn,
-              isSelected && styles.selectedBtn,
-              pressed && !isSelected && styles.pressedBtn,
-            ]}
+            style={[styles.chip, isSelected && styles.chipSelected]}
             onPress={() => updateField(currentQ.id, opt)}
+            accessibilityRole="radio"
+            accessibilityState={{ selected: isSelected }}
+            accessibilityLabel={opt}
           >
-            <Text
-              style={[styles.optionText, isSelected && styles.selectedText]}
-            >
+            <Text style={[styles.chipText, isSelected && styles.chipTextSelected]}>
               {opt}
             </Text>
-            {/* סימון וי — רק לאופציה שנבחרה */}
-            {isSelected && <Text style={styles.checkmark}>✓</Text>}
-          </Pressable>
+          </Tappable>
         );
       })}
     </View>
@@ -995,28 +1023,32 @@ export default function PreferencesQuizScreen() {
       );
     }
 
-    // הצלחה — מציג רשת של תגיות לחיצות
+    // הצלחה — שבבים (chips) עם אייקון, זהים ל-Quiz
     return (
-      <View style={styles.tagsGrid}>
+      <View style={styles.chipsWrap}>
         {interestOptions.map((opt) => {
-          // האם התג הזה כבר נבחר?
           const isSelected = data.interests.includes(opt.interestID);
+          const Icon = interestIcon(opt.interestName);
           return (
-            <Pressable
+            <Tappable
               key={opt.interestID}
-              style={({ pressed }) => [
-                styles.tag,
-                isSelected && styles.tagSelected,
-                pressed && !isSelected && styles.pressedBtn,
-              ]}
-              onPress={() => toggleInterest(opt.interestID)} // toggle
+              style={[styles.chip, isSelected && styles.chipSelected]}
+              onPress={() => toggleInterest(opt.interestID)}
+              accessibilityRole="checkbox"
+              accessibilityState={{ checked: isSelected }}
+              accessibilityLabel={opt.interestName}
             >
+              <Icon
+                size={18}
+                color={isSelected ? COLORS.onBrand : COLORS.brand}
+                strokeWidth={2}
+              />
               <Text
-                style={[styles.tagText, isSelected && styles.tagTextSelected]}
+                style={[styles.chipText, isSelected && styles.chipTextSelected]}
               >
                 {opt.interestName}
               </Text>
-            </Pressable>
+            </Tappable>
           );
         })}
       </View>
@@ -1027,24 +1059,33 @@ export default function PreferencesQuizScreen() {
   // 3 שאלות בוליאניות (כן/לא/אין העדפה) + 2 דירוגים (1-5/אין העדפה)
   const renderTriToggle = (value, onChange) => (
     <View style={styles.triToggleRow}>
-      <Pressable
+      <Tappable
         style={[styles.triBtn, value === true && styles.triBtnActive]}
         onPress={() => onChange(true)}
+        accessibilityRole="radio"
+        accessibilityState={{ selected: value === true }}
+        accessibilityLabel="כן"
       >
         <Text style={[styles.triBtnText, value === true && styles.triBtnTextActive]}>כן</Text>
-      </Pressable>
-      <Pressable
+      </Tappable>
+      <Tappable
         style={[styles.triBtn, value === false && styles.triBtnActive]}
         onPress={() => onChange(false)}
+        accessibilityRole="radio"
+        accessibilityState={{ selected: value === false }}
+        accessibilityLabel="לא"
       >
         <Text style={[styles.triBtnText, value === false && styles.triBtnTextActive]}>לא</Text>
-      </Pressable>
-      <Pressable
+      </Tappable>
+      <Tappable
         style={[styles.triBtnWide, value === null && styles.triBtnActive]}
         onPress={() => onChange(null)}
+        accessibilityRole="radio"
+        accessibilityState={{ selected: value === null }}
+        accessibilityLabel="אין העדפה"
       >
         <Text style={[styles.triBtnText, value === null && styles.triBtnTextActive]}>אין העדפה</Text>
-      </Pressable>
+      </Tappable>
     </View>
   );
 
@@ -1052,23 +1093,29 @@ export default function PreferencesQuizScreen() {
     <View>
       <View style={styles.ratingRow}>
         {[1, 2, 3, 4, 5].map((n) => (
-          <Pressable
+          <Tappable
             key={n}
             style={[styles.ratingDot, value === n && styles.ratingDotActive]}
             onPress={() => onChange(n)}
+            accessibilityRole="radio"
+            accessibilityState={{ selected: value === n }}
+            accessibilityLabel={`דרגה ${n} מתוך 5`}
           >
             <Text style={[styles.ratingNum, value === n && styles.ratingNumActive]}>{n}</Text>
-          </Pressable>
+          </Tappable>
         ))}
       </View>
-      <Pressable
+      <Tappable
         style={[styles.noPrefBtn, value === null && styles.noPrefBtnActive]}
         onPress={() => onChange(null)}
+        accessibilityRole="radio"
+        accessibilityState={{ selected: value === null }}
+        accessibilityLabel="אין העדפה"
       >
         <Text style={[styles.noPrefText, value === null && styles.noPrefTextActive]}>
           אין העדפה
         </Text>
-      </Pressable>
+      </Tappable>
     </View>
   );
 
@@ -1084,8 +1131,6 @@ export default function PreferencesQuizScreen() {
 
   const renderLifestyle = () => (
     <View style={styles.fieldsWrapper}>
-      <Text style={styles.lifestyleIntro}>{currentQ.subtitle}</Text>
-
       {renderLifestyleCard(
         Cigarette,
         "פרטנר/ית מעשן/ת?",
@@ -1135,8 +1180,6 @@ export default function PreferencesQuizScreen() {
     const atMax = data.priorities.length >= MAX_PRIORITIES;
     return (
       <View style={styles.fieldsWrapper}>
-        <Text style={styles.lifestyleIntro}>{currentQ.subtitle}</Text>
-
         {PRIORITY_FACTORS.map((f) => {
           const order = data.priorities.indexOf(f.key); // -1 אם לא נבחר
           const selected = order >= 0;
@@ -1203,256 +1246,39 @@ export default function PreferencesQuizScreen() {
 
   // ─── Render ───────────────────────────────────────────────────────────────
 
-  const showProgress = currentQ.type !== "intro";
-  const isLastStep = step === QUESTIONS.length - 1;
-
   return (
-    <SafeAreaView style={styles.container}>
-      <KeyboardAvoidingView
-        style={styles.flex}
-        behavior={Platform.OS === "ios" ? "padding" : "height"}
-        keyboardVerticalOffset={Platform.OS === "ios" ? 0 : 20}
+    <>
+      <CompletionOverlay visible={done} />
+      <QuizShell
+        showProgress={!isIntro}
+        step={currentStepIndex + 1}
+        total={realQuestions.length}
+        onBack={isIntro ? () => router.back() : step > 0 ? handleBack : undefined}
+        title={isIntro ? undefined : currentQ.title}
+        subtitle={isIntro ? undefined : currentQ.subtitle}
+        fade={fadeAnim}
+        slide={slideAnim}
+        hint={validationHint}
+        error={submitError}
+        ctaLabel={
+          isIntro ? "בואו נתחיל" : isLastStep ? "מוכנים למצוא התאמות" : "המשך"
+        }
+        onNext={handleNext}
+        loading={submitting}
+        disabled={!answered || submitting}
       >
-        {/* Stepper */}
-        {showProgress ? (
-          <View style={styles.stepperWrapper}>
-            {realQuestions.map((q, index) => {
-              const isActive = index === currentStepIndex;
-              const isCompleted = index < currentStepIndex;
-
-              return (
-                <React.Fragment key={q.id}>
-                  <View
-                    style={[
-                      styles.stepCircle,
-                      isCompleted && styles.stepCircleCompleted,
-                      isActive && styles.stepCircleActive,
-                    ]}
-                  >
-                    {isCompleted ? (
-                      <Ionicons name="checkmark" size={14} color={COLORS.onBrand} />
-                    ) : (
-                      <Text
-                        style={[
-                          styles.stepNumber,
-                          (isActive || isCompleted) && styles.stepNumberActive,
-                        ]}
-                      >
-                        {index + 1}
-                      </Text>
-                    )}
-                  </View>
-
-                  {index < realQuestions.length - 1 && (
-                    <View
-                      style={[
-                        styles.stepLine,
-                        index < currentStepIndex && styles.stepLineCompleted,
-                      ]}
-                    />
-                  )}
-                </React.Fragment>
-              );
-            })}
-          </View>
-        ) : (
-          <View style={styles.progressSpacer}>
-            <Pressable
-              onPress={() => router.back()}
-              style={({ pressed }) => [styles.introBackBtn, pressed && { opacity: 0.5 }]}
-            >
-              <Ionicons name="chevron-forward" size={26} color={COLORS.brand} />
-            </Pressable>
-          </View>
-        )}
-        {/* Animated content */}
-        <Animated.View
-          style={[
-            styles.contentWrapper,
-            { opacity: fadeAnim, transform: [{ translateY: slideAnim }] },
-          ]}
-        >
-          <Text style={styles.title}>{currentQ.title}</Text>
-
-          <ScrollView
-            style={styles.scrollView}
-            contentContainerStyle={styles.scrollArea}
-            showsVerticalScrollIndicator={false}
-            keyboardShouldPersistTaps="handled"
-          >
-            {renderQuestionContent()}
-          </ScrollView>
-        </Animated.View>
-
-        {/* Footer */}
-        <View style={styles.footer}>
-          {submitError ? (
-            <Text style={styles.submitErrorText}>{submitError}</Text>
-          ) : null}
-          {currentQ.type !== "intro" && (
-          <Animated.View
-            style={[
-              styles.nextBtnWrapper,
-              { transform: [{ scale: nextBtnScale }] },
-            ]}
-          >
-            <Pressable
-              style={[
-                styles.nextBtn,
-                (!answered || submitting) && styles.nextBtnDisabled,
-              ]}
-              onPress={handleNext}
-              onPressIn={onNextPressIn}
-              onPressOut={onNextPressOut}
-              disabled={!answered || submitting}
-            >
-              {submitting ? (
-                <ActivityIndicator color={COLORS.onBrand} />
-              ) : (
-                <Text
-                  style={[
-                    styles.nextBtnText,
-                    !answered && styles.nextBtnTextDisabled,
-                  ]}
-                >
-                  {currentQ.type === "intro"
-                    ? "בואו נתחיל"
-                    : isLastStep
-                      ? "מוכנים למצוא התאמות"
-                      : "נמשיך הלאה?"}
-                </Text>
-              )}
-            </Pressable>
-          </Animated.View>
-          )}
-
-          {step > 0 && !submitting ? (
-            <Pressable
-              onPress={handleBack}
-              style={({ pressed }) => [
-                styles.backBtn,
-                pressed && { opacity: 0.5 },
-              ]}
-            >
-              <Text style={styles.backLink}>חזרה לאחור</Text>
-            </Pressable>
-          ) : null}
-        </View>
-      </KeyboardAvoidingView>
-    </SafeAreaView>
+        {renderQuestionContent()}
+      </QuizShell>
+    </>
   );
 }
 
 // ─── Styles ───────────────────────────────────────────────────────────────────
 
-const SHADOW = {
-  shadowColor: "#000",
-  shadowOffset: { width: 0, height: 2 },
-  shadowOpacity: 0.08,
-  shadowRadius: 6,
-  elevation: 3,
-};
+// צל אחיד ועדין מהטוקנים (זהה ל-Quiz).
+const SHADOW = SHADOWS.sm;
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: COLORS.background },
-  flex: { flex: 1, alignItems: "center" },
-
-  // ── Progress ──
-  progressSpacer: {
-    width: "100%",
-    paddingTop: 18,
-    paddingBottom: 6,
-    flexDirection: "row",
-    justifyContent: "flex-end",
-    paddingHorizontal: 16,
-  },
-  introBackBtn: {
-    width: 38,
-    height: 38,
-    borderRadius: 19,
-    backgroundColor: COLORS.surface,
-    justifyContent: "center",
-    alignItems: "center",
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.08,
-    shadowRadius: 6,
-    elevation: 3,
-  },
-
-  // ── Stepper ──
-  stepperWrapper: {
-    width: "100%",
-    flexDirection: "row-reverse",
-    alignItems: "center",
-    justifyContent: "center",
-    paddingHorizontal: 24,
-    paddingTop: 18,
-    paddingBottom: 10,
-  },
-
-  stepCircle: {
-    width: 34,
-    height: 34,
-    borderRadius: 17,
-    backgroundColor: COLORS.divider,
-    justifyContent: "center",
-    alignItems: "center",
-  },
-
-  stepCircleActive: {
-    backgroundColor: COLORS.brand,
-    transform: [{ scale: 1.08 }],
-  },
-
-  stepCircleCompleted: {
-    backgroundColor: COLORS.brand,
-  },
-
-  stepNumber: {
-    color: COLORS.textSecondary,
-    fontFamily: FONTS.bold,
-    fontSize: 14,
-  },
-
-  stepNumberActive: {
-    color: COLORS.surface,
-  },
-
-  stepLine: {
-    flex: 1,
-    height: 3,
-    backgroundColor: COLORS.divider,
-    marginHorizontal: 6,
-    borderRadius: 2,
-  },
-
-  stepLineCompleted: {
-    backgroundColor: COLORS.brand,
-  },
-
-  // ── Content ──
-  contentWrapper: {
-    flex: 1,
-    width: "100%",
-    alignItems: "center",
-  },
-  title: {
-    fontSize: 26,
-    fontFamily: FONTS.extraBold,
-    marginTop: 22,
-    marginBottom: 28,
-    textAlign: "center",
-    paddingHorizontal: 24,
-    color: COLORS.text,
-  },
-  scrollView: { width: "100%" },
-  scrollArea: {
-    alignItems: "center",
-    paddingHorizontal: 22,
-    paddingBottom: 40,
-  },
-
   // ── Intro ──
   introWrapper: {
     width: "100%",
@@ -1475,14 +1301,46 @@ const styles = StyleSheet.create({
     ...SHADOW,
     shadowOpacity: 0.12,
   },
+  introTitle: {
+    fontSize: 24,
+    fontFamily: FONTS.extraBold,
+    color: COLORS.text,
+    textAlign: "center",
+    letterSpacing: 0.2,
+    marginTop: 4,
+    marginBottom: 8,
+  },
   introSubtitle: {
-    fontSize: 17,
+    fontSize: 15,
     fontFamily: FONTS.regular,
     color: COLORS.textSecondary,
     textAlign: "center",
     paddingHorizontal: 30,
-    lineHeight: 26,
+    lineHeight: 23,
   },
+
+  // ── Interest / choice chips (זהה ל-Quiz) ──
+  chipsWrap: {
+    width: "100%",
+    flexDirection: "row-reverse",
+    flexWrap: "wrap",
+    gap: SPACING.sm + 2,
+    paddingTop: SPACING.xs,
+  },
+  chip: {
+    flexDirection: "row-reverse",
+    alignItems: "center",
+    gap: 7,
+    paddingVertical: 11,
+    paddingHorizontal: 16,
+    borderRadius: RADIUS.pill,
+    backgroundColor: COLORS.surface,
+    borderWidth: 1.5,
+    borderColor: COLORS.hairline,
+  },
+  chipSelected: { backgroundColor: COLORS.brand, borderColor: COLORS.brand },
+  chipText: { fontFamily: FONTS.medium, fontSize: 15, color: COLORS.text },
+  chipTextSelected: { color: COLORS.onBrand, fontFamily: FONTS.bold },
 
   // ── Standard input ──
   fieldsWrapper: {
@@ -1491,15 +1349,16 @@ const styles = StyleSheet.create({
   input: {
     backgroundColor: COLORS.surface,
     width: "100%",
-    paddingVertical: 16,
-    paddingHorizontal: 18,
-    borderRadius: 14,
-    marginBottom: 14,
+    paddingVertical: 15,
+    paddingHorizontal: 16,
+    borderRadius: RADIUS.lg,
+    marginBottom: SPACING.md,
     fontSize: 16,
     fontFamily: FONTS.regular,
     textAlign: "right",
     color: COLORS.text,
-    ...SHADOW,
+    borderWidth: 1.5,
+    borderColor: COLORS.hairline,
   },
   hintText: {
     fontSize: 13,
@@ -1520,9 +1379,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: 4,
   },
   dateLabel: {
-    fontSize: 14,
-    fontFamily: FONTS.bold,
-    color: COLORS.brand,
+    fontSize: 13,
+    fontFamily: FONTS.medium,
+    color: COLORS.textSecondary,
   },
   dateInputCard: {
     flexDirection: "row-reverse",
@@ -1530,11 +1389,12 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.surface,
     width: "100%",
     paddingVertical: 4,
-    paddingHorizontal: 18,
-    borderRadius: 14,
-    marginBottom: 14,
+    paddingHorizontal: 16,
+    borderRadius: RADIUS.lg,
+    marginBottom: SPACING.md,
     gap: 10,
-    ...SHADOW,
+    borderWidth: 1.5,
+    borderColor: COLORS.hairline,
   },
   dateTextInput: {
     flex: 1,
@@ -1592,14 +1452,14 @@ const styles = StyleSheet.create({
   // ── Recommendation card ──
   recCard: {
     backgroundColor: COLORS.brandLight,
-    borderRadius: 14,
+    borderRadius: RADIUS.lg,
     padding: 16,
-    marginTop: 14,
+    marginTop: SPACING.md,
     width: "100%",
     flexDirection: "column",
     gap: 8,
     borderWidth: 1,
-    borderColor: COLORS.border,
+    borderColor: COLORS.hairline,
   },
   recCardError: {
     backgroundColor: COLORS.dangerLight,
@@ -1652,36 +1512,15 @@ const styles = StyleSheet.create({
     textAlign: "right",
   },
 
-  // ── Single-select options ──
+  // ── מיכל טעינה/שגיאה + פידבק-לחיצה לשורות (בשימוש) ──
   optionsContainer: { width: "100%", alignItems: "center" },
-  optionBtn: {
-    backgroundColor: COLORS.surface,
-    width: "100%",
-    paddingVertical: 17,
-    paddingHorizontal: 20,
-    borderRadius: 14,
-    marginBottom: 12,
-    flexDirection: "row-reverse",
-    alignItems: "center",
-    justifyContent: "space-between",
-    ...SHADOW,
-  },
   pressedBtn: { backgroundColor: COLORS.background },
-  selectedBtn: { backgroundColor: COLORS.brand, shadowOpacity: 0.18 },
-  optionText: { fontSize: 17, fontFamily: FONTS.regular, color: COLORS.text },
-  selectedText: { color: COLORS.surface, fontFamily: FONTS.bold },
-  checkmark: {
-    color: COLORS.surface,
-    fontSize: 16,
-    fontFamily: FONTS.bold,
-    marginLeft: 6,
-  },
 
   // ── Age range slider ──
   ageHint: {
-    fontSize: 15,
-    fontFamily: FONTS.bold,
-    color: COLORS.brand,
+    fontSize: 13,
+    fontFamily: FONTS.medium,
+    color: COLORS.textSecondary,
     textAlign: "right",
     marginBottom: 14,
   },
@@ -1758,51 +1597,14 @@ const styles = StyleSheet.create({
     color: COLORS.textMuted,
   },
 
-  // ── Tags grid (multi-select) ──
-  tagsGrid: {
-    flexDirection: "row-reverse",
-    flexWrap: "wrap",
-    gap: 10,
-    justifyContent: "center",
-    width: "100%",
-  },
-  tag: {
-    backgroundColor: COLORS.surface,
-    paddingVertical: 11,
-    paddingHorizontal: 18,
-    borderRadius: 22,
-    ...SHADOW,
-  },
-  tagSelected: {
-    backgroundColor: COLORS.brand,
-    shadowOpacity: 0.18,
-  },
-  tagText: {
-    fontSize: 15,
-    fontFamily: FONTS.regular,
-    color: COLORS.text,
-  },
-  tagTextSelected: {
-    color: COLORS.surface,
-    fontFamily: FONTS.bold,
-  },
-
   // ── Lifestyle section (5 partner preferences) ──
-  lifestyleIntro: {
-    fontSize: 14,
-    fontFamily: FONTS.regular,
-    color: COLORS.textMuted,
-    textAlign: "center",
-    marginBottom: 16,
-    paddingHorizontal: 10,
-    lineHeight: 20,
-  },
   lifestyleCard: {
     backgroundColor: COLORS.surface,
-    padding: 14,
-    borderRadius: 14,
-    marginBottom: 10,
-    ...SHADOW,
+    padding: SPACING.lg,
+    borderRadius: RADIUS.lg,
+    marginBottom: SPACING.md,
+    borderWidth: 1.5,
+    borderColor: COLORS.hairline,
   },
   lifestyleCardHeader: {
     flexDirection: "row-reverse",
@@ -1813,7 +1615,7 @@ const styles = StyleSheet.create({
   lifestyleCardLabel: {
     fontSize: 15,
     fontFamily: FONTS.bold,
-    color: COLORS.brand,
+    color: COLORS.text,
     flex: 1,
     textAlign: "right",
   },
@@ -1832,28 +1634,35 @@ const styles = StyleSheet.create({
   },
   triBtn: {
     flex: 1,
-    paddingVertical: 10,
-    borderRadius: 10,
-    backgroundColor: COLORS.background,
+    minHeight: 44,
+    justifyContent: "center",
+    borderRadius: RADIUS.md,
+    backgroundColor: COLORS.backgroundSunk,
+    borderWidth: 1.5,
+    borderColor: COLORS.hairline,
     alignItems: "center",
   },
   triBtnWide: {
     flex: 1.4,
-    paddingVertical: 10,
-    borderRadius: 10,
-    backgroundColor: COLORS.background,
+    minHeight: 44,
+    justifyContent: "center",
+    borderRadius: RADIUS.md,
+    backgroundColor: COLORS.backgroundSunk,
+    borderWidth: 1.5,
+    borderColor: COLORS.hairline,
     alignItems: "center",
   },
   triBtnActive: {
     backgroundColor: COLORS.brand,
+    borderColor: COLORS.brand,
   },
   triBtnText: {
-    fontSize: 13,
-    fontFamily: FONTS.regular,
-    color: COLORS.brand,
+    fontSize: 14,
+    fontFamily: FONTS.medium,
+    color: COLORS.textSecondary,
   },
   triBtnTextActive: {
-    color: COLORS.surface,
+    color: COLORS.onBrand,
     fontFamily: FONTS.bold,
   },
 
@@ -1867,39 +1676,46 @@ const styles = StyleSheet.create({
     flex: 1,
     aspectRatio: 1,
     maxWidth: 48,
-    borderRadius: 10,
-    backgroundColor: COLORS.background,
+    borderRadius: RADIUS.md,
+    backgroundColor: COLORS.backgroundSunk,
+    borderWidth: 1.5,
+    borderColor: COLORS.hairline,
     alignItems: "center",
     justifyContent: "center",
   },
   ratingDotActive: {
     backgroundColor: COLORS.brand,
+    borderColor: COLORS.brand,
   },
   ratingNum: {
     fontSize: 15,
     fontFamily: FONTS.bold,
-    color: COLORS.brand,
+    color: COLORS.text,
   },
   ratingNumActive: {
-    color: COLORS.surface,
+    color: COLORS.onBrand,
   },
   noPrefBtn: {
     alignSelf: "center",
-    paddingVertical: 7,
+    minHeight: 36,
+    justifyContent: "center",
     paddingHorizontal: 18,
-    borderRadius: 14,
-    backgroundColor: COLORS.background,
+    borderRadius: RADIUS.pill,
+    backgroundColor: COLORS.backgroundSunk,
+    borderWidth: 1.5,
+    borderColor: COLORS.hairline,
   },
   noPrefBtnActive: {
     backgroundColor: COLORS.brand,
+    borderColor: COLORS.brand,
   },
   noPrefText: {
-    fontSize: 12,
-    fontFamily: FONTS.regular,
-    color: COLORS.brand,
+    fontSize: 13,
+    fontFamily: FONTS.medium,
+    color: COLORS.textSecondary,
   },
   noPrefTextActive: {
-    color: COLORS.surface,
+    color: COLORS.onBrand,
     fontFamily: FONTS.bold,
   },
 
@@ -1910,13 +1726,12 @@ const styles = StyleSheet.create({
     gap: 12,
     backgroundColor: COLORS.surface,
     width: "100%",
-    paddingVertical: 16,
-    paddingHorizontal: 18,
-    borderRadius: 14,
-    marginBottom: 10,
+    paddingVertical: 15,
+    paddingHorizontal: 16,
+    borderRadius: RADIUS.lg,
+    marginBottom: SPACING.md,
     borderWidth: 1.5,
-    borderColor: COLORS.border,
-    ...SHADOW,
+    borderColor: COLORS.hairline,
   },
   priorityRowSelected: {
     borderColor: COLORS.brand,
@@ -1930,8 +1745,8 @@ const styles = StyleSheet.create({
     height: 28,
     borderRadius: 14,
     borderWidth: 1.5,
-    borderColor: COLORS.border,
-    backgroundColor: COLORS.surface,
+    borderColor: COLORS.hairline,
+    backgroundColor: COLORS.backgroundSunk,
     justifyContent: "center",
     alignItems: "center",
   },
@@ -1966,35 +1781,4 @@ const styles = StyleSheet.create({
     paddingHorizontal: 24,
   },
 
-  // ── Footer ──
-  footer: {
-    width: "100%",
-    alignItems: "center",
-    paddingTop: 12,
-    paddingBottom: 20,
-    backgroundColor: COLORS.background,
-  },
-  nextBtnWrapper: { width: "72%", marginBottom: 8 },
-  nextBtn: {
-    backgroundColor: COLORS.brand,
-    paddingVertical: 16,
-    borderRadius: 30,
-    alignItems: "center",
-    ...SHADOW,
-    shadowOpacity: 0.2,
-  },
-  nextBtnDisabled: {
-    backgroundColor: COLORS.divider,
-    shadowOpacity: 0,
-    elevation: 0,
-  },
-  nextBtnText: { fontFamily: FONTS.bold, fontSize: 18, color: COLORS.surface },
-  nextBtnTextDisabled: { color: COLORS.textMuted },
-  backBtn: { paddingVertical: 8, paddingHorizontal: 10 },
-  backLink: {
-    color: COLORS.textMuted,
-    fontSize: 14,
-    fontFamily: FONTS.regular,
-    textDecorationLine: "underline",
-  },
 });

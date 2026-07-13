@@ -1,10 +1,11 @@
 import {
-  Heebo_400Regular,
-  Heebo_500Medium,
-  Heebo_700Bold,
-  Heebo_800ExtraBold,
+  Rubik_400Regular,
+  Rubik_500Medium,
+  Rubik_600SemiBold,
+  Rubik_700Bold,
+  Rubik_800ExtraBold,
   useFonts,
-} from "@expo-google-fonts/heebo";
+} from "@expo-google-fonts/rubik";
 import { Stack } from "expo-router";
 import { useEffect, useState } from "react";
 import { I18nManager, View } from "react-native";
@@ -20,10 +21,11 @@ I18nManager.forceRTL(false);
 
 export default function RootLayout() {
   const [fontsLoaded] = useFonts({
-    Heebo_400Regular,
-    Heebo_500Medium,
-    Heebo_700Bold,
-    Heebo_800ExtraBold,
+    Rubik_400Regular,
+    Rubik_500Medium,
+    Rubik_600SemiBold,
+    Rubik_700Bold,
+    Rubik_800ExtraBold,
   });
 
   // טעינת אימות שמור (token + user) מ-SecureStore לזיכרון בעלייה.

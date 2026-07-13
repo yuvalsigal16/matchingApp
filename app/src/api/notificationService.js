@@ -90,10 +90,12 @@ export async function rejectRequest(requestId) {
   return res.ok;
 }
 
-// שליחת בקשת צ'אט חופשית (בלי טיול ספציפי).
-// השרת יוצר MatchRequest + התראה לנמען אוטומטית.
-export async function sendChatRequest(fromUserId, toUserId) {
-  const url = `${BASE_URL}/MatchRequest?fromUserID=${fromUserId}&toUserID=${toUserId}`;
+// שליחת בקשת צ'אט. tripId אופציונלי: כשהבקשה נשלחת מהקשר טיול (TripMatches) מעבירים
+// את מזהה הטיול, כך שההתאמה נולדת מקושרת לטיול (Match.TripID) והצ'אט משמר את ההקשר.
+// בלי tripId — בקשת צ'אט כללית (חופשית). השרת יוצר MatchRequest + התראה לנמען אוטומטית.
+export async function sendChatRequest(fromUserId, toUserId, tripId = null) {
+  let url = `${BASE_URL}/MatchRequest?fromUserID=${fromUserId}&toUserID=${toUserId}`;
+  if (tripId != null) url += `&tripID=${tripId}`;
   const res = await fetch(url, { method: "POST", headers: authHeaders() });
   if (!res.ok) {
     const text = await res.text();

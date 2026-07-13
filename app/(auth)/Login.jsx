@@ -1,49 +1,34 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import React, { useEffect, useState } from "react";
-import {
-  ActivityIndicator,
-  KeyboardAvoidingView,
-  Platform,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  View,
-} from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
+import { Pressable, StyleSheet, Text, View } from "react-native";
+
+import AuthShell from "../../components/ui/AuthShell";
+import Button from "../../components/ui/Button";
+import Input from "../../components/ui/Input";
 import { apiLogin } from "../src/api/authService";
 import { getUserProfile } from "../src/api/userProfileService";
 import { setAuth } from "../src/auth/authStore";
 import { registerForPushNotifications } from "../src/push/pushNotifications";
-import { COLORS, FONTS } from "../src/theme";
+import { COLORS, FONTS, SPACING } from "../src/theme";
 
 const isValidEmail = (val) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(val.trim());
 const isValidPassword = (val) => val.length >= 6;
 
 export default function LoginScreen() {
   const router = useRouter();
-  //שומר מה שהמשתמש מקליד באימייל ובסיסמה, וגם מצבים של הצגת סיסמה, שגיאות, וטעינה
+
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [savedCreds, setSavedCreds] = useState({ email: "" });
-
-  // טוענים רק את האימייל השמור לנוחות (לא שומרים סיסמה במכשיר)
-  useEffect(() => {
-    AsyncStorage.getItem("saved_email").then((se) => {
-      if (se) {
-        setEmail(se);
-        setSavedCreds({ email: se });
-      }
-    });
-  }, []);
-  const [showPassword, setShowPassword] = useState(false);
   const [emailError, setEmailError] = useState("");
   const [passwordError, setPasswordError] = useState("");
   const [apiError, setApiError] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+
+  // טוענים רק את האימייל השמור לנוחות (לא שומרים סיסמה במכשיר).
+  useEffect(() => {
+    AsyncStorage.getItem("saved_email").then((se) => se && setEmail(se));
+  }, []);
 
   const validateEmail = () =>
     setEmailError(
@@ -59,34 +44,22 @@ export default function LoginScreen() {
           : "",
     );
 
-  //פעולה א-סינכרונית
   const handleLogin = async () => {
     validateEmail();
     validatePassword();
     if (!isValidEmail(email) || !isValidPassword(password)) return;
 
-    //מנקה שגיאה קודמת ומפעיל מצב טעינה
     setApiError("");
     setIsLoading(true);
-
     try {
-      //קורא לפונקציה apiLogin (קריאה לשרת)
-
       const { token, user } = await apiLogin(email, password);
       setAuth(token, user);
-
       registerForPushNotifications(user.userID);
 
       const profile = await getUserProfile(user.userID);
-
-      // שומרים רק את האימייל לנוחות בכניסה הבאה (לא שומרים סיסמה במכשיר)
       await AsyncStorage.setItem("saved_email", email.trim()).catch(() => {});
 
-      if (profile) {
-        router.replace("/Home");
-      } else {
-        router.replace("/QuizStartScreen");
-      }
+      router.replace(profile ? "/Home" : "/QuizStartScreen");
     } catch (err) {
       setApiError(err.message);
     } finally {
@@ -94,355 +67,92 @@ export default function LoginScreen() {
     }
   };
 
-  const handleForgotPassword = () => router.push("/ForgotPassword");
-
   return (
-    <SafeAreaView style={styles.safe}>
-      <KeyboardAvoidingView
-        style={{ flex: 1 }}
-        behavior={Platform.OS === "ios" ? "padding" : undefined}
+    <AuthShell
+      compact
+      title="טוב לראות אתכם שוב"
+      subtitle="התחברו כדי להמשיך מאיפה שהפסקתם."
+    >
+      <Input
+        placeholder="כתובת אימייל"
+        value={email}
+        onChangeText={(v) => {
+          setEmail(v);
+          setEmailError("");
+        }}
+        onBlur={validateEmail}
+        error={emailError}
+        keyboardType="email-address"
+        autoComplete="email"
+        textContentType="emailAddress"
+      />
+
+      <Input
+        placeholder="סיסמה"
+        value={password}
+        onChangeText={(v) => {
+          setPassword(v);
+          setPasswordError("");
+        }}
+        onBlur={validatePassword}
+        error={passwordError}
+        secure
+        autoComplete="password"
+        textContentType="password"
+      />
+
+      <Pressable
+        onPress={() => router.push("/ForgotPassword")}
+        hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+        style={styles.forgotWrap}
+        accessibilityRole="button"
+        accessibilityLabel="שכחתם סיסמה"
       >
-        {/* ScrollView - מאפשר גלילה אם התוכן לא נכנס למסך
-        keyboardShouldPersistTaps="handled" - לחיצה על כפתור סוגרת את המקלדת */}
-        <ScrollView
-          contentContainerStyle={styles.scroll}
-          keyboardShouldPersistTaps="handled"
-          showsVerticalScrollIndicator={false}
+        <Text style={styles.forgotText}>שכחתם סיסמה?</Text>
+      </Pressable>
+
+      {apiError ? <Text style={styles.apiError}>{apiError}</Text> : null}
+
+      <Button
+        label="התחבר"
+        onPress={handleLogin}
+        loading={isLoading}
+        style={styles.submit}
+      />
+
+      <View style={styles.footer}>
+        <Pressable
+          onPress={() => router.push("/Register")}
+          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+          accessibilityRole="button"
+          accessibilityLabel="מעבר להרשמה"
         >
-          <Text style={styles.title}>כיף שחזרת</Text>
-
-          {/* ── טופס הכניסה ── */}
-          <View style={styles.form}>
-            {/* ── שדה אימייל ── */}
-            <TextInput
-              style={[styles.input, emailError ? styles.inputError : null]}
-              placeholder="כתובת אימייל"
-              placeholderTextColor={COLORS.textMuted}
-              value={email}
-              onChangeText={(v) => {
-                setEmail(v);
-                setEmailError("");
-              }}
-              onBlur={validateEmail}
-              keyboardType="email-address"
-              autoCapitalize="none"
-              autoCorrect={false}
-              textAlign="right"
-            />
-            {emailError ? (
-              <Text style={styles.errorText}>{emailError}</Text>
-            ) : null}
-
-            {/* ── הצעת השלמה אוטומטית ── */}
-            {savedCreds.email &&
-              email.length > 0 &&
-              savedCreds.email.toLowerCase().startsWith(email.toLowerCase()) &&
-              email.toLowerCase() !== savedCreds.email.toLowerCase() && (
-                <TouchableOpacity
-                  style={styles.suggestion}
-                  onPress={() => {
-                    setEmail(savedCreds.email);
-                    setEmailError("");
-                  }}
-                  activeOpacity={0.7}
-                >
-                  <Ionicons name="person-circle-outline" size={18} color={COLORS.brand} />
-                  <Text style={styles.suggestionEmail} numberOfLines={1}>
-                    {savedCreds.email}
-                  </Text>
-                </TouchableOpacity>
-              )}
-
-            {/* ── שדה סיסמה עם כפתור הצגה/הסתרה ── */}
-            {/* חיצוני מדמה את גבול השדה, כולל את הקלט ואת אייקון העין */}
-            <View
-              style={[
-                styles.passwordWrapper,
-                passwordError ? styles.inputError : null,
-              ]}
-            >
-              {/* כפתור העין - לחיצה עליו מחליפה בין הצגה להסתרת הסיסמה */}
-              <TouchableOpacity
-                onPress={() => setShowPassword((p) => !p)} // הופך את הערך הבוליאני
-                activeOpacity={0.7}
-                style={styles.eyeBtn}
-              >
-                {/* אייקון עין - משתנה בהתאם למצב הצגת הסיסמה */}
-                <Ionicons
-                  name={showPassword ? "eye-outline" : "eye-off-outline"}
-                  size={22}
-                  color={COLORS.textMuted}
-                />
-              </TouchableOpacity>
-
-              <TextInput
-                style={styles.passwordInput}
-                placeholder="סיסמה"
-                placeholderTextColor={COLORS.textMuted}
-                value={password}
-                onChangeText={(v) => {
-                  setPassword(v);
-                  setPasswordError("");
-                }}
-                onBlur={validatePassword}
-                secureTextEntry={!showPassword}
-                textAlign="right"
-              />
-            </View>
-            {/* מציג הודעת שגיאה מתחת לשדה הסיסמה רק אם יש שגיאה */}
-            {passwordError ? (
-              <Text style={styles.errorText}>{passwordError}</Text>
-            ) : null}
-          </View>
-
-          {/* ── שורת שכחת סיסמה ── */}
-          <View style={styles.centeredRow}>
-            {/* כפתור "לחץ כאן" - לחיצה תפעיל את handleForgotPassword */}
-            <TouchableOpacity
-              onPress={handleForgotPassword}
-              activeOpacity={0.7}
-            >
-              <Text style={styles.linkText}>לחץ כאן</Text>
-            </TouchableOpacity>
-            {/* טקסט סטטי שמוצג לצד הכפתור */}
-            <Text style={styles.mutedText}>שכחת סיסמה? </Text>
-          </View>
-
-          {apiError ? (
-            <Text style={styles.apiErrorText}>{apiError}</Text>
-          ) : null}
-
-          <TouchableOpacity
-            style={[
-              styles.loginButton,
-              isLoading && styles.loginButtonDisabled,
-            ]}
-            onPress={handleLogin}
-            activeOpacity={0.85}
-            disabled={isLoading}
-          >
-            {isLoading ? (
-              <ActivityIndicator color={COLORS.onBrand} />
-            ) : (
-              <Text style={styles.loginButtonText}>התחבר</Text>
-            )}
-          </TouchableOpacity>
-
-          {/* ── שורת הרשמה ── */}
-          <View style={styles.centeredRow}>
-            <TouchableOpacity
-              onPress={() => router.push("/Register")}
-              activeOpacity={0.7}
-            >
-              <Text style={styles.linkText}>הירשם</Text>
-            </TouchableOpacity>
-            <Text style={styles.mutedText}>אין לך חשבון? </Text>
-          </View>
-        </ScrollView>
-      </KeyboardAvoidingView>
-    </SafeAreaView>
+          <Text style={styles.footerLink}>הירשם</Text>
+        </Pressable>
+        <Text style={styles.footerText}>אין לכם חשבון? </Text>
+      </View>
+    </AuthShell>
   );
 }
 
-// ── הגדרת העיצובים (Styles) ──
-// StyleSheet.create מייעל את הביצועים על ידי עיבוד הסטיילים פעם אחת
 const styles = StyleSheet.create({
-  // עיצוב המיכל הראשי - מלא את כל המסך, רקע קרם חמים
-  safe: {
-    flex: 1,
-    backgroundColor: COLORS.background,
-  },
-
-  center: {
-    justifyContent: "center",
-    alignItems: "center",
-  },
-
-  // עיצוב תוכן ה-ScrollView - ממרכז את הטופס אנכית במסך
-  // flexGrow: 1 מאלץ את contentContainer לתפוס גובה מלא, justifyContent ממרכז אנכית
-  scroll: {
-    flexGrow: 1,
-    justifyContent: "center",
-    alignItems: "center",
-    paddingHorizontal: 28,
-    paddingVertical: 32,
-  },
-
-  // עיצוב כותרת "ברוכים הבאים"
-  title: {
-    fontSize: 32, // גודל טקסט גדול
-    fontFamily: FONTS.extraBold,
-    color: COLORS.text,
-    textAlign: "center", // ממורכז
-    marginBottom: 36, // רווח מתחת לכותרת
-  },
-
-  title2: {
-    color: "#666",
+  forgotWrap: { alignSelf: "flex-end", marginTop: -SPACING.xs },
+  forgotText: { fontFamily: FONTS.medium, fontSize: 13, color: COLORS.brand },
+  apiError: {
+    fontFamily: FONTS.regular,
     fontSize: 14,
-    fontFamily: FONTS.regular,
-    textAlign: "center", // ממורכז
-    marginBottom: 36, // רווח מתחת לכותרת
-  },
-
-  // עיצוב מיכל הטופס - רוחב מלא עם מרווח קטן מלמטה
-  form: {
-    width: "100%",
-    marginBottom: 6,
-  },
-
-  // עיצוב שדה האימייל
-  input: {
-    width: "100%",
-    height: 54, // גובה קבוע לנוחות לחיצה
-    borderRadius: 30, // פינות מעוגלות לגמרי (כמו כדור)
-    borderWidth: 1.5, // עובי המסגרת
-    borderColor: COLORS.border,
-    paddingHorizontal: 20, // ריווח פנימי מימין ושמאל
-    fontSize: 16,
-    fontFamily: FONTS.regular,
-    color: COLORS.text,
-    marginBottom: 6,
-    backgroundColor: COLORS.surface,
-  },
-
-  // עיצוב המיכל החיצוני של שדה הסיסמה (מכיל גם את אייקון העין)
-  passwordWrapper: {
-    flexDirection: "row", // סידור פנימי אופקי (עין + קלט בשורה)
-    alignItems: "center", // יישור אנכי למרכז
-    width: "100%",
-    height: 54,
-    borderRadius: 30,
-    borderWidth: 1.5,
-    borderColor: COLORS.border,
-    backgroundColor: COLORS.surface,
-    paddingHorizontal: 16,
-    marginBottom: 6,
-  },
-
-  // עיצוב שדה הקלט של הסיסמה (ללא גבול, כי הגבול על ה-wrapper)
-  passwordInput: {
-    flex: 1, // תופס את כל השטח הנותר בשורה
-    fontSize: 16,
-    fontFamily: FONTS.regular,
-    color: COLORS.text,
-    height: "100%",
-  },
-
-  // עיצוב כפתור אייקון העין - ריווח קטן כדי שיהיה נוח ללחיצה
-  eyeBtn: {
-    padding: 6,
-  },
-
-  // עיצוב מסגרת אדומה - מוחלת על שדה שיש בו שגיאה
-  inputError: {
-    borderColor: COLORS.danger,
-  },
-
-  // עיצוב טקסט הודעת שגיאה מתחת לשדה
-  errorText: {
     color: COLORS.danger,
-    fontSize: 12,
-    fontFamily: FONTS.regular,
-    textAlign: "right",
-    marginBottom: 8,
-    marginRight: 8,
-  },
-
-  // עיצוב שורה ממורכזת (שכחת סיסמה / אין לך חשבון)
-  centeredRow: {
-    flexDirection: "row", // אלמנטים בשורה אחת
-    justifyContent: "center", // ממורכזים לאמצע
-    alignItems: "center",
-    marginTop: 14,
-    marginBottom: 6,
-  },
-
-  // עיצוב הטקסט הרגיל בשורות הממורכזות (אפור)
-  mutedText: {
-    color: COLORS.textSecondary,
-    fontSize: 14,
-    fontFamily: FONTS.regular,
-  },
-
-  // עיצוב הטקסט הלחיץ בשורות הממורכזות (כחול, מודגש)
-  linkText: {
-    color: COLORS.brand,
-    fontSize: 14,
-    fontFamily: FONTS.bold,
-  },
-
-  // עיצוב כפתור "התחבר"
-  loginButton: {
-    width: "100%",
-    height: 54,
-    backgroundColor: COLORS.brand,
-    borderRadius: 30,
-    justifyContent: "center", // טקסט ממורכז אנכית
-    alignItems: "center", // טקסט ממורכז אופקית
-    marginTop: 20,
-    marginBottom: 4,
-    // צל עדין לתחושת עומק
-    shadowColor: COLORS.shadow,
-    shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.15,
-    shadowRadius: 6,
-    elevation: 4, // צל באנדרואיד
-  },
-
-  loginButtonDisabled: {
-    backgroundColor: COLORS.textMuted,
-    shadowOpacity: 0,
-    elevation: 0,
-  },
-
-  loginButtonText: {
-    color: COLORS.onBrand,
-    fontSize: 17,
-    fontFamily: FONTS.bold,
-    letterSpacing: 0.5,
-  },
-
-  apiErrorText: {
-    color: COLORS.danger,
-    fontSize: 14,
-    fontFamily: FONTS.regular,
     textAlign: "center",
-    marginTop: 12,
-    marginBottom: 4,
   },
-
-  socialLabel: {
-    fontSize: 15,
-    color: COLORS.text,
-    fontFamily: FONTS.bold,
-  },
-
-  suggestion: {
-    flexDirection: "row-reverse",
+  submit: { marginTop: SPACING.xs },
+  // flexDirection row (לא reverse): DOM = [קישור, טקסט] → הטקסט מימין והקישור
+  // משמאלו, כך שהקריאה בעברית יוצאת "אין לכם חשבון? הירשם".
+  footer: {
+    flexDirection: "row",
+    justifyContent: "center",
     alignItems: "center",
-    gap: 8,
-    backgroundColor: COLORS.brandLight,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: COLORS.brand,
-    paddingHorizontal: 14,
-    paddingVertical: 10,
-    marginBottom: 8,
+    marginTop: SPACING.md,
   },
-
-  suggestionEmail: {
-    flex: 1,
-    fontSize: 14,
-    fontFamily: FONTS.regular,
-    color: COLORS.brand,
-    textAlign: "right",
-  },
-
-  suggestionHint: {
-    fontSize: 12,
-    fontFamily: FONTS.regular,
-    color: "#7A8B8E",
-  },
-
+  footerText: { fontFamily: FONTS.regular, fontSize: 14, color: COLORS.textSecondary },
+  footerLink: { fontFamily: FONTS.bold, fontSize: 14, color: COLORS.brand },
 });

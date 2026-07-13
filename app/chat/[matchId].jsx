@@ -222,6 +222,12 @@ export default function ChatScreen() {
   const otherName = matchData?.otherUserName || "המשתמש";
 
   const goToOtherProfile = () => {
+    // גוזרים את הקשר ההתאמה ממקור הצ'אט: אם ההתאמה נקשרה לטיול (tripID) — הקשר "טיול",
+    // אחרת "כללי". אין ציון מוכן בצ'אט, לכן הפרופיל מחשב אותו בעצמו לפי ההקשר (בלי לנחש).
+    const matchContext =
+      matchData?.tripID != null
+        ? { type: "trip", tripId: matchData.tripID }
+        : { type: "general" };
     router.push({
       pathname: "/MatchProfileDetails",
       params: {
@@ -230,6 +236,7 @@ export default function ChatScreen() {
           name: otherName,
           profileImage: matchData?.otherUserImage,
         }),
+        matchContext: JSON.stringify(matchContext),
       },
     });
   };
@@ -391,7 +398,7 @@ export default function ChatScreen() {
           </Text>
           {matchData?.tripName && matchData.tripName !== "טיול" ? (
             <Text style={styles.headerSub} numberOfLines={1}>
-              {matchData.tripName}
+              {`טיול משותף · ${matchData.tripName}`}
             </Text>
           ) : null}
         </View>

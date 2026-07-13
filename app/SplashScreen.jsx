@@ -1,46 +1,40 @@
+import { Image } from "expo-image";
 import { useRouter } from "expo-router";
 import { useEffect, useRef } from "react";
-import { Animated, Image, StyleSheet, Text, View } from "react-native";
+import { Animated, StyleSheet, Text, View } from "react-native";
 import { getUser } from "./src/auth/authStore";
 import { COLORS, FONTS } from "./src/theme";
 
+const LOGO = require("../assets/images/onlyLogo-removebg-preview.png");
+
+// מסך פתיחה — נשימה שקטה אחת לפני היציאה לדרך.
+// כניסה עדינה (fade + rise), RouteLine בעצירה 0 ("המסע מתחיל"),
+// ותזמון מהודק (~1.7 שנ') — בלי טקסט-דמה של "מתחברים בקרוב".
 export default function SplashScreen() {
   const router = useRouter();
-  const fadeAnim = useRef(new Animated.Value(0)).current;
+  const fade = useRef(new Animated.Value(0)).current;
+  const rise = useRef(new Animated.Value(14)).current;
 
   useEffect(() => {
-    Animated.timing(fadeAnim, {
-      toValue: 1,
-      duration: 2000,
-      useNativeDriver: true,
-    }).start();
+    Animated.parallel([
+      Animated.timing(fade, { toValue: 1, duration: 600, useNativeDriver: true }),
+      Animated.timing(rise, { toValue: 0, duration: 600, useNativeDriver: true }),
+    ]).start();
 
-    const navigate = () => {
-      // אם יש משתמש בזיכרון (הטוקן נטען מ-SecureStore ב-_layout) — ישר ל-Home,
-      // אחרת — למסך ההתחברות. אין auto-login מסיסמה (לא שומרים סיסמה במכשיר).
-      router.replace(getUser() ? "/Home" : "/Login");
-    };
-
-    const timer = setTimeout(navigate, 2800);
-    return () => clearTimeout(timer);
+    // אם יש משתמש בזיכרון (הטוקן נטען מ-SecureStore ב-_layout) — ישר ל-Home,
+    // אחרת — למסך ההתחברות. אין auto-login מסיסמה (לא שומרים סיסמה במכשיר).
+    const t = setTimeout(() => router.replace(getUser() ? "/Home" : "/Login"), 1700);
+    return () => clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   return (
     <View style={styles.container}>
-      <Animated.View style={{ opacity: fadeAnim, alignItems: "center" }}>
-        <Image
-          source={require("../assets/images/onlyLogo-removebg-preview.png")}
-          style={{ width: 250, height: 250, marginBottom: 10 }}
-          resizeMode="contain"
-        />
-
-        <Text style={styles.logoText}>צמד חמד</Text>
-        <Text style={styles.subTitle}>החצי השני שלך לטיול הבא</Text>
+      <Animated.View style={{ opacity: fade, transform: [{ translateY: rise }], alignItems: "center" }}>
+        <Image source={LOGO} style={styles.logo} contentFit="contain" />
+        <Text style={styles.wordmark}>צמד חמד</Text>
+        <Text style={styles.tagline}>החצי השני שלך לטיול הבא</Text>
       </Animated.View>
-
-      <View style={styles.footer}>
-        <Text style={styles.footerText}>מתחברים בקרוב...</Text>
-      </View>
     </View>
   );
 }
@@ -52,29 +46,20 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
   },
-  logoText: {
-    fontSize: 60,
+  // לוגו גדול ופשוט — רגע-מותג. (הצבע המקורי, בלי tint.)
+  logo: { width: 248, height: 248, marginBottom: 18 },
+  wordmark: {
     fontFamily: FONTS.extraBold,
-    color: "#E0E7E9",
+    fontSize: 40,
+    color: "#EAF1F1",
+    letterSpacing: 1,
     textAlign: "center",
-    letterSpacing: 2,
   },
-  subTitle: {
-    fontSize: 18,
+  tagline: {
     fontFamily: FONTS.regular,
-    color: "#E0E7E9",
+    fontSize: 15,
+    color: "rgba(255,255,255,0.8)",
     textAlign: "center",
-    marginTop: 10,
-    opacity: 0.8,
-  },
-  footer: {
-    position: "absolute",
-    bottom: 50,
-  },
-  footerText: {
-    color: "#E0E7E9",
-    fontSize: 14,
-    fontFamily: FONTS.regular,
-    opacity: 0.5,
+    marginTop: 8,
   },
 });
