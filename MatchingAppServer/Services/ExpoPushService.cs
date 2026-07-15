@@ -1,14 +1,14 @@
-using System.Net.Http;
+﻿using System.Net.Http;
 using System.Net.Http.Json;
 
-namespace MatchingAppServer.BL
+namespace MatchingAppServer.Services
 {
     /// <summary>
     /// שולח push notifications דרך ה-API הציבורי של Expo.
     /// Expo דוחפים את ההודעה בפועל ל-Apple/Google ומשם לטלפון.
     /// אין צורך ב-API Key — Expo מקבלים את ה-ExpoPushToken בלבד.
     /// </summary>
-    public static class ExpoPushService
+    public class ExpoPushService
     {
         private const string ExpoPushUrl = "https://exp.host/--/api/v2/push/send";
 
@@ -37,11 +37,15 @@ namespace MatchingAppServer.BL
             try
             {
                 var res = await _http.PostAsJsonAsync(ExpoPushUrl, payload);
+                // חשוב: Expo מחזיר 200 גם כשההודעה נכשלה — הסטטוס האמיתי נמצא ב-body
+                // (data.status="ok"/"error", ולעיתים details.error="DeviceNotRegistered").
+                var responseBody = await res.Content.ReadAsStringAsync();
+                Console.WriteLine($"[Push] Expo response: HTTP {(int)res.StatusCode} — {responseBody}");
                 return res.IsSuccessStatusCode;
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"ExpoPushService.SendAsync failed: {ex.Message}");
+                Console.WriteLine($"[Push] ExpoPushService.SendAsync EXCEPTION: {ex}");
                 return false;
             }
         }

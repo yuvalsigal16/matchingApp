@@ -3114,3 +3114,36 @@ BEGIN
     SELECT @@ROWCOUNT AS RowsAffected;
 END
 GO
+
+
+CREATE OR ALTER PROCEDURE GetMatchParticipantsByChatID
+    @ChatID INT
+AS
+BEGIN
+    SET NOCOUNT ON;
+
+    SELECT TOP (1)
+        m.MatchID,
+        m.User1ID,
+        m.User2ID
+    FROM MatchChats AS mc
+    INNER JOIN Matches AS m ON mc.MatchID = m.MatchID
+    WHERE mc.ChatID = @ChatID;
+END
+GO
+
+CREATE OR ALTER PROCEDURE dbo.ClearExpoPushToken
+(
+    @UserID INT
+)
+AS
+BEGIN
+    SET NOCOUNT ON;
+
+    UPDATE dbo.Users
+    SET ExpoPushToken = NULL
+    WHERE UserID = @UserID;
+
+    SELECT @@ROWCOUNT AS RowsAffected;
+END
+GO

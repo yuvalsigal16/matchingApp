@@ -7,6 +7,7 @@ import Button from "../../components/ui/Button";
 import Input from "../../components/ui/Input";
 import { apiLogin, apiRegister } from "../src/api/authService";
 import { setAuth } from "../src/auth/authStore";
+import { registerForPushNotifications } from "../src/push/pushNotifications";
 import { COLORS, FONTS, SPACING } from "../src/theme";
 
 const isValidEmail = (val) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(val.trim());
@@ -65,6 +66,7 @@ export default function RegisterScreen() {
       await apiRegister(email, password);
       const { token, user } = await apiLogin(email, password);
       setAuth(token, user);
+      registerForPushNotifications(user.userID); // רישום ל-Push למשתמש חדש (כמו ב-Login)
       router.replace("/QuizStartScreen");
     } catch (err) {
       setApiError(err.message);

@@ -2,6 +2,7 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using System.Security.Claims;
 
 namespace MatchingAppServer.Controllers
 {
@@ -11,7 +12,17 @@ namespace MatchingAppServer.Controllers
     {
         UserProfile bl = new UserProfile();
 
+        // שולף את UserID של המשתמש המחובר מה-JWT (אותו דפוס כמו שאר ה-controllers).
+        private int GetCurrentUserId()
+        {
+            var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier);
+            if (userIdClaim == null)
+                throw new UnauthorizedAccessException("No user ID in token");
+            return int.Parse(userIdClaim.Value);
+        }
+
         // GET ALL PROFILES
+        [Authorize]
         [HttpGet]
         public IActionResult GetAllProfiles()
         {
@@ -28,6 +39,7 @@ namespace MatchingAppServer.Controllers
         }
 
         // GET BY USER ID
+        [Authorize]
         [HttpGet("{userId}")]
         public IActionResult GetByUserId(int userId)
         {
@@ -46,12 +58,40 @@ namespace MatchingAppServer.Controllers
             }
         }
 
+        // GET PROFILE IMAGE PATH BY USER ID
+        // נקודת קצה ייעודית להבאת הנתיב של תמונת הפרופיל בלבד.
+        // משתמשת ב-GetUserProfileImageByUserId שכבר קיימת ב-BL/DAL.
+        [Authorize]
+        [HttpGet("image/{userId}")]
+        public IActionResult GetProfileImageByUserId(int userId)
+        {
+            try
+            {
+                if (userId <= 0)
+                    return BadRequest(new { ok = false, message = "Invalid user id." });
+
+                string? imagePath = bl.GetUserProfileImageByUserId(userId);
+
+                if (string.IsNullOrEmpty(imagePath))
+                    return NotFound(new { ok = false, message = "No profile image found." });
+
+                return Ok(new { ok = true, userId, imagePath });
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(new { ok = false, message = ex.Message });
+            }
+        }
+
         // ADD PROFILE
+        [Authorize]
         [HttpPost]
         public IActionResult Add([FromBody] UserProfile profile)
         {
             try
             {
+                // הפרופיל משויך למשתמש המחובר בלבד (UserID מה-JWT, לא מה-body).
+                profile.UserID = GetCurrentUserId();
                 int id = bl.AddProfile(profile);
                 return Ok(id);
             }
@@ -62,11 +102,14 @@ namespace MatchingAppServer.Controllers
         }
 
         // UPDATE PROFILE
+        [Authorize]
         [HttpPut]
         public IActionResult Update([FromBody] UserProfile profile)
         {
             try
             {
+                // עדכון פרופיל של המשתמש המחובר בלבד (UserID מה-JWT, לא מה-body).
+                profile.UserID = GetCurrentUserId();
                 int result = bl.UpdateProfile(profile);
 
                 if (result > 0)
@@ -90,6 +133,10 @@ namespace MatchingAppServer.Controllers
             // בדיקה שה-ID תקין
             if (id <= 0)
                 return BadRequest(new { ok = false, message = "Invalid user id." });
+
+            // משתמש יכול לעדכן רק את התמונה של עצמו (id חייב להתאים ל-JWT).
+            if (GetCurrentUserId() != id)
+                return Forbid();
 
             // בדיקה שהמשתמש באמת שלח קובץ ולא ריק
             if (file == null || file.Length == 0)
@@ -182,6 +229,10 @@ namespace MatchingAppServer.Controllers
         [HttpDelete("deleteImage/{id}")]
         public IActionResult DeleteImage(int id)
         {
+            // משתמש יכול למחוק רק את התמונה של עצמו (id חייב להתאים ל-JWT).
+            if (GetCurrentUserId() != id)
+                return Forbid();
+
             try
             {
                 // 1. קודם שולפים את התמונה הישנה

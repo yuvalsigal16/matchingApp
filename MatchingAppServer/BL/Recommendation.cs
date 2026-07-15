@@ -6,7 +6,7 @@ namespace MatchingAppServer.BL
     {
         public int RecommendationID { get; set; }
         public int UserID { get; set; }
-        public int? TripID { get; set; } // אופציונלי: המלצה כללית יכולה להיות בלי טיול
+        public int? TripID { get; set; } //אופציונלי - המלצה כללית יכולה להיות בלי טיול
         public string PlaceName { get; set; }
         public string? Description { get; set; }
         public byte? Rating { get; set; }

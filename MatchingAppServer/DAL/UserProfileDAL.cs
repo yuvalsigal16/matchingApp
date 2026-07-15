@@ -156,12 +156,8 @@ namespace MatchingAppServer.DAL
 
             try
             {
-                reader = cmd.ExecuteReader();
-
-                if (reader.Read())
-                    return Convert.ToInt32(reader["RowsAffected"]);
-
-                return 0;
+                object result = cmd.ExecuteScalar();
+                return Convert.ToInt32(result);
             }
             finally
             {

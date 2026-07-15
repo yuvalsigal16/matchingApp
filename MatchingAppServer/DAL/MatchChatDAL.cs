@@ -49,6 +49,42 @@ namespace MatchingAppServer.DAL
             }
         }
 
+        // GET PARTICIPANTS BY CHAT — שולף את שני משתתפי ההתאמה + MatchID לפי ChatID
+        // (SP: GetMatchParticipantsByChatID). משמש לגזירת נמען ה-Push בשרת בלבד.
+        public Match GetParticipantsByChatID(int chatID)
+        {
+            try { con = connect(); }
+            catch (Exception) { throw; }
+
+            var param = new Dictionary<string, object>()
+            {
+                { "@ChatID", chatID }
+            };
+
+            cmd = CreateCommandWithStoredProcedureGeneral("GetMatchParticipantsByChatID", con, param);
+
+            try
+            {
+                reader = cmd.ExecuteReader();
+                if (reader.Read())
+                {
+                    return new Match
+                    {
+                        MatchID = Convert.ToInt32(reader["MatchID"]),
+                        User1ID = Convert.ToInt32(reader["User1ID"]),
+                        User2ID = Convert.ToInt32(reader["User2ID"])
+                    };
+                }
+                return null;
+            }
+            catch (Exception) { throw; }
+            finally
+            {
+                if (con != null)
+                    con.Close();
+            }
+        }
+
         // SEND MESSAGE
         public int SendMessage(MatchMessage msg)
         {

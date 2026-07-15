@@ -6,6 +6,7 @@ using MatchingAppServer.Models;
 using MatchingAppServer.Services;
 using Microsoft.AspNetCore.Authorization;
 using Google.Apis.Auth;
+using System.Security.Claims;
 
 namespace MatchingAppServer.Controllers
 {
@@ -25,12 +26,14 @@ namespace MatchingAppServer.Controllers
         }
 
 
+        [Authorize]
         [HttpGet]
         public IActionResult GetAllUsers(int currentUserId)
         {
             try
             {
-                return Ok(bl.GetAllUsers(currentUserId));
+                // דורש טוקן; ה-currentUserId נגזר מה-JWT ולא מפרמטר ה-query (מונע התחזות).
+                return Ok(bl.GetAllUsers(GetCurrentUserId()));
             }
             catch (Exception ex)
             {
@@ -165,6 +168,9 @@ namespace MatchingAppServer.Controllers
         {
             try
             {
+                // הזהות נגזרת מה-JWT בלבד — משתמש יכול לעדכן רק את עצמו (מונע IDOR).
+                user.UserID = GetCurrentUserId();
+
                 int rows = bl.UpdateUser(user);
 
                 if (rows > 0)
@@ -190,7 +196,8 @@ namespace MatchingAppServer.Controllers
         {
             try
             {
-                int result = bl.ChangePassword(req.UserID, req.OldPassword, req.NewPassword);
+                // ה-UserID נלקח מה-JWT ולא מה-body (מונע ניסיון לשנות סיסמה של משתמש אחר).
+                int result = bl.ChangePassword(GetCurrentUserId(), req.OldPassword, req.NewPassword);
 
                 if (result > 0)
                     return Ok("Password updated");
@@ -253,6 +260,10 @@ namespace MatchingAppServer.Controllers
         {
             try
             {
+                // משתמש יכול למחוק רק את החשבון של עצמו — ה-id חייב להתאים ל-JWT (מונע IDOR).
+                if (GetCurrentUserId() != id)
+                    return Forbid();
+
                 int result = bl.DeleteUser(id);
 
                 if (result > 0)
@@ -270,19 +281,26 @@ namespace MatchingAppServer.Controllers
             }
         }
 
-        // SAVE EXPO PUSH TOKEN - לטובת שליחת push notifications לטלפון של המשתמש
+        // SAVE EXPO PUSH TOKEN - לטובת שליחת push notifications לטלפון של המשתמש.
+        // ה-UserID נלקח מה-JWT ולא מה-body — כך משתמש מחובר מעדכן רק את ה-token
+        // של עצמו (מונע IDOR: שמירת token תחת UserID של משתמש אחר).
         [Authorize]
         [HttpPost("pushToken")]
         public IActionResult SavePushToken([FromBody] PushTokenRequest req)
         {
             try
             {
-                int result = bl.SaveExpoPushToken(req.UserID, req.Token);
+                int userId = GetCurrentUserId(); // מה-JWT, לא מ-req.UserID
+                int result = bl.SaveExpoPushToken(userId, req.Token);
 
                 if (result > 0)
                     return Ok("Token saved");
 
                 return NotFound("User not found");
+            }
+            catch (UnauthorizedAccessException)
+            {
+                return Unauthorized();
             }
             catch (Exception ex)
             {
@@ -294,12 +312,44 @@ namespace MatchingAppServer.Controllers
             }
         }
 
-    }
+        // CLEAR EXPO PUSH TOKEN - מחיקת ה-token של המשתמש המחובר בעת logout.
+        // ה-UserID נלקח מה-JWT בלבד; אין body ואין UserID מהלקוח.
+        [Authorize]
+        [HttpDelete("pushToken")]
+        public IActionResult ClearPushToken()
+        {
+            try
+            {
+                int userId = GetCurrentUserId();
+                int rows = bl.ClearExpoPushToken(userId);
 
-    // DTO לבקשת שמירת push token
-    public class PushTokenRequest
-    {
-        public int UserID { get; set; }
-        public string Token { get; set; }
+                if (rows > 0)
+                    return Ok("Token cleared");
+
+                return NotFound("User not found");
+            }
+            catch (UnauthorizedAccessException)
+            {
+                return Unauthorized();
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(new
+                {
+                    ok = false,
+                    message = ex.Message
+                });
+            }
+        }
+
+        // שולף את UserID של המשתמש המחובר מה-JWT (אותו דפוס כמו BlockUserController).
+        private int GetCurrentUserId()
+        {
+            var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier);
+            if (userIdClaim == null)
+                throw new UnauthorizedAccessException("No user ID in token");
+            return int.Parse(userIdClaim.Value);
+        }
+
     }
 }

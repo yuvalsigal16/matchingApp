@@ -2,6 +2,9 @@ import { Image } from "expo-image";
 import { useRouter } from "expo-router";
 import { useEffect, useRef } from "react";
 import { Animated, StyleSheet, Text, View } from "react-native";
+import * as Notifications from "expo-notifications";
+import { warmStartup } from "./src/api/homeData";
+import { pushRouteForType } from "./src/push/pushNotifications";
 import { getUser } from "./src/auth/authStore";
 import { COLORS, FONTS } from "./src/theme";
 
@@ -16,6 +19,11 @@ export default function SplashScreen() {
   const rise = useRef(new Animated.Value(14)).current;
 
   useEffect(() => {
+    // מנצלים את זמן ה-Splash: מתחילים לחמם את נתוני ה-Home (ובעקיפין את שרת
+    // Azure מ-cold start) במקביל לאנימציה, כך שכשנגיע ל-Home המידע כבר בדרך.
+    // no-op כשאין משתמש מחובר. אינו משנה את התזמון/המיתוג של המסך.
+    warmStartup();
+
     Animated.parallel([
       Animated.timing(fade, { toValue: 1, duration: 600, useNativeDriver: true }),
       Animated.timing(rise, { toValue: 0, duration: 600, useNativeDriver: true }),
@@ -23,7 +31,20 @@ export default function SplashScreen() {
 
     // אם יש משתמש בזיכרון (הטוקן נטען מ-SecureStore ב-_layout) — ישר ל-Home,
     // אחרת — למסך ההתחברות. אין auto-login מסיסמה (לא שומרים סיסמה במכשיר).
-    const t = setTimeout(() => router.replace(getUser() ? "/Home" : "/Login"), 1700);
+    const t = setTimeout(async () => {
+      if (!getUser()) {
+        router.replace("/Login");
+        return;
+      }
+      // Cold start: אם האפליקציה נפתחה מלחיצה על Push כשהייתה סגורה לגמרי —
+      // מנווטים קודם ל-Home ואז למסך היעד (כך "חזרה" תוביל ל-Home). לפתיחה רגילה
+      // getLastNotificationResponseAsync מחזיר null → Home רגיל, בלי שינוי התנהגות.
+      const response = await Notifications.getLastNotificationResponseAsync();
+      const data = response?.notification?.request?.content?.data;
+      const route = pushRouteForType(data?.type, data?.relatedID);
+      router.replace("/Home");
+      if (route) router.push(route);
+    }, 1700);
     return () => clearTimeout(t);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);

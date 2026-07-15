@@ -1,19 +1,33 @@
 ﻿using MatchingAppServer.BL;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using System.Security.Claims;
 
 namespace MatchingAppServer.Controllers
 {
+    [Authorize]
     [ApiController]
     [Route("api/[controller]")]
     public class RecommendationController : ControllerBase
     {
         private readonly Recommendation bl = new();
 
+        // שולף את UserID של המשתמש המחובר מה-JWT.
+        private int GetCurrentUserId()
+        {
+            var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier);
+            if (userIdClaim == null)
+                throw new UnauthorizedAccessException("No user ID in token");
+            return int.Parse(userIdClaim.Value);
+        }
+
         [HttpPost]
         public IActionResult Add([FromBody] Recommendation rec)
         {
             try
             {
+                // ההמלצה משויכת למשתמש המחובר בלבד (UserID מה-JWT, לא מה-body).
+                rec.UserID = GetCurrentUserId();
                 int id = bl.AddRecommendation(rec);
                 return Ok(new { RecommendationID = id });
             }
@@ -28,6 +42,15 @@ namespace MatchingAppServer.Controllers
         {
             try
             {
+                // בדיקת בעלות: אפשר לעדכן רק המלצה של המשתמש המחובר.
+                int uid = GetCurrentUserId();
+                var existing = bl.GetAll().FirstOrDefault(r => r.RecommendationID == rec.RecommendationID);
+                if (existing == null)
+                    return NotFound();
+                if (existing.UserID != uid)
+                    return Forbid();
+                rec.UserID = uid;
+
                 int rows = bl.UpdateRecommendation(rec);
                 return Ok(new { RowsAffected = rows });
             }
@@ -42,6 +65,14 @@ namespace MatchingAppServer.Controllers
         {
             try
             {
+                // בדיקת בעלות: אפשר למחוק רק המלצה של המשתמש המחובר.
+                int uid = GetCurrentUserId();
+                var existing = bl.GetAll().FirstOrDefault(r => r.RecommendationID == id);
+                if (existing == null)
+                    return NotFound();
+                if (existing.UserID != uid)
+                    return Forbid();
+
                 int rows = bl.DeleteRecommendation(id);
                 return Ok(new { RowsAffected = rows });
             }

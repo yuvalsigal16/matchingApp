@@ -1,8 +1,6 @@
-import { Ionicons } from "@expo/vector-icons";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useEffect, useState } from "react";
 import {
-  ActivityIndicator,
   Alert,
   Platform,
   ScrollView,
@@ -11,13 +9,29 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
+import {
+  CalendarDays,
+  Calendar,
+  EllipsisVertical,
+  ListChecks,
+  MapPin,
+  Plane,
+  Star,
+  Users,
+} from "lucide-react-native";
 
+import HeaderMenu from "../../../components/HeaderMenu";
+import Avatar from "../../../components/ui/Avatar";
+import Card from "../../../components/ui/Card";
+import EmptyState from "../../../components/ui/EmptyState";
+import ListRow from "../../../components/ui/ListRow";
+import Screen from "../../../components/ui/Screen";
+import ScreenHeader from "../../../components/ui/ScreenHeader";
+import SectionLabel from "../../../components/ui/SectionLabel";
 import { BASE_URL } from "../../src/api/config";
 import { getToken } from "../../src/auth/authStore";
 import { getUserProfile } from "../../src/api/userProfileService";
-import { COLORS, FONTS } from "../../src/theme";
-import HeaderMenu from "../../../components/HeaderMenu";
+import { COLORS, FONTS, RADIUS, SHADOWS, SPACING, TYPOGRAPHY } from "../../src/theme";
 
 const STATUS_HE = {
   active: "פעיל",
@@ -25,27 +39,6 @@ const STATUS_HE = {
   inactive: "לא פעיל",
   pending: "ממתין",
 };
-
-// כפתור־גלולה לניווט (סגנון האב): אייקון עגול בצד, כותרת, וחץ עדין.
-function HubButton({ icon, label, tint, bg, onPress }) {
-  return (
-    <TouchableOpacity
-      style={styles.hubBtn}
-      onPress={onPress}
-      activeOpacity={0.85}
-      accessibilityRole="button"
-      accessibilityLabel={label}
-    >
-      <View style={[styles.hubIcon, { backgroundColor: bg }]}>
-        <Ionicons name={icon} size={20} color={tint} />
-      </View>
-      <Text style={styles.hubLabel} numberOfLines={1}>
-        {label}
-      </Text>
-      <Ionicons name="chevron-back" size={20} color={COLORS.textMuted} />
-    </TouchableOpacity>
-  );
-}
 
 export default function TripDetails() {
   const router = useRouter();
@@ -68,8 +61,6 @@ export default function TripDetails() {
   };
 
   const isPast = trip?.endDate && new Date(trip.endDate) < new Date();
-
-  /* ========================= NAVIGATION ========================= */
 
   /* ========================= LOAD DATA ========================= */
 
@@ -177,21 +168,33 @@ export default function TripDetails() {
     });
   };
 
-  /* ========================= LOADING ========================= */
+  /* ========================= LOADING / EMPTY ========================= */
 
   if (loading) {
     return (
-      <SafeAreaView style={styles.center}>
-        <ActivityIndicator size="large" color={COLORS.brand} />
-      </SafeAreaView>
+      <Screen edges={["top", "left", "right"]}>
+        <ScreenHeader title="פרטי טיול" onBack={() => router.back()} />
+        <View style={styles.content}>
+          <View style={styles.heroSkeleton} />
+          {[0, 1, 2].map((i) => (
+            <View key={i} style={styles.rowSkeleton} />
+          ))}
+        </View>
+      </Screen>
     );
   }
 
   if (!trip) {
     return (
-      <SafeAreaView style={styles.center}>
-        <Text style={styles.value}>לא נמצא טיול</Text>
-      </SafeAreaView>
+      <Screen edges={["top", "left", "right"]}>
+        <ScreenHeader title="פרטי טיול" onBack={() => router.back()} />
+        <EmptyState
+          Icon={MapPin}
+          title="לא נמצא טיול"
+          subtitle="ייתכן שהטיול נמחק או שאין הרשאה לצפות בו."
+          style={styles.notFound}
+        />
+      </Screen>
     );
   }
 
@@ -228,31 +231,21 @@ export default function TripDetails() {
 
   /* ========================= UI ========================= */
 
+  const menuButton = (
+    <TouchableOpacity
+      onPress={() => setMenuVisible(true)}
+      hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+      accessibilityRole="button"
+      accessibilityLabel="אפשרויות"
+      disabled={deleting}
+    >
+      <EllipsisVertical size={24} color={COLORS.brand} strokeWidth={2} />
+    </TouchableOpacity>
+  );
+
   return (
-    <SafeAreaView style={styles.container} edges={["top", "left", "right"]}>
-      {/* HEADER */}
-      <View style={styles.header}>
-        <TouchableOpacity
-          onPress={() => router.back()}
-          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-          accessibilityRole="button"
-          accessibilityLabel="חזרה"
-        >
-          <Ionicons name="arrow-forward" size={26} color={COLORS.brand} />
-        </TouchableOpacity>
-
-        <Text style={styles.headerTitle}>פרטי טיול</Text>
-
-        <TouchableOpacity
-          onPress={() => setMenuVisible(true)}
-          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-          accessibilityRole="button"
-          accessibilityLabel="אפשרויות"
-          disabled={deleting}
-        >
-          <Ionicons name="ellipsis-vertical" size={24} color={COLORS.brand} />
-        </TouchableOpacity>
-      </View>
+    <Screen edges={["top", "left", "right"]}>
+      <ScreenHeader title="פרטי טיול" onBack={() => router.back()} right={menuButton} />
 
       <HeaderMenu
         visible={menuVisible}
@@ -264,13 +257,13 @@ export default function TripDetails() {
         contentContainerStyle={styles.content}
         showsVerticalScrollIndicator={false}
       >
-        {/* HERO */}
+        {/* HERO — יעד כאובייקט מרכזי, בגוון המותג (כמו ה-hero ב-Home) */}
         <View style={[styles.hero, isPast && styles.heroPast]}>
           <View style={styles.heroTopRow}>
             <View style={styles.statusChip}>
               <Text style={styles.statusChipText}>{statusLabel}</Text>
             </View>
-            <Ionicons name="airplane" size={26} color="rgba(255,255,255,0.55)" />
+            <Plane size={26} color="rgba(255,255,255,0.55)" strokeWidth={2} />
           </View>
 
           <Text style={styles.heroDest} numberOfLines={1}>
@@ -278,78 +271,66 @@ export default function TripDetails() {
           </Text>
 
           <View style={styles.heroDatesRow}>
-            <Ionicons name="calendar-outline" size={14} color="rgba(255,255,255,0.92)" />
+            <Calendar size={14} color="rgba(255,255,255,0.92)" strokeWidth={2} />
             <Text style={styles.heroDates}>
               {formatDate(trip.startDate)} – {formatDate(trip.endDate)}
             </Text>
           </View>
         </View>
 
-        {/* HUB — כפתורי ניווט */}
-        {/* חיפוש שותפים/התאמות רלוונטי רק לטיול עתידי — מוסתר בטיול שהסתיים (קריאה בלבד). */}
+        {/* HUB — כניסות ניווט. אייקונים מאוחדים לגוון-מותג אחד (בלי קשת צבעים). */}
+        {/* חיפוש שותפים/התאמות רלוונטי רק לטיול עתידי — מוסתר בטיול שהסתיים. */}
         {!isPast && (
-          <HubButton
-            icon="people"
-            label="פרופילים עבורך"
-            tint={COLORS.primary}
-            bg={COLORS.primaryLight}
-            onPress={() =>
-              router.push({ pathname: "/TripMatches/[id]", params: { id } })
-            }
+          <ListRow
+            Icon={Users}
+            title="פרופילים עבורך"
+            onPress={() => router.push({ pathname: "/TripMatches/[id]", params: { id } })}
+            style={styles.hubRow}
           />
         )}
 
-        <HubButton
-          icon="checkmark-done"
-          label="רשימת משימות"
-          tint={COLORS.success}
-          bg={COLORS.successLight}
+        <ListRow
+          Icon={ListChecks}
+          title="רשימת משימות"
           onPress={() =>
-            router.push({
-              pathname: "/TripToDo/[id]",
-              params: { id, name: destination },
-            })
+            router.push({ pathname: "/TripToDo/[id]", params: { id, name: destination } })
           }
+          style={styles.hubRow}
         />
 
-        <HubButton
-          icon="star"
-          label="המלצות"
-          tint={COLORS.coral}
-          bg={COLORS.coralLight}
+        <ListRow
+          Icon={Star}
+          title="המלצות"
           onPress={() =>
-            router.push({
-              pathname: "/recommendations",
-              params: { tripId: id, tripName: destination },
-            })
+            router.push({ pathname: "/recommendations", params: { tripId: id, tripName: destination } })
           }
+          style={styles.hubRow}
         />
 
         {isMatched && (
-          <HubButton
-            icon="calendar"
-            label="יומן הטיול"
-            tint={COLORS.amberDark}
-            bg={COLORS.amberLight}
-            onPress={() =>
-              router.push({ pathname: "/TripPlanner/[id]", params: { id } })
-            }
+          <ListRow
+            Icon={CalendarDays}
+            title="יומן הטיול"
+            onPress={() => router.push({ pathname: "/TripPlanner/[id]", params: { id } })}
+            style={styles.hubRow}
           />
         )}
 
         {/* משתתפים */}
-        <Text style={styles.sectionTitle}>משתתפים</Text>
-        <View style={styles.card}>
+        <SectionLabel title="משתתפים" style={styles.sectionLabel} />
+        <Card>
           {creator && (
             <View style={styles.participant}>
-              <View style={styles.pAvatar}>
-                <Ionicons name="person" size={18} color={COLORS.onBrand} />
-              </View>
-              <View style={{ flex: 1, alignItems: "flex-end" }}>
-                <Text style={styles.pName}>
+              <Avatar
+                uri={creator.profileImage || creator.ProfileImage}
+                name={`${creator.firstName || ""} ${creator.lastName || ""}`}
+                size="sm"
+              />
+              <View style={styles.pInfo}>
+                <Text style={styles.pName} numberOfLines={1}>
                   {creator.firstName} {creator.lastName}
                 </Text>
-                <Text style={styles.label}>יוצר הטיול</Text>
+                <Text style={styles.pRole}>יוצר הטיול</Text>
               </View>
             </View>
           )}
@@ -359,80 +340,65 @@ export default function TripDetails() {
               key={i}
               style={[styles.participant, (creator || i > 0) && styles.participantDivider]}
             >
-              <View style={[styles.pAvatar, styles.pAvatarMuted]}>
-                <Ionicons name="person" size={18} color={COLORS.onBrand} />
+              <Avatar name={`${p.firstName || ""} ${p.lastName || ""}`} size="sm" />
+              <View style={styles.pInfo}>
+                <Text style={styles.pName} numberOfLines={1}>
+                  {p.firstName} {p.lastName}
+                </Text>
               </View>
-              <Text style={styles.pName}>
-                {p.firstName} {p.lastName}
-              </Text>
             </View>
           ))}
 
           {!creator && otherParticipants.length === 0 && (
-            <Text style={styles.value}>אין משתתפים</Text>
+            <Text style={styles.emptyLine}>אין משתתפים</Text>
           )}
-        </View>
+        </Card>
 
         {/* דירוג ההתאמה (לטיול שהסתיים) */}
         {isPast && (
           <>
-            <Text style={styles.sectionTitle}>דרגו את ההתאמה</Text>
-            <View style={styles.card}>
+            <SectionLabel title="דרגו את ההתאמה" style={styles.sectionLabel} />
+            <Card>
               <View style={styles.starsRow}>
                 {[1, 2, 3, 4, 5].map((star) => (
-                  <TouchableOpacity key={star} onPress={() => setRating(star)}>
-                    <Ionicons
-                      name={rating >= star ? "star" : "star-outline"}
-                      size={34}
+                  <TouchableOpacity
+                    key={star}
+                    onPress={() => setRating(star)}
+                    hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
+                    accessibilityRole="button"
+                    accessibilityLabel={`דירוג ${star} מתוך 5`}
+                  >
+                    <Star
+                      size={32}
                       color={COLORS.amber}
+                      fill={rating >= star ? COLORS.amber : "transparent"}
+                      strokeWidth={2}
                     />
                   </TouchableOpacity>
                 ))}
               </View>
-            </View>
+            </Card>
           </>
         )}
       </ScrollView>
-    </SafeAreaView>
+    </Screen>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: COLORS.background },
-  center: {
-    flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-    backgroundColor: COLORS.background,
-  },
-
-  header: {
-    flexDirection: "row-reverse",
-    justifyContent: "space-between",
-    alignItems: "center",
-    paddingHorizontal: 20,
-    paddingTop: 16,
-    paddingBottom: 8,
-  },
-  headerTitle: { fontSize: 20, fontFamily: FONTS.bold, color: COLORS.brand },
-
-  content: { paddingHorizontal: 20, paddingBottom: 40 },
+  content: { paddingHorizontal: SPACING.xl, paddingBottom: SPACING.xxxl },
 
   // ── Hero ──
   hero: {
-    backgroundColor: COLORS.coral,
-    borderRadius: 22,
-    padding: 20,
-    marginTop: 6,
-    marginBottom: 18,
+    backgroundColor: COLORS.brand,
+    borderRadius: RADIUS.xl,
+    padding: SPACING.xl,
+    marginTop: SPACING.xs,
+    marginBottom: SPACING.lg,
     overflow: "hidden",
-    shadowColor: COLORS.coral,
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.28,
-    shadowRadius: 12,
-    elevation: 5,
+    ...SHADOWS.md,
   },
-  heroPast: { backgroundColor: COLORS.textSecondary, shadowColor: COLORS.textSecondary },
+  heroPast: { backgroundColor: COLORS.textSecondary },
   heroTopRow: {
     flexDirection: "row-reverse",
     justifyContent: "space-between",
@@ -440,143 +406,73 @@ const styles = StyleSheet.create({
   },
   statusChip: {
     backgroundColor: "rgba(255,255,255,0.22)",
-    paddingHorizontal: 12,
+    paddingHorizontal: SPACING.md,
     paddingVertical: 5,
-    borderRadius: 20,
+    borderRadius: RADIUS.pill,
   },
-  statusChipText: { color: "#FFFFFF", fontSize: 12, fontFamily: FONTS.bold },
+  statusChipText: { ...TYPOGRAPHY.caption, fontFamily: FONTS.bold, color: COLORS.onBrand },
   heroDest: {
-    fontSize: 25,
-    fontFamily: FONTS.bold,
-    color: "#FFFFFF",
+    ...TYPOGRAPHY.h2,
+    color: COLORS.onBrand,
     textAlign: "right",
-    marginTop: 14,
+    marginTop: SPACING.md,
   },
   heroDatesRow: {
     flexDirection: "row-reverse",
     alignItems: "center",
     gap: 6,
-    marginTop: 8,
+    marginTop: SPACING.sm,
   },
-  heroDates: {
-    fontSize: 14,
-    fontFamily: FONTS.regular,
-    color: "rgba(255,255,255,0.92)",
-  },
+  heroDates: { ...TYPOGRAPHY.caption, color: "rgba(255,255,255,0.92)" },
 
-  // ── Hub buttons ──
-  hubBtn: {
-    flexDirection: "row-reverse",
-    alignItems: "center",
-    gap: 12,
-    backgroundColor: COLORS.surface,
-    borderRadius: 16,
-    paddingVertical: 14,
-    paddingHorizontal: 16,
-    marginBottom: 10,
-    shadowColor: COLORS.shadow,
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 6,
-    elevation: 2,
-  },
-  hubIcon: {
-    width: 42,
-    height: 42,
-    borderRadius: 21,
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  hubLabel: {
-    flex: 1,
-    fontSize: 15,
-    fontFamily: FONTS.bold,
-    color: COLORS.text,
-    textAlign: "right",
-  },
+  // ── Hub ──
+  hubRow: { marginBottom: SPACING.sm + 2 },
 
-  // ── Sections / cards ──
-  sectionTitle: {
-    fontSize: 16,
-    fontFamily: FONTS.bold,
-    color: COLORS.brand,
-    textAlign: "right",
-    marginTop: 18,
-    marginBottom: 10,
-  },
-  card: {
-    backgroundColor: COLORS.surface,
-    borderRadius: 16,
-    padding: 16,
-    shadowColor: COLORS.shadow,
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.04,
-    shadowRadius: 6,
-    elevation: 1,
-  },
-  label: {
-    fontSize: 12,
-    fontFamily: FONTS.regular,
-    color: COLORS.textSecondary,
-    textAlign: "right",
-    marginTop: 2,
-  },
-  value: {
-    fontSize: 15,
-    fontFamily: FONTS.regular,
-    color: COLORS.text,
-    textAlign: "right",
-  },
+  // ── Sections ──
+  sectionLabel: { marginTop: SPACING.lg },
 
   // ── Participants ──
   participant: {
     flexDirection: "row-reverse",
     alignItems: "center",
-    gap: 10,
-    paddingVertical: 8,
+    gap: SPACING.md,
+    paddingVertical: SPACING.sm,
   },
   participantDivider: {
     borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: COLORS.border,
+    borderTopColor: COLORS.hairline,
   },
-  pAvatar: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: COLORS.brand,
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  pAvatarMuted: { backgroundColor: COLORS.textMuted },
-  pName: { fontSize: 15, fontFamily: FONTS.bold, color: COLORS.text, textAlign: "right" },
-
-  // ── Chats ──
-  chatRow: {
-    flexDirection: "row-reverse",
-    alignItems: "center",
-    gap: 10,
-    paddingVertical: 10,
-  },
-  chatAvatar: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: COLORS.primary,
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  chatName: {
-    flex: 1,
-    fontSize: 15,
-    fontFamily: FONTS.regular,
-    color: COLORS.text,
+  pInfo: { flex: 1, alignItems: "flex-end" },
+  pName: { ...TYPOGRAPHY.bodyBold, color: COLORS.text, textAlign: "right" },
+  pRole: {
+    ...TYPOGRAPHY.caption,
+    color: COLORS.textSecondary,
     textAlign: "right",
+    marginTop: 2,
   },
+  emptyLine: { ...TYPOGRAPHY.body, color: COLORS.textMuted, textAlign: "right" },
 
   // ── Rating ──
   starsRow: {
     flexDirection: "row-reverse",
     justifyContent: "center",
-    gap: 6,
+    gap: SPACING.sm,
   },
+
+  // ── Skeletons ──
+  heroSkeleton: {
+    height: 120,
+    borderRadius: RADIUS.xl,
+    backgroundColor: COLORS.backgroundSunk,
+    marginTop: SPACING.xs,
+    marginBottom: SPACING.lg,
+  },
+  rowSkeleton: {
+    height: 64,
+    borderRadius: RADIUS.lg,
+    backgroundColor: COLORS.backgroundSunk,
+    marginBottom: SPACING.sm + 2,
+  },
+
+  notFound: { marginTop: SPACING.xxxl },
 });

@@ -46,9 +46,11 @@ namespace MatchingAppServer.DAL
                         JourneyStarted = reader["JourneyStarted"] != DBNull.Value && Convert.ToBoolean(reader["JourneyStarted"]),
                         CreatedAt = Convert.ToDateTime(reader["CreatedAt"]),
 
-                        TripID = Convert.ToInt32(reader["TripID"]),
-                        Destination = reader["Destination"].ToString(),
-                        StartDate = Convert.ToDateTime(reader["StartDate"]),
+                        // התאמות שנוצרו מבקשת צ'אט חופשית הן בלי טיול (TripID NULL),
+                        // ולכן שדות הטיול עשויים לחזור NULL — קוראים בבטחה.
+                        TripID = reader["TripID"] == DBNull.Value ? (int?)null : Convert.ToInt32(reader["TripID"]),
+                        Destination = reader["Destination"] == DBNull.Value ? null : reader["Destination"].ToString(),
+                        StartDate = reader["StartDate"] == DBNull.Value ? (DateTime?)null : Convert.ToDateTime(reader["StartDate"]),
                         EndDate = reader["EndDate"] == DBNull.Value ? (DateTime?)null : Convert.ToDateTime(reader["EndDate"]),
 
                         ChatID = Convert.ToInt32(reader["ChatID"]),

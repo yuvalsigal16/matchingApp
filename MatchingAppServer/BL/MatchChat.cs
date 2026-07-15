@@ -14,5 +14,11 @@ namespace MatchingAppServer.BL
         {
             return dal.GetByMatchID(matchID);
         }
+
+        // משתתפי הצ'אט (User1/User2 + MatchID) לפי ChatID — לגזירת נמען Push בשרת.
+        public Match GetParticipantsByChatID(int chatID)
+        {
+            return dal.GetParticipantsByChatID(chatID);
+        }
     }
 }

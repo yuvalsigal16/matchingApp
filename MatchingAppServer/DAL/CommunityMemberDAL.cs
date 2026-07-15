@@ -113,6 +113,7 @@ namespace MatchingAppServer.DAL
             }
         }
 
+
         // IS MEMBER — בדיקת חברות לפי טבלת CommunityMembers (מבוססת על ה-SP הקיים, ללא SP חדש)
         public bool IsMember(int communityID, int userID)
         {

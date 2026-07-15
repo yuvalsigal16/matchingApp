@@ -1,5 +1,6 @@
+﻿using MatchingAppServer.BL;
 using Microsoft.Data.SqlClient;
-using MatchingAppServer.BL;
+
 
 namespace MatchingAppServer.DAL
 {
@@ -72,13 +73,13 @@ namespace MatchingAppServer.DAL
                     list.Add(new Notification
                     {
                         NotificationID = Convert.ToInt32(reader["NotificationID"]),
-                        UserID         = Convert.ToInt32(reader["UserID"]),
-                        Type           = reader["Type"].ToString(),
-                        Title          = reader["Title"].ToString(),
-                        Body           = reader["Body"] == DBNull.Value ? null : reader["Body"].ToString(),
-                        RelatedID      = reader["RelatedID"] == DBNull.Value ? (int?)null : Convert.ToInt32(reader["RelatedID"]),
-                        IsRead         = Convert.ToBoolean(reader["IsRead"]),
-                        CreatedAt      = Convert.ToDateTime(reader["CreatedAt"])
+                        UserID = Convert.ToInt32(reader["UserID"]),
+                        Type = reader["Type"].ToString(),
+                        Title = reader["Title"].ToString(),
+                        Body = reader["Body"] == DBNull.Value ? null : reader["Body"].ToString(),
+                        RelatedID = reader["RelatedID"] == DBNull.Value ? (int?)null : Convert.ToInt32(reader["RelatedID"]),
+                        IsRead = Convert.ToBoolean(reader["IsRead"]),
+                        CreatedAt = Convert.ToDateTime(reader["CreatedAt"])
                     });
                 }
 

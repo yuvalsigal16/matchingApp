@@ -193,15 +193,15 @@ namespace MatchingAppServer.DAL
                         Status = reader["Status"].ToString(),
                         RequestDate = Convert.ToDateTime(reader["RequestDate"]),
 
-                        FromFirstName    = reader["FromFirstName"]    == DBNull.Value ? null : reader["FromFirstName"].ToString(),
-                        FromLastName     = reader["FromLastName"]     == DBNull.Value ? null : reader["FromLastName"].ToString(),
+                        FromFirstName = reader["FromFirstName"] == DBNull.Value ? null : reader["FromFirstName"].ToString(),
+                        FromLastName = reader["FromLastName"] == DBNull.Value ? null : reader["FromLastName"].ToString(),
                         FromProfileImage = reader["FromProfileImage"] == DBNull.Value ? null : reader["FromProfileImage"].ToString(),
-                        FromBirthDate    = reader["FromBirthDate"]    == DBNull.Value ? (DateTime?)null : Convert.ToDateTime(reader["FromBirthDate"]),
+                        FromBirthDate = reader["FromBirthDate"] == DBNull.Value ? (DateTime?)null : Convert.ToDateTime(reader["FromBirthDate"]),
 
-                        ToFirstName    = reader["ToFirstName"]    == DBNull.Value ? null : reader["ToFirstName"].ToString(),
-                        ToLastName     = reader["ToLastName"]     == DBNull.Value ? null : reader["ToLastName"].ToString(),
+                        ToFirstName = reader["ToFirstName"] == DBNull.Value ? null : reader["ToFirstName"].ToString(),
+                        ToLastName = reader["ToLastName"] == DBNull.Value ? null : reader["ToLastName"].ToString(),
                         ToProfileImage = reader["ToProfileImage"] == DBNull.Value ? null : reader["ToProfileImage"].ToString(),
-                        ToBirthDate    = reader["ToBirthDate"]    == DBNull.Value ? (DateTime?)null : Convert.ToDateTime(reader["ToBirthDate"]),
+                        ToBirthDate = reader["ToBirthDate"] == DBNull.Value ? (DateTime?)null : Convert.ToDateTime(reader["ToBirthDate"]),
                     });
                 }
 

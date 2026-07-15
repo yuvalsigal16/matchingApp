@@ -230,6 +230,7 @@ namespace MatchingAppServer.BL
             return dal.DeleteUser(userId);
         }
 
+
         // SAVE EXPO PUSH TOKEN - שומר ב-DB את ה-token של מכשיר המשתמש
         // לטובת שליחת push notifications גם כשהאפליקציה סגורה.
         public int SaveExpoPushToken(int userId, string token)
@@ -241,6 +242,16 @@ namespace MatchingAppServer.BL
                 throw new Exception("Token is required");
 
             return dal.SaveExpoPushToken(userId, token);
+        }
+
+        // CLEAR EXPO PUSH TOKEN - מנקה את ה-token של המשתמש (logout). בלי guard של
+        // non-empty token — כי כאן המטרה היא דווקא לנקות.
+        public int ClearExpoPushToken(int userId)
+        {
+            if (userId <= 0)
+                throw new Exception("Invalid user id");
+
+            return dal.ClearExpoPushToken(userId);
         }
 
         // GET EXPO PUSH TOKEN - לשימוש פנימי בעת שליחת התראה לטלפון

@@ -6,12 +6,14 @@ import {
   Rubik_800ExtraBold,
   useFonts,
 } from "@expo-google-fonts/rubik";
-import { Stack } from "expo-router";
+import { Stack, router } from "expo-router";
 import { useEffect, useState } from "react";
 import { I18nManager, View } from "react-native";
+import * as Notifications from "expo-notifications";
 import { SafeAreaProvider } from "react-native-safe-area-context";
-import { loadAuth } from "./src/auth/authStore";
+import { getUser, loadAuth } from "./src/auth/authStore";
 import { installFetchInterceptor } from "./src/api/installFetchInterceptor";
+import { pushRouteForType, registerForPushNotifications } from "./src/push/pushNotifications";
 import { COLORS } from "./src/theme";
 
 // מבטלים RTL ברמת המערכת. הקוד משתמש ב-"row-reverse" ידני להשגת תצוגת RTL,
@@ -33,7 +35,23 @@ export default function RootLayout() {
   const [authLoaded, setAuthLoaded] = useState(false);
   useEffect(() => {
     installFetchInterceptor(); // טיפול אחיד ב-401 בכל קריאות הרשת
-    loadAuth().finally(() => setAuthLoaded(true));
+
+    loadAuth().finally(() => {
+      setAuthLoaded(true);
+      // רישום ל-Push למשתמש שכבר מחובר בעליית האפליקציה (auto-login / פתיחה מחדש),
+      // כדי שלא יישאר מחובר בלי token תקף. אידמפוטנטי, fire-and-forget (לא חוסם UI).
+      const u = getUser();
+      if (u?.userID) registerForPushNotifications(u.userID);
+    });
+
+    // לחיצה על Push → ניווט למסך הרלוונטי לפי notification.data.type.
+    // אותו מיפוי כמו לחיצה על התראה בתוך האפליקציה (notifications.jsx).
+    const sub = Notifications.addNotificationResponseReceivedListener((response) => {
+      const data = response?.notification?.request?.content?.data;
+      const route = pushRouteForType(data?.type, data?.relatedID);
+      if (route && getUser()?.userID) router.push(route as never);
+    });
+    return () => sub.remove();
   }, []);
 
   if (!fontsLoaded || !authLoaded) {

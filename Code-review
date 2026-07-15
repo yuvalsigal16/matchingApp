@@ -1,0 +1,163 @@
+
+
+
+---
+
+# דוח אבטחה ממוקד: ממצאים קריטיים לטיפול מיידי
+
+**פרויקט:** צמד חמד (Tzemed Hemed)
+
+**רכיב:** MatchingAppServer (ASP.NET Core Web API)
+
+---
+
+## 🔴 כרטיסייה 1: Broken Object Level Authorization (IDOR / BOLA)
+
+* **חומרה:** 🔴 קריטי (Critical)
+* **קטגוריית OWASP:** API1:2023 - Broken Object Level Authorization
+* **מיקום בקוד:** רוב ה-Controllers (לדוגמה: `UserController.cs`, `UserProfileController.cs`, `TripController.cs`).
+
+### תיאור הבעיה
+
+השרת משתמש בתגית `[Authorize]` כדי לוודא שהמשתמש מחובר (Authentication), אך **אינו מבצע בדיקת בעלות (Authorization)** על המשאב המבוקש. ה-Endpoints מקבלים מזהה משתמש (`id` או `userId`) ישירות מהקלט של הלקוח (ב-URL או ב-Body), ומבצעים את הפעולה ללא אימות שהמזהה הזה שייך למשתמש ששלח את הבקשה.
+
+### סיכון (Impact)
+
+משתמש מחובר יכול לבצע מניפולציות, לערוך, או למחוק מידע של כל משתמש אחר במערכת פשוט על ידי שינוי מספר ה-ID בבקשה (למשל, מחיקת משתמש אחר ב-`DELETE /api/User/15`, או שינוי תמונת פרופיל של משתמש אחר).
+
+### דוגמה מהקוד (`UserController.cs`)
+
+```csharp
+[HttpDelete("{id}")]
+public IActionResult Delete(int id)
+{
+    // השרת מוחק את ה-ID שנתקבל מהלקוח בלי לוודא שזה ה-ID של המשתמש המחובר!
+    _userDAL.DeleteUser(id); 
+    return Ok();
+}
+
+```
+
+### פתרון מומלץ (Remediation)
+
+בכל פעולה אישית, יש לחלץ את מזהה המשתמש בצורה מאובטחת ישירות מתוך ה-Claims של טוקן ה-JWT, ולהשוות אותו ל-ID המבוקש:
+
+```csharp
+[HttpDelete("{id}")]
+[Authorize]
+public IActionResult Delete(int id)
+{
+    // 1. שליפת מזהה המשתמש המחובר מתוך ה-Token
+    var nameIdentifierClaim = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier);
+    if (nameIdentifierClaim == null) return Unauthorized();
+    
+    int loggedInUserId = int.Parse(nameIdentifierClaim.Value);
+
+    // 2. חסימת הבקשה במידה והמשתמש מנסה למחוק מישהו אחר
+    if (loggedInUserId != id)
+    {
+        return Forbid(); // 403 Forbidden
+    }
+
+    _userDAL.DeleteUser(id); 
+    return Ok();
+}
+
+```
+
+---
+
+## 🔴 כרטיסייה 2: סודות ומפתחות מוטמעים בקוד וב-Git
+
+* **חומרה:** 🔴 קריטי (Critical)
+* **קטגוריית OWASP:** API5:2023 - Broken Function Level Authorization / Security Misconfiguration
+* **מיקום בקוד:** קובץ `appsettings.json` (Commit: `bb70a2b`).
+
+### תיאור הבעיה
+
+קובץ ההגדרות `appsettings.json` הועלה ל-Git כשהוא מכיל סודות אמיתיים בטקסט גלוי (Cleartext). הסודות שנחשפו כוללים:
+
+1. סיסמת מנהל ל-Azure SQL Database.
+2. מפתח חתימה ל-JWT.
+3. מפתחות API של שירותים חיצוניים (Brevo, Anthropic).
+
+### סיכון (Impact)
+
+כל מי שיש לו או תהיה לו גישה למאגר הקוד (Repository) יכול להתחבר ישירות לבסיס הנתונים בענן, לגנוב את כל המידע, לזייף טוקנים של המערכת, או להשתמש בחיבורי ה-API החיצוניים על חשבונכם.
+
+### פתרון מומלץ (Remediation)
+
+1. **רוטציה מיידית (Rotate Secrets):** יש להחליף מיד את כל הסיסמאות והמפתחות שנחשפו ב-Azure ובשירותים החיצוניים. הם נחשבים פרוצים לחלוטין.
+2. **העברה למשתני סביבה:** במקום לשמור סודות בקוד, יש להגדיר אותם ב-**Azure App Service Configuration / Key Vault**.
+3. **עדכון ה-Git:** יש להוסיף את `appsettings.json` לקובץ `.gitignore` כדי שלא יעלה שוב. את הערכים המקומיים לפיתוח יש לשמור בקובץ מקומי בשם `appsettings.Development.json` (שאינו עולה ל-Git).
+
+---
+
+## 🔴 כרטיסייה 3: מפתח חתימת JWT חלש וצפוי
+
+* **חומרה:** 🔴 קריטי (Critical)
+* **קטגוריית OWASP:** API2:2023 - Broken User Authentication
+* **מיקום בקוד:** `appsettings.json` (מפתח: `Jwt:Key`), שימוש ב-`JwtService.cs`.
+
+### תיאור הבעיה
+
+מפתח ההצפנה המשמש לחתימת טוקן ה-JWT הוא מחרוזת קצרה, פשוטה וצפויה (`THIS_IS_A_SUPER_SECRET_KEY_1234567890!@#`).
+
+### סיכון (Impact)
+
+תוקפים יכולים לבצע מתקפת ניחוש קלה (Offline Brute-Force/Dictionary Attack) על חתימת הטוקן. ברגע שהמפתח מפוענח, תוקף יכול לייצר באופן עצמאי טוקנים חתומים ותקפים לכל משתמש שירצה (כולל משתמשי מנהל) ולעקוף לחלוטין את מערכת ההתחברות.
+
+### פתרון מומלץ (Remediation)
+
+יש להחליף את המפתח למחרוזת אקראית חזקה ומאובטחת באורך של 256 סיביות לפחות (למשל מפתח מבוסס CSPRNG) ולשמור אותה כמשתנה סביבה מאובטח ב-Azure:
+
+```json
+// דוגמה למבנה הגדרות תקין ללא הסוד עצמו
+"Jwt": {
+  "Key": "PLACEHOLDER_LOADED_FROM_ENV_VARIABLES"
+}
+
+```
+
+---
+
+## 🟠 כרטיסייה 4: חשיפת מידע מזוהה (PII) ללא אימות
+
+* **חומרה:** 🟠 גבוהה (High)
+* **קטגוריית OWASP:** API3:2023 - Broken Object Level Authorization / Data Exposure
+* **מיקום בקוד:** `UserController.cs` -> ה-Endpoint שנקרא `GetAllUsers`.
+
+### תיאור הבעיה
+
+ה-Endpoint שמחזיר את כל המשתמשים באפליקציה (`GET /api/User`) חסר את התגית `[Authorize]`. בנוסף, הוא מחזיר את רשומת המשתמש המלאה מבסיס הנתונים (כולל אימייל, תאריך לידה מלא, עיר מגורים ותשובות לשאלון ההתאמות).
+
+### סיכון (Impact)
+
+כל משתמש אנונימי באינטרנט (ללא התחברות) יכול לשלוח בקשה לכתובת ה-API ולשלוף את מאגר המידע המלא של כל המשתמשים הרשומים באפליקציה, מה שמהווה פגיעה קשה בפרטיות (PII Leak) וחושף את המשתמשים להנדסה חברתית או ספאם.
+
+### פתרון מומלץ (Remediation)
+
+1. **חסימת גישה אנונימית:** הוספת תגית `[Authorize]` ל-Endpoint ב-Controller.
+2. **צמצום נתונים (Data Minimization):** אין להחזיר את הישות המלאה מה-DB. יש לייצר מחלקה ייעודית להעברת נתונים (DTO - Data Transfer Object) שמחזירה רק את השדות הנחוצים לצורך הצגת הפרופיל והתאמות (למשל: ללא אימייל, ללא סיסמה מוצפנת, וללא תאריך לידה מלא אלא רק קבוצת גיל).
+
+```csharp
+[HttpGet]
+[Authorize] // 1. הגנה באמצעות טוקן
+public IActionResult GetAllUsers()
+{
+    var users = _userService.GetAllActiveUsers();
+    
+    // 2. המרה ל-DTO מצומצם שאינו חושף מידע רגיש
+    var userDtos = users.Select(u => new UserDto 
+    {
+        Id = u.Id,
+        DisplayName = u.DisplayName,
+        Age = CalculateAge(u.BirthDate), // החזרת גיל במקום תאריך לידה מלא
+        City = u.City,
+        Bio = u.Bio
+    });
+
+    return Ok(userDtos);
+}
+
+```

@@ -1,12 +1,10 @@
-import { Ionicons } from "@expo/vector-icons";
 import * as ImagePicker from "expo-image-picker";
 import { useRouter } from "expo-router";
-import { ChevronLeft, FileText, Heart, LogOut, Settings } from "lucide-react-native";
+import { Camera, FileText, Heart, Images, LogOut, Settings, Trash2 } from "lucide-react-native";
 import React, { useEffect, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
-  Image,
   Modal,
   Platform,
   Pressable,
@@ -16,15 +14,18 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
-import { BASE_URL } from "../src/api/config";
-import { buildImageUri } from "../src/utils/image";
-import { deleteProfileImage, uploadProfileImage } from "../src/api/userProfileService";
-import { getMyMatches } from "../src/api/notificationService";
-import { clearAuth, getToken, getUser } from "../src/auth/authStore";
-import { COLORS, FONTS } from "../src/theme";
-import BottomNav from "../../components/BottomNav";
 
+import BottomNav from "../../components/BottomNav";
+import Avatar from "../../components/ui/Avatar";
+import Card from "../../components/ui/Card";
+import ListRow from "../../components/ui/ListRow";
+import Screen from "../../components/ui/Screen";
+import ScreenHeader from "../../components/ui/ScreenHeader";
+import { BASE_URL } from "../src/api/config";
+import { deleteProfileImage, uploadProfileImage } from "../src/api/userProfileService";
+import { clearExpoPushToken, getMyMatches } from "../src/api/notificationService";
+import { clearAuth, getToken, getUser } from "../src/auth/authStore";
+import { COLORS, RADIUS, SPACING, TYPOGRAPHY } from "../src/theme";
 
 export default function ProfileScreen() {
   const router = useRouter();
@@ -195,6 +196,8 @@ export default function ProfileScreen() {
     if (Platform.OS === "web") {
       // ב-web אין Alert נייטיב — משתמשים ב-confirm של הדפדפן
       if (window.confirm("האם להתנתק מהחשבון?")) {
+        // קודם ניקוי ה-Push Token בשרת (כשל לא חוסם logout), ואז ניקוי מקומי.
+        try { await clearExpoPushToken(); } catch (e) { console.warn("[push] ניקוי token בשרת נכשל:", e?.message); }
         await clearAuth();
         router.replace("/Login");
       }
@@ -209,6 +212,8 @@ export default function ProfileScreen() {
           text: "התנתק",
           style: "destructive",
           onPress: async () => {
+            // קודם ניקוי ה-Push Token בשרת (כשל לא חוסם logout), ואז ניקוי מקומי.
+            try { await clearExpoPushToken(); } catch (e) { console.warn("[push] ניקוי token בשרת נכשל:", e?.message); }
             await clearAuth();
             router.replace("/Login");
           },
@@ -218,150 +223,106 @@ export default function ProfileScreen() {
     );
   };
 
-  const imageUri = buildImageUri(userData.profileImage);
+  const fullName = `${userData.firstName} ${userData.lastName}`.trim();
 
-  const renderAvatar = () => {
-    if (loading) {
-      return (
-        <View style={[styles.avatar, styles.avatarFallback]}>
-          <ActivityIndicator color={COLORS.onBrand} />
-        </View>
-      );
-    }
-
-    if (imageUri) {
-      return <Image source={{ uri: imageUri }} style={styles.avatar} />;
-    }
-
-    return (
-      <View style={[styles.avatar, styles.avatarFallback]}>
-        <Ionicons name="person" size={40} color={COLORS.onBrand} />
-      </View>
-    );
-  };
-
-  // route = ה-path אליו הכפתור מנווט (null = לא לחיץ עדיין)
+  // route = ה-path אליו הכפתור מנווט
   const MENU = [
-    {
-      title: "הגדרות",
-      Icon: Settings,
-      route: "/Settings",
-    },
-    {
-      title: "עדכון פרטים אישיים",
-      Icon: FileText,
-      route: "/UpdateIntroQuiz",
-    },
-    {
-      title: "עדכון העדפות טיול",
-      Icon: Heart,
-      route: "/UpdateTravelPreferences",
-    },
+    { title: "הגדרות", Icon: Settings, route: "/Settings" },
+    { title: "עדכון פרטים אישיים", Icon: FileText, route: "/UpdateIntroQuiz" },
+    { title: "עדכון העדפות טיול", Icon: Heart, route: "/UpdateTravelPreferences" },
   ];
 
   return (
-    <SafeAreaView style={styles.container}>
+    <Screen>
+      <ScreenHeader onBack={() => router.replace("/Home")} />
+
       <ScrollView
         contentContainerStyle={styles.content}
         showsVerticalScrollIndicator={false}
       >
-
-        {/* Header — רק חץ חזרה ל-Home (אייקון ההגדרות הוסר כי הוא קיים בתפריט למטה) */}
-        <View style={styles.header}>
-          <TouchableOpacity
-            onPress={() => router.replace("/Home")}
-            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-            accessibilityRole="button"
-            accessibilityLabel="חזרה לדף הבית"
-          >
-            <Ionicons name="arrow-forward" size={26} color={COLORS.brand} />
-          </TouchableOpacity>
-        </View>
-
-        {/* Avatar — לחיץ לפתיחת בורר תמונה */}
-        <View style={styles.avatarContainer}>
+        {/* ── זהות: אווטר גדול, שם, אימייל — מרוכז, נקי, אישי ── */}
+        <View style={styles.identity}>
           <View style={styles.avatarWrapper}>
-            <Pressable onPress={() => setImagePickerVisible(true)}>
-              {renderAvatar()}
-              {uploading && (
-                <View style={styles.uploadingOverlay}>
-                  <ActivityIndicator color={COLORS.onBrand} />
-                </View>
-              )}
-            </Pressable>
-
+            <Avatar
+              uri={userData.profileImage}
+              name={fullName}
+              size={104}
+              onPress={() => setImagePickerVisible(true)}
+              accessibilityLabel="שינוי תמונת פרופיל"
+            />
+            {(loading || uploading) && (
+              <View style={styles.avatarOverlay}>
+                <ActivityIndicator color={COLORS.onBrand} />
+              </View>
+            )}
             <TouchableOpacity
               style={styles.cameraButton}
               onPress={() => setImagePickerVisible(true)}
               disabled={uploading}
+              accessibilityRole="button"
+              accessibilityLabel="שינוי תמונת פרופיל"
             >
-              <Ionicons name="camera" size={18} color={COLORS.onBrand} />
+              <Camera size={16} color={COLORS.onBrand} strokeWidth={2.2} />
             </TouchableOpacity>
           </View>
+
+          <Text style={styles.name} numberOfLines={1}>
+            {fullName}
+          </Text>
+          {userData.email ? (
+            <Text style={styles.email} numberOfLines={1}>
+              {userData.email}
+            </Text>
+          ) : null}
         </View>
 
-        {/* Name + Email */}
-        <Text style={styles.name}>
-          {userData.firstName} {userData.lastName}
-        </Text>
-        <Text style={styles.email}>{userData.email}</Text>
-
-        {/* Stats */}
-        <View style={styles.statsRow}>
-          <View style={styles.statBox}>
-            <Text style={styles.statNumber}>{stats.matches}</Text>
-            <Text style={styles.statLabel}>התאמות</Text>
+        {/* ── סטטיסטיקות: רצועה אחת שקטה (במקום שלושה כרטיסים נפרדים) ── */}
+        <Card style={styles.statsCard} padded={false}>
+          <View style={styles.statsRow}>
+            <View style={styles.stat}>
+              <Text style={styles.statNumber}>{stats.matches}</Text>
+              <Text style={styles.statLabel}>התאמות</Text>
+            </View>
+            <View style={styles.statDivider} />
+            <View style={styles.stat}>
+              <Text style={styles.statNumber}>{stats.journeyStarted}</Text>
+              <Text style={styles.statLabel}>יצאנו לדרך</Text>
+            </View>
+            <View style={styles.statDivider} />
+            <View style={styles.stat}>
+              <Text style={styles.statNumber}>{stats.trips}</Text>
+              <Text style={styles.statLabel}>טיולים</Text>
+            </View>
           </View>
+        </Card>
 
-          <View style={styles.statBox}>
-            <Text style={styles.statNumber}>{stats.journeyStarted}</Text>
-            <Text style={styles.statLabel}>יצאנו לדרך</Text>
-          </View>
-
-          <View style={styles.statBox}>
-            <Text style={styles.statNumber}>{stats.trips}</Text>
-            <Text style={styles.statLabel}>טיולים</Text>
-          </View>
+        {/* ── תפריט ── */}
+        <View style={styles.menu}>
+          {MENU.map((item) => (
+            <ListRow
+              key={item.route}
+              Icon={item.Icon}
+              title={item.title}
+              onPress={() => router.push(item.route)}
+              style={styles.menuRow}
+            />
+          ))}
         </View>
 
-        {/* Menu */}
-        <View style={styles.menuList}>
-          {MENU.map((item, index) => {
-            const Icon = item.Icon;
-            return (
-              <TouchableOpacity
-                key={index}
-                style={styles.menuItem}
-                disabled={!item.route}
-                onPress={() => item.route && router.push(item.route)}
-              >
-                <ChevronLeft size={20} color={COLORS.textMuted} />
-                <View style={styles.menuTextBlock}>
-                  <Text style={styles.menuText}>{item.title}</Text>
-                  {item.sub ? (
-                    <Text style={styles.menuSub}>{item.sub}</Text>
-                  ) : null}
-                </View>
-                <View style={[styles.menuIcon, item.iconBg ? { backgroundColor: item.iconBg } : null]}>
-                  <Icon size={20} color={COLORS.brand} />
-                </View>
-              </TouchableOpacity>
-            );
-          })}
-        </View>
-
-        {/* כפתור התנתקות — מובדל ויזואלית מהתפריט הרגיל ע"י צבע אדום וגוון רקע ורדרד */}
+        {/* ── התנתקות — מובדלת ויזואלית ומאשרת לפני פעולה ── */}
         <TouchableOpacity
           style={styles.logoutBtn}
           onPress={handleLogout}
           activeOpacity={0.85}
+          accessibilityRole="button"
+          accessibilityLabel="התנתקות"
         >
-          <LogOut size={20} color={COLORS.danger} />
+          <LogOut size={20} color={COLORS.danger} strokeWidth={2} />
           <Text style={styles.logoutText}>התנתקות</Text>
         </TouchableOpacity>
       </ScrollView>
 
-     <BottomNav active="profile" />
+      <BottomNav active="profile" />
 
       {/* Modal לבחירת מקור התמונה — מצלמה / גלריה */}
       <Modal
@@ -378,12 +339,12 @@ export default function ProfileScreen() {
             <Text style={styles.modalTitle}>בחירת תמונת פרופיל</Text>
 
             <Pressable style={styles.modalBtn} onPress={takePhoto}>
-              <Ionicons name="camera" size={22} color={COLORS.brand} />
+              <Camera size={22} color={COLORS.brand} strokeWidth={2} />
               <Text style={styles.modalBtnText}>צילום במצלמה</Text>
             </Pressable>
 
             <Pressable style={styles.modalBtn} onPress={pickFromGallery}>
-              <Ionicons name="images" size={22} color={COLORS.brand} />
+              <Images size={22} color={COLORS.brand} strokeWidth={2} />
               <Text style={styles.modalBtnText}>בחירה מהגלריה</Text>
             </Pressable>
 
@@ -392,7 +353,7 @@ export default function ProfileScreen() {
                 style={[styles.modalBtn, styles.modalBtnDanger]}
                 onPress={handleDeleteImage}
               >
-                <Ionicons name="trash-outline" size={22} color={COLORS.danger} />
+                <Trash2 size={22} color={COLORS.danger} strokeWidth={2} />
                 <Text style={[styles.modalBtnText, styles.modalBtnDangerText]}>
                   מחיקת התמונה
                 </Text>
@@ -408,216 +369,115 @@ export default function ProfileScreen() {
           </Pressable>
         </Pressable>
       </Modal>
-    </SafeAreaView>
+    </Screen>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: COLORS.background },
-  // ScrollView contentContainerStyle: לא משתמשים ב-flex:1 כי זה משבית גלילה.
-  // paddingBottom נותן אוויר מתחת לכפתור ההתנתקות לפני ה-BottomNav.
-  content: { paddingHorizontal: 20, paddingTop: 28, paddingBottom: 30 },
+  content: { paddingHorizontal: SPACING.xl, paddingTop: SPACING.sm, paddingBottom: SPACING.xl },
 
-  header: {
-    flexDirection: "row-reverse",
-    justifyContent: "space-between",
-    marginBottom: 24,
-  },
-
-  avatarContainer: {
-    alignItems: "center",
-    marginBottom: 16,
-  },
-
-  avatarWrapper: {
-    position: "relative",
-    width: 110,
-    height: 110,
-  },
-
-  avatar: {
-    width: 110,
-    height: 110,
-    borderRadius: 60,
-  },
-
-  avatarFallback: {
-    backgroundColor: COLORS.primary,
-    justifyContent: "center",
-    alignItems: "center",
-  },
-
-  cameraButton: {
-    position: "absolute",
-    bottom: 2,
-    right: 2,
-    backgroundColor: COLORS.brand,
-    borderRadius: 20,
-    padding: 6,
-  },
-
-  name: {
-    textAlign: "center",
-    fontSize: 22,
-    fontFamily: FONTS?.bold,
-  },
-
-  email: {
-    textAlign: "center",
-    color: COLORS.textMuted,
-    marginBottom: 20,
-  },
-
-  statsRow: {
-    flexDirection: "row-reverse",
-    justifyContent: "space-between",
-    marginBottom: 20,
-  },
-
-  statBox: {
-    flex: 1,
-    backgroundColor: COLORS.surface,
-    marginHorizontal: 5,
-    borderRadius: 16,
-    padding: 12,
-    alignItems: "center",
-  },
-
-  statNumber: {
-    fontSize: 18,
-    fontWeight: "bold",
-  },
-
-  statLabel: {
-    fontSize: 12,
-    color: COLORS.textSecondary,
-  },
-
-  menuList: {
-    marginTop: 10,
-  },
-
-  menuItem: {
-    flexDirection: "row-reverse",
-    alignItems: "center",
-    justifyContent: "space-between",
-    backgroundColor: COLORS.surface,
-    padding: 16,
-    borderRadius: 16,
-    marginBottom: 10,
-  },
-
-  menuTextBlock: {
-    flex: 1,
-    alignItems: "flex-end",
-    paddingHorizontal: 4,
-  },
-
-  menuText: {
-    textAlign: "right",
-    fontFamily: FONTS.regular,
-    color: COLORS.text,
-  },
-
-  menuSub: {
-    textAlign: "right",
-    fontSize: 12,
-    fontFamily: FONTS.regular,
-    color: "#B88A4C",
-    marginTop: 2,
-  },
-
-  menuIcon: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: COLORS.divider,
-    justifyContent: "center",
-    alignItems: "center",
-  },
-
-  // כפתור התנתקות — אדום עדין, מופרד מהתפריט הרגיל ע"י marginTop גדול
-  logoutBtn: {
-    flexDirection: "row-reverse",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 10,
-    backgroundColor: COLORS.dangerLight,
-    paddingVertical: 14,
-    borderRadius: 16,
-    marginTop: 20,
-    borderWidth: 1,
-    borderColor: COLORS.dangerBorder,
-  },
-  logoutText: {
-    fontSize: 15,
-    fontFamily: FONTS.bold,
-    color: COLORS.danger,
-  },
-
-  uploadingOverlay: {
-    position: "absolute",
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    borderRadius: 60,
+  // ── זהות ──
+  identity: { alignItems: "center", marginBottom: SPACING.xl },
+  avatarWrapper: { width: 104, height: 104, marginBottom: SPACING.md },
+  avatarOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    borderRadius: 52,
     backgroundColor: "rgba(0,0,0,0.35)",
     justifyContent: "center",
     alignItems: "center",
   },
+  cameraButton: {
+    position: "absolute",
+    bottom: 0,
+    right: 0,
+    backgroundColor: COLORS.brand,
+    borderRadius: RADIUS.pill,
+    padding: 7,
+    borderWidth: 2,
+    borderColor: COLORS.background,
+  },
+  name: { ...TYPOGRAPHY.h2, color: COLORS.text, textAlign: "center" },
+  email: {
+    ...TYPOGRAPHY.caption,
+    color: COLORS.textMuted,
+    textAlign: "center",
+    marginTop: 2,
+  },
 
+  // ── סטטיסטיקות ──
+  statsCard: { marginBottom: SPACING.xl },
+  statsRow: {
+    flexDirection: "row-reverse",
+    alignItems: "stretch",
+    paddingVertical: SPACING.lg,
+  },
+  stat: { flex: 1, alignItems: "center", justifyContent: "center" },
+  statNumber: { ...TYPOGRAPHY.h2, color: COLORS.text },
+  statLabel: { ...TYPOGRAPHY.caption, color: COLORS.textSecondary, marginTop: 2 },
+  statDivider: {
+    width: StyleSheet.hairlineWidth,
+    backgroundColor: COLORS.hairline,
+    marginVertical: SPACING.sm,
+  },
+
+  // ── תפריט ──
+  menu: { gap: SPACING.sm + 2 },
+  menuRow: {},
+
+  // ── התנתקות ──
+  logoutBtn: {
+    flexDirection: "row-reverse",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: SPACING.sm,
+    backgroundColor: COLORS.dangerLight,
+    paddingVertical: SPACING.md,
+    borderRadius: RADIUS.lg,
+    marginTop: SPACING.xl,
+    borderWidth: 1,
+    borderColor: COLORS.dangerBorder,
+  },
+  logoutText: { ...TYPOGRAPHY.button, color: COLORS.danger },
+
+  // ── Modal ──
   modalBackdrop: {
     flex: 1,
     backgroundColor: "rgba(0,0,0,0.5)",
     justifyContent: "center",
     alignItems: "center",
-    paddingHorizontal: 32,
+    paddingHorizontal: SPACING.xxl + SPACING.xs,
   },
   modalCard: {
     width: "100%",
     backgroundColor: COLORS.surface,
-    borderRadius: 20,
-    padding: 22,
+    borderRadius: RADIUS.xl,
+    padding: SPACING.xl,
   },
   modalTitle: {
-    fontSize: 18,
-    fontFamily: FONTS.bold,
-    color: COLORS.brand,
+    ...TYPOGRAPHY.h3,
+    color: COLORS.text,
     textAlign: "center",
-    marginBottom: 18,
+    marginBottom: SPACING.lg,
   },
   modalBtn: {
     flexDirection: "row-reverse",
     alignItems: "center",
     justifyContent: "flex-start",
-    paddingVertical: 14,
-    paddingHorizontal: 16,
-    borderRadius: 14,
+    paddingVertical: SPACING.md,
+    paddingHorizontal: SPACING.lg,
+    borderRadius: RADIUS.md,
     backgroundColor: COLORS.background,
-    marginBottom: 10,
-    gap: 12,
+    marginBottom: SPACING.sm,
+    gap: SPACING.md,
   },
-  modalBtnText: {
-    fontSize: 15,
-    fontFamily: FONTS.bold,
-    color: COLORS.brand,
-  },
+  modalBtnText: { ...TYPOGRAPHY.bodyBold, color: COLORS.brand },
   modalBtnCancel: {
     backgroundColor: "transparent",
     justifyContent: "center",
-    marginTop: 4,
+    marginTop: SPACING.xs,
     marginBottom: 0,
   },
-  modalBtnCancelText: {
-    fontSize: 15,
-    fontFamily: FONTS.regular,
-    color: COLORS.textMuted,
-  },
-  modalBtnDanger: {
-    backgroundColor: COLORS.dangerLight,
-  },
-  modalBtnDangerText: {
-    color: COLORS.danger,
-  },
+  modalBtnCancelText: { ...TYPOGRAPHY.body, color: COLORS.textMuted },
+  modalBtnDanger: { backgroundColor: COLORS.dangerLight },
+  modalBtnDangerText: { color: COLORS.danger },
 });

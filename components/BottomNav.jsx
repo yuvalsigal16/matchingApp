@@ -1,20 +1,20 @@
-import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
+import { Bell, Compass, House, User } from "lucide-react-native";
 import React from "react";
 import { StyleSheet, TouchableOpacity, View } from "react-native";
-import { COLORS } from "../app/src/theme";
+import { COLORS, SPACING } from "../app/src/theme";
 
 // תפריט תחתון - מופיע בכל מסכי הטאבים.
 // קלט: active = מפתח המסך הנוכחי כדי לסמן את הפריט בצבע המותג.
 //
 // סדר הפריטים נשמר כמקור (RTL): "בית" בקצה ימין כי הוא הראשי.
 // ללא תוויות טקסט - בסגנון אפליקציות מובילות (אינסטגרם וכו').
-// האייקון מתחלף בין מתאר (outline) לא-פעיל למלא בפעיל - רמז עדין למיקום.
+// פעיל/לא-פעיל נבדל בצבע (מותג/עמום) ובעובי-קו עדין — רמז מיקום שקט, בלי אנימציה.
 const TABS = [
-  { key: "profile", icon: "person", route: "/PersonalProfile", label: "פרופיל" },
-  { key: "notifications", icon: "notifications", route: "/notifications", label: "התראות" },
-  { key: "discovery", icon: "compass", route: "/discovery", label: "גילוי" },
-  { key: "home", icon: "home", route: "/Home", label: "בית" },
+  { key: "profile", Icon: User, route: "/PersonalProfile", label: "פרופיל" },
+  { key: "notifications", Icon: Bell, route: "/notifications", label: "התראות" },
+  { key: "discovery", Icon: Compass, route: "/discovery", label: "גילוי" },
+  { key: "home", Icon: House, route: "/Home", label: "בית" },
 ];
 
 export default function BottomNav({ active }) {
@@ -24,6 +24,7 @@ export default function BottomNav({ active }) {
     <View style={styles.bottomNav}>
       {TABS.map((tab) => {
         const isActive = active === tab.key;
+        const Icon = tab.Icon;
         return (
           <TouchableOpacity
             key={tab.key}
@@ -35,10 +36,10 @@ export default function BottomNav({ active }) {
             accessibilityState={{ selected: isActive }}
             accessibilityLabel={tab.label}
           >
-            <Ionicons
-              name={isActive ? tab.icon : `${tab.icon}-outline`}
+            <Icon
               size={26}
               color={isActive ? COLORS.brand : COLORS.textMuted}
+              strokeWidth={isActive ? 2.4 : 2}
             />
           </TouchableOpacity>
         );
@@ -52,11 +53,11 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     justifyContent: "space-around",
     alignItems: "center",
-    paddingVertical: 12,
-    paddingBottom: 14,
+    paddingTop: SPACING.md,
+    paddingBottom: SPACING.md + 2,
     backgroundColor: COLORS.surface,
     borderTopWidth: 1,
-    borderTopColor: COLORS.border,
+    borderTopColor: COLORS.hairline,
   },
   navItem: {
     width: 56,

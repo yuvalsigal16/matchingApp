@@ -114,7 +114,7 @@ namespace MatchingAppServer.DAL
                         IsSmoker = reader["IsSmoker"] as bool?,
                         KeepsKosher = reader["KeepsKosher"] as bool?,
                         KeepsShabbat = reader["KeepsShabbat"] as bool?,
-                        SpontaneityLevel =Convert.ToInt32( reader["SpontaneityLevel"]),
+                        SpontaneityLevel = Convert.ToInt32(reader["SpontaneityLevel"]),
                         LifestyleLevel = Convert.ToInt32(reader["LifestyleLevel"]),
                         SocialNetworks =reader["SocialNetworks"].ToString()
                     };

@@ -1,13 +1,25 @@
 ﻿using Microsoft.AspNetCore.Mvc;
 using MatchingAppServer.BL;
+using Microsoft.AspNetCore.Authorization;
+using System.Security.Claims;
 
 namespace MatchingAppServer.Controllers
 {
+    [Authorize]
     [Route("api/[controller]")]
     [ApiController]
     public class TripParticipantController : ControllerBase
     {
         TripParticipant bl = new TripParticipant();
+
+        // שולף את UserID של המשתמש המחובר מה-JWT.
+        private int GetCurrentUserId()
+        {
+            var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier);
+            if (userIdClaim == null)
+                throw new UnauthorizedAccessException("No user ID in token");
+            return int.Parse(userIdClaim.Value);
+        }
 
 
         [HttpPost("add")]
@@ -15,6 +27,14 @@ namespace MatchingAppServer.Controllers
         {
             try
             {
+                // רק בעל הטיול יכול להוסיף משתתפים, או משתמש שמצרף את עצמו.
+                int uid = GetCurrentUserId();
+                var trip = new Trip().GetTripById(model.TripID);
+                if (trip == null)
+                    return NotFound();
+                if (trip.CreatedByUserID != uid && model.UserID != uid)
+                    return Forbid();
+
                 return Ok(bl.Add(model.TripID, model.UserID));
             }
             catch (Exception ex)
@@ -28,6 +48,14 @@ namespace MatchingAppServer.Controllers
         {
             try
             {
+                // רק בעל הטיול יכול להסיר משתתפים, או משתמש שמסיר את עצמו.
+                int uid = GetCurrentUserId();
+                var trip = new Trip().GetTripById(model.TripID);
+                if (trip == null)
+                    return NotFound();
+                if (trip.CreatedByUserID != uid && model.UserID != uid)
+                    return Forbid();
+
                 return Ok(bl.Remove(model.TripID, model.UserID));
             }
             catch (Exception ex)

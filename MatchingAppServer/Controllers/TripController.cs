@@ -2,6 +2,8 @@
 using MatchingAppServer.BL;
 using Microsoft.AspNetCore.Authorization;
 using System.Text.Json;
+using System.Security.Claims;
+
 
 
 namespace MatchingAppServer.Controllers
@@ -19,12 +21,23 @@ namespace MatchingAppServer.Controllers
             _config = config;
         }
 
+        // שולף את UserID של המשתמש המחובר מה-JWT.
+        private int GetCurrentUserId()
+        {
+            var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier);
+            if (userIdClaim == null)
+                throw new UnauthorizedAccessException("No user ID in token");
+            return int.Parse(userIdClaim.Value);
+        }
+
         [Authorize]
         [HttpGet("user/{userId}")]
         public IActionResult GetByUser(int userId)
         {
             try
             {
+                // דורש טוקן; טיולים גלויים לכל משתמש מחובר (למשל צפייה בטיולים של התאמה
+                // במסך הפרופיל). ה-userId מגיע מהכתובת בכוונה — זה מידע משותף למטיילים, לא IDOR.
                 return Ok(bl.GetUserTrips(userId));
             }
             catch (Exception ex)
@@ -58,6 +71,8 @@ namespace MatchingAppServer.Controllers
         {
             try
             {
+                // הבעלים נקבע מה-JWT — לא ניתן ליצור טיול בשם משתמש אחר.
+                trip.CreatedByUserID = GetCurrentUserId();
                 return Ok(bl.AddTrip(trip));
             }
             catch (Exception ex)
@@ -72,6 +87,15 @@ namespace MatchingAppServer.Controllers
         {
             try
             {
+                // בדיקת בעלות: רק יוצר הטיול יכול לעדכן אותו.
+                int uid = GetCurrentUserId();
+                var existing = bl.GetTripById(trip.TripID);
+                if (existing == null)
+                    return NotFound();
+                if (existing.CreatedByUserID != uid)
+                    return Forbid();
+                trip.CreatedByUserID = uid;
+
                 int result = bl.UpdateTrip(trip);
 
                 if (result > 0)
@@ -91,6 +115,13 @@ namespace MatchingAppServer.Controllers
         {
             try
             {
+                // בדיקת בעלות: רק יוצר הטיול יכול למחוק אותו.
+                var existing = bl.GetTripById(tripId);
+                if (existing == null)
+                    return NotFound();
+                if (existing.CreatedByUserID != GetCurrentUserId())
+                    return Forbid();
+
                 int result = bl.DeleteTrip(tripId);
 
                 if (result == 1)
@@ -103,7 +134,6 @@ namespace MatchingAppServer.Controllers
                 return BadRequest(ex.Message);
             }
         }
-
 
         [Authorize]
         [HttpGet("recommend-period")]
@@ -143,16 +173,35 @@ namespace MatchingAppServer.Controllers
             var text = await res.Content.ReadAsStringAsync();
 
             if (!res.IsSuccessStatusCode)
-                return StatusCode(500, $"Claude API error: {res.StatusCode}");
+                return StatusCode(500, $"Claude API error: {res.StatusCode} - {text}");
 
-            var doc = JsonDocument.Parse(text);
-            var content = doc.RootElement
-                .GetProperty("content")[0]
-                .GetProperty("text")
-                .GetString();
+            try
+            {
+                var doc = JsonDocument.Parse(text);
+                var content = doc.RootElement
+                    .GetProperty("content")[0]
+                    .GetProperty("text")
+                    .GetString() ?? "";
 
-            var result = JsonDocument.Parse(content!);
-            return Ok(result.RootElement);
+                // Claude לפעמים עוטף את ה-JSON ב-```json ... ``` או מוסיף טקסט.
+                // מחלצים את אובייקט ה-JSON עצמו (מהסוגר המסולסל הראשון עד האחרון)
+                // כדי שה-Parse לא יקרוס ויחזיר 500 גנרי.
+                int start = content.IndexOf('{');
+                int end = content.LastIndexOf('}');
+                if (start < 0 || end < start)
+                    return StatusCode(500, $"Claude returned unexpected format: {content}");
+
+                var jsonOnly = content.Substring(start, end - start + 1);
+                var result = JsonDocument.Parse(jsonOnly);
+                return Ok(result.RootElement);
+            }
+            catch (Exception ex)
+            {
+                // לא מחזירים 500 גנרי בלי הסבר — מקל על איתור התקלה בעתיד.
+                return StatusCode(500, $"Failed to parse Claude response: {ex.Message}");
+            }
         }
     }
+
 }
+

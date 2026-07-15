@@ -1,6 +1,7 @@
-using MatchingAppServer.BL;
+﻿using MatchingAppServer.BL;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using System.Security.Claims;
 
 namespace MatchingAppServer.Controllers
 {
@@ -10,6 +11,15 @@ namespace MatchingAppServer.Controllers
     {
         Notification bl = new Notification();
 
+        // שולף את UserID של המשתמש המחובר מה-JWT.
+        private int GetCurrentUserId()
+        {
+            var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier);
+            if (userIdClaim == null)
+                throw new UnauthorizedAccessException("No user ID in token");
+            return int.Parse(userIdClaim.Value);
+        }
+
         // GET BY USER
         [Authorize]
         [HttpGet("{userID}")]
@@ -17,7 +27,8 @@ namespace MatchingAppServer.Controllers
         {
             try
             {
-                return Ok(bl.GetByUserID(userID));
+                // מחזיר רק את ההתראות של המשתמש המחובר (userID מה-JWT, מונע IDOR).
+                return Ok(bl.GetByUserID(GetCurrentUserId()));
             }
             catch (Exception ex)
             {
@@ -32,6 +43,11 @@ namespace MatchingAppServer.Controllers
         {
             try
             {
+                // בדיקת בעלות: אפשר לסמן כנקראה רק התראה של המשתמש המחובר.
+                int uid = GetCurrentUserId();
+                if (!bl.GetByUserID(uid).Any(n => n.NotificationID == notificationID))
+                    return Forbid();
+
                 int result = bl.MarkRead(notificationID);
 
                 if (result > 0)
