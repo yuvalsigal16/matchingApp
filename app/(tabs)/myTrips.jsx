@@ -1,21 +1,17 @@
-import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import { useCallback, useEffect, useState } from "react";
 import { useFocusEffect } from "@react-navigation/native";
-import {
-  ActivityIndicator,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TouchableOpacity,
-  View,
-} from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
+import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { ChevronLeft, MapPin, Plus } from "lucide-react-native";
 
 import BottomNav from "../../components/BottomNav";
+import Card from "../../components/ui/Card";
+import EmptyState from "../../components/ui/EmptyState";
+import Screen from "../../components/ui/Screen";
+import ScreenHeader from "../../components/ui/ScreenHeader";
 import { BASE_URL } from "../src/api/config";
 import { getToken, getUser } from "../src/auth/authStore";
-import { COLORS, FONTS } from "../src/theme";
+import { COLORS, FONTS, RADIUS, SHADOWS, SPACING, TYPOGRAPHY } from "../src/theme";
 
 export default function MyTripsScreen() {
   const router = useRouter();
@@ -23,50 +19,49 @@ export default function MyTripsScreen() {
   const [trips, setTrips] = useState([]);
   const [loading, setLoading] = useState(true);
 
-
-
   const loadTrips = async () => {
-  try {
-    const userId = getUser()?.userID;
-    const token = getToken();
+    try {
+      const userId = getUser()?.userID;
+      const token = getToken();
 
-    if (!userId || !token) return;
+      if (!userId || !token) return;
 
-    const res = await fetch(
-      `${BASE_URL}/Trip/user/${userId}`,
-      {
+      const res = await fetch(`${BASE_URL}/Trip/user/${userId}`, {
         headers: {
           Authorization: `Bearer ${token}`,
         },
+      });
+
+      const text = await res.text();
+
+      if (!res.ok) {
+        throw new Error(`Server returned ${res.status}`);
       }
-    );
 
-    const text = await res.text();
-
-    if (!res.ok) {
-      throw new Error(`Server returned ${res.status}`);
+      const data = text ? JSON.parse(text) : [];
+      setTrips(data);
+    } catch (err) {
+      console.log("Trips error:", err);
+    } finally {
+      setLoading(false);
     }
+  };
 
-    const data = text ? JSON.parse(text) : [];
-    setTrips(data);
-  } catch (err) {
-    console.log("Trips error:", err);
-  } finally {
-    setLoading(false);
-  }
-};
-
-// טעינה ראשונית — עובד גם ב-web שבו useFocusEffect לא תמיד נורה
-useEffect(() => {
-  loadTrips();
-}, []);
-
-// טעינה מחדש בכל פעם שהמסך חוזר לפוקוס (ניווט חזרה)
-useFocusEffect(
-  useCallback(() => {
+  // טעינה ראשונית — עובד גם ב-web שבו useFocusEffect לא תמיד נורה
+  useEffect(() => {
     loadTrips();
-  }, [])
-);
+  }, []);
+
+  // טעינה מחדש בכל פעם שהמסך חוזר לפוקוס (ניווט חזרה)
+  useFocusEffect(
+    useCallback(() => {
+      loadTrips();
+    }, [])
+  );
+
+  // ניווט ליצירת מסע חדש — משותף ל-FAB ול-CTA של מצב-הריק (אותו יעד בדיוק).
+  const goNewTrip = () =>
+    router.push({ pathname: "/PreferencesQuiz", params: { mode: "newTrip" } });
 
   const formatDate = (dateStr) => {
     if (!dateStr) return "";
@@ -82,258 +77,214 @@ useFocusEffect(
   };
 
   const getStatusText = (status) => {
-  switch (status?.toLowerCase()) {
-    case "active":
-      return "פעיל";
-
-    case "matched":
-      return "יוצא לדרך";
-
-    case "completed":
-      return "הושלם";
-
-    case "closed":
-      return "נסגר";
-
-    default:
-      return status || "פעיל";
-  }
-};
+    switch (status?.toLowerCase()) {
+      case "active":
+        return "פעיל";
+      case "matched":
+        return "יוצא לדרך";
+      case "completed":
+        return "הושלם";
+      case "closed":
+        return "נסגר";
+      default:
+        return status || "פעיל";
+    }
+  };
 
   const renderTripCard = (trip) => {
     const past = isPastTrip(trip.endDate);
+    const destination = trip.destination || trip.Destination;
+    const name = trip.tripName || trip.TripName;
+    const title = destination || name || "טיול";
 
     return (
-      <TouchableOpacity
+      <Card
         key={trip.tripID}
-        style={[styles.card, past && styles.cardPast]}
-        activeOpacity={0.85}
         onPress={() =>
-  router.push({
-    pathname: "/TripDetails/[id]",
-    params: { id: trip.tripID },
-  })
-}
+          router.push({ pathname: "/TripDetails/[id]", params: { id: trip.tripID } })
+        }
+        accessibilityLabel={`מסע ל${title}`}
+        style={[styles.tripCard, past && styles.tripCardPast]}
       >
-        {/* כותרת ראשית */}
-        <View style={styles.row}>
-          <Text style={[styles.title, past && styles.textPast]}>
-            {trip.tripName || trip.TripName || trip.destination || "טיול"}
-          </Text>
-
-          <Ionicons
-            name="chevron-back"
-            size={20}
-            color={past ? COLORS.textMuted : COLORS.brand}
-          />
+        {/* יעד — ה"לאן", דומיננטי, עם סימן-מקום (זהות טְרַוְול) */}
+        <View style={styles.tripTop}>
+          <View style={styles.pin}>
+            <MapPin
+              size={18}
+              color={past ? COLORS.textMuted : COLORS.brand}
+              strokeWidth={2}
+            />
+          </View>
+          <View style={styles.tripTitleBlock}>
+            <Text style={[styles.tripDest, past && styles.textPast]} numberOfLines={1}>
+              {title}
+            </Text>
+            {name && destination && name !== destination ? (
+              <Text style={[styles.tripName, past && styles.textPast]} numberOfLines={1}>
+                {name}
+              </Text>
+            ) : null}
+          </View>
+          <ChevronLeft size={18} color={COLORS.textMuted} strokeWidth={2} />
         </View>
-
-        {/* יעד */}
-        <Text style={[styles.subtitle, past && styles.textPast]}>
-          יעד: {trip.destination}
-        </Text>
 
         {/* תאריכים */}
-        <Text style={[styles.subtitle, past && styles.textPast]}>
-          {formatDate(trip.startDate)} - {formatDate(trip.endDate)}
+        <Text style={[styles.tripDates, past && styles.textPast]}>
+          {formatDate(trip.startDate)} – {formatDate(trip.endDate)}
         </Text>
 
-        {/* סטטוס */}
+        {/* סטטוס — צ'יפ רגוע (גוון-מותג פעיל / אפור עבר), לא מלבן מותג מלא */}
         <View style={styles.statusRow}>
-          <View
-            style={[
-              styles.statusBadge,
-              past ? styles.statusPast : styles.statusActive,
-            ]}
-          >
-           <Text style={styles.statusText}>
-  {past
-    ? "הסתיים"
-    : getStatusText(trip.status)}
-</Text>
+          <View style={[styles.statusBadge, past ? styles.statusPast : styles.statusActive]}>
+            <Text style={[styles.statusText, past ? styles.statusTextPast : styles.statusTextActive]}>
+              {past ? "הסתיים" : getStatusText(trip.status)}
+            </Text>
           </View>
         </View>
-      </TouchableOpacity>
+      </Card>
     );
   };
 
+  // טעינה — שלד רגוע במקום ספינר, באותו מבנה כרטיס (מעבר חלק לתוכן).
   if (loading) {
     return (
-      <SafeAreaView style={styles.center}>
-        <ActivityIndicator size="large" color={COLORS.brand} />
-      </SafeAreaView>
+      <Screen>
+        <ScreenHeader title="הטיולים שלי" onBack={() => router.back()} />
+        <View style={styles.content}>
+          {[0, 1, 2].map((i) => (
+            <Card key={i} style={styles.tripCard}>
+              <View style={styles.skelLine} />
+              <View style={styles.skelLineShort} />
+              <View style={styles.skelBadge} />
+            </Card>
+          ))}
+        </View>
+      </Screen>
     );
   }
 
   return (
-    <SafeAreaView style={styles.container}>
-      {/* Header עם חץ חזרה למסך הראשי */}
-      <View style={styles.headerRow}>
-        <TouchableOpacity
-          onPress={() => router.back()}
-          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-          accessibilityRole="button"
-          accessibilityLabel="חזרה"
-        >
-          <Ionicons name="arrow-forward" size={26} color={COLORS.brand} />
-        </TouchableOpacity>
-        <Text style={styles.headerTitle}>הטיולים שלי</Text>
-        <View style={{ width: 26 }} />
-      </View>
+    <Screen>
+      <ScreenHeader title="הטיולים שלי" onBack={() => router.back()} />
 
       <ScrollView
         style={styles.scroll}
         contentContainerStyle={styles.content}
         showsVerticalScrollIndicator={false}
       >
-        {/* ריק */}
         {trips.length === 0 ? (
-          <View style={styles.emptyBox}>
-            <Ionicons name="map-outline" size={40} color={COLORS.textMuted} />
-            <Text style={styles.emptyText}>אין לך טיולים עדיין</Text>
-          </View>
+          <EmptyState
+            Icon={MapPin}
+            title="עוד לא תכננתם מסע"
+            subtitle="בחרו יעד ותאריכים — ומכאן נמצא לכם עם מי לצאת לדרך."
+            actionLabel="תכננו מסע ראשון"
+            onAction={goNewTrip}
+            style={styles.empty}
+          />
         ) : (
           trips.map(renderTripCard)
         )}
       </ScrollView>
 
-      <TouchableOpacity
-        style={styles.fab}
-        onPress={() =>
-          router.push({
-            pathname: "/PreferencesQuiz",
-            params: { mode: "newTrip" },
-          })
-        }
+      {/* כפתור צף — תכנון מסע חדש */}
+      <Pressable
+        style={({ pressed }) => [styles.fab, pressed && styles.fabPressed]}
+        onPress={goNewTrip}
+        accessibilityRole="button"
+        accessibilityLabel="תכנון מסע חדש"
       >
-        <Ionicons name="add" size={30} color={COLORS.onBrand} />
-      </TouchableOpacity>
+        <Plus size={28} color={COLORS.onBrand} strokeWidth={2.4} />
+      </Pressable>
 
       <BottomNav active="trips" />
-    </SafeAreaView>
+    </Screen>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: COLORS.background,
-  },
-
-  // flex: 1 - ה-ScrollView לוקח את כל המקום הפנוי בין ה-Header ל-BottomNav.
-  // בלי flex הוא לא יודע מה גובהו ולא ניתן לגלול בו.
-  scroll: {
-    flex: 1,
-  },
-
+  scroll: { flex: 1 },
   content: {
-    paddingHorizontal: 20,
-    paddingTop: 10,
-    // paddingBottom גדול כדי שהכפתור הצף (+) וה-BottomNav לא יסתירו את הכרטיס האחרון.
+    paddingHorizontal: SPACING.xl,
+    paddingTop: SPACING.sm,
+    // אוויר מתחת לכרטיס האחרון כדי שה-FAB וה-BottomNav לא יסתירו אותו.
     paddingBottom: 170,
   },
 
-  headerRow: {
+  // ── כרטיס מסע ──
+  tripCard: { marginBottom: SPACING.md },
+  tripCardPast: { opacity: 0.85 },
+
+  tripTop: {
     flexDirection: "row-reverse",
-    justifyContent: "space-between",
     alignItems: "center",
-    paddingHorizontal: 20,
-    paddingTop: 20,
-    paddingBottom: 10,
+    gap: SPACING.md,
   },
-
-  headerTitle: {
-    fontSize: 20,
-    fontFamily: FONTS.bold,
-    color: COLORS.brand,
-  },
-
-  /* כרטיס */
-  card: {
-    backgroundColor: COLORS.surface,
-    borderRadius: 16,
-    padding: 16,
-    marginBottom: 12,
-    shadowColor: COLORS.shadow,
-    shadowOpacity: 0.05,
-    shadowRadius: 6,
-    elevation: 2,
-  },
-
-  cardPast: {
-    backgroundColor: COLORS.divider,
-    opacity: 0.85,
-  },
-
-  row: {
-    flexDirection: "row-reverse",
-    justifyContent: "space-between",
-    alignItems: "center",
-  },
-
-  title: {
-    fontSize: 18,
-    fontFamily: FONTS.bold,
-    color: COLORS.brand,
-    textAlign: "right",
-  },
-
-  subtitle: {
-    fontSize: 13,
-    fontFamily: FONTS.regular,
-    color: COLORS.textSecondary,
-    marginTop: 4,
-    textAlign: "right",
-  },
-
-  textPast: {
-    color: COLORS.textMuted,
-  },
-
-  statusRow: {
-    marginTop: 10,
-    alignItems: "flex-end",
-  },
-
-  statusBadge: {
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 12,
-  },
-
-  statusActive: {
-    backgroundColor: COLORS.brand,
-  },
-
-  statusPast: {
-    backgroundColor: COLORS.textMuted,
-  },
-
-  statusText: {
-    color: COLORS.onBrand,
-    fontSize: 12,
-    fontFamily: FONTS.bold,
-  },
-
-  /* ריק */
-  emptyBox: {
-    marginTop: 60,
-    alignItems: "center",
-  },
-
-  emptyText: {
-    marginTop: 10,
-    fontSize: 16,
-    color: COLORS.textMuted,
-    fontFamily: FONTS.regular,
-  },
-
-  center: {
-    flex: 1,
+  pin: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    backgroundColor: COLORS.brandLight,
     justifyContent: "center",
     alignItems: "center",
   },
+  tripTitleBlock: { flex: 1, alignItems: "flex-end" },
+  tripDest: { ...TYPOGRAPHY.h3, color: COLORS.text, textAlign: "right" },
+  tripName: {
+    ...TYPOGRAPHY.caption,
+    color: COLORS.textMuted,
+    textAlign: "right",
+    marginTop: 2,
+  },
+  textPast: { color: COLORS.textMuted },
 
+  tripDates: {
+    ...TYPOGRAPHY.caption,
+    color: COLORS.textSecondary,
+    textAlign: "right",
+    marginTop: SPACING.md,
+  },
+
+  statusRow: { marginTop: SPACING.sm, alignItems: "flex-end" },
+  statusBadge: {
+    paddingHorizontal: SPACING.md,
+    paddingVertical: 4,
+    borderRadius: RADIUS.pill,
+  },
+  statusActive: { backgroundColor: COLORS.brandLight },
+  statusPast: { backgroundColor: COLORS.backgroundSunk },
+  statusText: { ...TYPOGRAPHY.caption, fontFamily: FONTS.bold },
+  statusTextActive: { color: COLORS.brand },
+  statusTextPast: { color: COLORS.textMuted },
+
+  // ── מצב ריק ──
+  empty: { marginTop: SPACING.xxxl + SPACING.lg },
+
+  // ── שלד טעינה ──
+  skelLine: {
+    height: 16,
+    width: "60%",
+    borderRadius: RADIUS.sm,
+    backgroundColor: COLORS.backgroundSunk,
+    alignSelf: "flex-end",
+  },
+  skelLineShort: {
+    height: 12,
+    width: "40%",
+    borderRadius: RADIUS.sm,
+    backgroundColor: COLORS.backgroundSunk,
+    alignSelf: "flex-end",
+    marginTop: SPACING.md,
+  },
+  skelBadge: {
+    height: 22,
+    width: 64,
+    borderRadius: RADIUS.pill,
+    backgroundColor: COLORS.backgroundSunk,
+    alignSelf: "flex-end",
+    marginTop: SPACING.md,
+  },
+
+  // ── FAB ──
   fab: {
     position: "absolute",
     bottom: 90,
@@ -344,6 +295,7 @@ const styles = StyleSheet.create({
     borderRadius: 30,
     justifyContent: "center",
     alignItems: "center",
-    elevation: 5,
+    ...SHADOWS.lg,
   },
+  fabPressed: { opacity: 0.92, transform: [{ scale: 0.97 }] },
 });

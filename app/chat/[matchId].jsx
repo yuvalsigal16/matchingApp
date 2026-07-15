@@ -4,7 +4,6 @@ import {
   Alert,
   Dimensions,
   FlatList,
-  Image,
   Keyboard,
   StyleSheet,
   Text,
@@ -19,7 +18,17 @@ import Animated, {
   withTiming,
 } from "react-native-reanimated";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
-import { Ionicons } from "@expo/vector-icons";
+import {
+  Calendar,
+  CheckCheck,
+  ChevronLeft,
+  ChevronRight,
+  CloudOff,
+  EllipsisVertical,
+  Flag,
+  MessagesSquare,
+  Send,
+} from "lucide-react-native";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useFocusEffect } from "@react-navigation/native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
@@ -31,9 +40,10 @@ import {
   sendChatMessage,
 } from "../src/api/chatService";
 import { blockUser } from "../src/api/blockService";
-import { buildImageUri } from "../src/utils/image";
 import { getUser } from "../src/auth/authStore";
-import { COLORS, FONTS } from "../src/theme";
+import { COLORS, FONTS, RADIUS, SPACING, TYPOGRAPHY } from "../src/theme";
+import Avatar from "../../components/ui/Avatar";
+import EmptyState from "../../components/ui/EmptyState";
 import HeaderMenu from "../../components/HeaderMenu";
 import ChatBackground from "../../components/ChatBackground";
 
@@ -211,12 +221,6 @@ export default function ChatScreen() {
     }
   };
 
-  // ── אווטר לכותרת ──
-  const avatarUri = buildImageUri(matchData?.otherUserImage);
-  const initials =
-    (matchData?.otherUserName || "")
-      .split(" ").map((s) => s[0]).filter(Boolean).slice(0, 2).join("").toUpperCase() || "";
-
   // ── תפריט אפשרויות (3 נקודות) — זמין רק כשיש מזהה למשתמש השני ──
   const otherUserId = matchData?.otherUserID;
   const otherName = matchData?.otherUserName || "המשתמש";
@@ -342,10 +346,10 @@ export default function ChatScreen() {
                 {formatTime(item.sentAt)}
               </Text>
               {isMine ? (
-                <Ionicons
-                  name="checkmark-done"
+                <CheckCheck
                   size={14}
                   color="rgba(255,255,255,0.85)"
+                  strokeWidth={2.2}
                   style={{ marginRight: 3 }}
                 />
               ) : null}
@@ -377,20 +381,10 @@ export default function ChatScreen() {
           accessibilityRole="button"
           accessibilityLabel="חזרה"
         >
-          <Ionicons name="arrow-forward" size={24} color={COLORS.brand} />
+          <ChevronRight size={26} color={COLORS.brand} strokeWidth={2.2} />
         </TouchableOpacity>
 
-        {avatarUri ? (
-          <Image source={{ uri: avatarUri }} style={styles.headerAvatar} />
-        ) : (
-          <View style={[styles.headerAvatar, styles.avatarFallback]}>
-            {initials ? (
-              <Text style={styles.avatarInitials}>{initials}</Text>
-            ) : (
-              <Ionicons name="person" size={20} color={COLORS.onBrand} />
-            )}
-          </View>
-        )}
+        <Avatar uri={matchData?.otherUserImage} name={matchData?.otherUserName} size="sm" />
 
         <View style={styles.headerText}>
           <Text style={styles.headerName} numberOfLines={1}>
@@ -411,7 +405,7 @@ export default function ChatScreen() {
             accessibilityRole="button"
             accessibilityLabel="אפשרויות"
           >
-            <Ionicons name="ellipsis-vertical" size={22} color={COLORS.brand} />
+            <EllipsisVertical size={22} color={COLORS.brand} strokeWidth={2} />
           </TouchableOpacity>
         ) : null}
       </View>
@@ -435,7 +429,7 @@ export default function ChatScreen() {
               accessibilityLabel="הצג את סיכום הטיול"
             >
               <View style={styles.journeyBannerIcon}>
-                <Ionicons name="flag" size={18} color={COLORS.brand} />
+                <Flag size={18} color={COLORS.brand} strokeWidth={2} />
               </View>
               <View style={styles.journeyBannerTexts}>
                 <Text style={styles.journeyBannerTitle}>יצאתם לדרך!</Text>
@@ -443,7 +437,7 @@ export default function ChatScreen() {
                   הצגת סיכום הטיול המשותף.
                 </Text>
               </View>
-              <Ionicons name="chevron-back" size={18} color={COLORS.textMuted} />
+              <ChevronLeft size={18} color={COLORS.textMuted} strokeWidth={2} />
             </TouchableOpacity>
             {/* כפתור המתכנן דורש טיול — מוצג רק כשיש tripID */}
             {matchData?.tripID != null ? (
@@ -454,7 +448,7 @@ export default function ChatScreen() {
                 accessibilityRole="button"
                 accessibilityLabel="פתח את מתכנן הטיול"
               >
-                <Ionicons name="calendar" size={16} color={COLORS.onBrand} />
+                <Calendar size={16} color={COLORS.onBrand} strokeWidth={2} />
                 <Text style={styles.journeyBannerBtnText}>פתח את מתכנן הטיול</Text>
               </TouchableOpacity>
             ) : null}
@@ -467,9 +461,9 @@ export default function ChatScreen() {
             accessibilityRole="button"
             accessibilityLabel="יצאנו לדרך"
           >
-            <Ionicons name="flag" size={17} color={COLORS.onBrand} />
+            <Flag size={17} color={COLORS.onBrand} strokeWidth={2} />
             <Text style={styles.journeyBarText}>יצאנו לדרך</Text>
-            <Ionicons name="chevron-back" size={17} color={COLORS.onBrand} />
+            <ChevronLeft size={17} color={COLORS.onBrand} strokeWidth={2} />
           </TouchableOpacity>
         )
       ) : null}
@@ -478,11 +472,11 @@ export default function ChatScreen() {
       <Animated.View style={areaStyle}>
         {loadError ? (
           <View style={styles.errorState}>
-            <View style={styles.emptyIconCircle}>
-              <Ionicons name="cloud-offline-outline" size={40} color={COLORS.brand} />
-            </View>
-            <Text style={styles.emptyTitle}>לא הצלחנו לטעון הודעות כרגע</Text>
-            <Text style={styles.emptySub}>ננסה שוב בקרוב…</Text>
+            <EmptyState
+              Icon={CloudOff}
+              title="לא הצלחנו לטעון הודעות כרגע"
+              subtitle="ננסה שוב בקרוב…"
+            />
           </View>
         ) : (
           <FlatList
@@ -499,11 +493,11 @@ export default function ChatScreen() {
             }
             ListEmptyComponent={
               <View style={styles.emptyState}>
-                <View style={styles.emptyIconCircle}>
-                  <Ionicons name="chatbubbles-outline" size={40} color={COLORS.brand} />
-                </View>
-                <Text style={styles.emptyTitle}>אין עדיין הודעות</Text>
-                <Text style={styles.emptySub}>שלחו הודעה ראשונה כדי לפתוח את השיחה</Text>
+                <EmptyState
+                  Icon={MessagesSquare}
+                  title="אין עדיין הודעות"
+                  subtitle="שלחו הודעה ראשונה כדי לפתוח את השיחה"
+                />
               </View>
             }
           />
@@ -530,7 +524,7 @@ export default function ChatScreen() {
             accessibilityRole="button"
             accessibilityLabel="שליחת הודעה"
           >
-            <Ionicons name="send" size={20} color={COLORS.onBrand} />
+            <Send size={20} color={COLORS.onBrand} strokeWidth={2} />
           </TouchableOpacity>
         </View>
       </Animated.View>
@@ -538,63 +532,50 @@ export default function ChatScreen() {
   );
 }
 
-const CHAT_BG = "#EDE7DD";
-
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: CHAT_BG },
-  center: { flex: 1, justifyContent: "center", alignItems: "center", backgroundColor: CHAT_BG },
-  loadingText: { marginTop: 12, fontFamily: FONTS.regular, fontSize: 14, color: COLORS.textSecondary },
-  errorState: { flex: 1, justifyContent: "center", alignItems: "center", paddingHorizontal: 40 },
+  // רקע הצ'אט מאוחד לעולם "הנייר החם" של האפליקציה (במקום ה-cream הישן #EDE7DD).
+  container: { flex: 1, backgroundColor: COLORS.background },
+  center: { flex: 1, justifyContent: "center", alignItems: "center", backgroundColor: COLORS.background },
+  loadingText: { ...TYPOGRAPHY.body, color: COLORS.textSecondary, marginTop: SPACING.md },
+  errorState: { flex: 1, justifyContent: "center", alignItems: "center", paddingHorizontal: SPACING.xl },
 
   // ── Header ──
   header: {
     flexDirection: "row-reverse",
     alignItems: "center",
-    paddingVertical: 10,
-    paddingHorizontal: 12,
-    gap: 10,
+    paddingVertical: SPACING.sm,
+    paddingHorizontal: SPACING.md,
+    gap: SPACING.sm,
     backgroundColor: COLORS.surface,
     borderBottomWidth: 1,
-    borderBottomColor: COLORS.border,
+    borderBottomColor: COLORS.hairline,
   },
-  headerAvatar: { width: 40, height: 40, borderRadius: 20, backgroundColor: COLORS.divider },
-  avatarFallback: { backgroundColor: COLORS.brand, justifyContent: "center", alignItems: "center" },
-  avatarInitials: { fontSize: 16, fontFamily: FONTS.bold, color: COLORS.onBrand },
   headerText: { flex: 1, alignItems: "flex-end" },
-  headerName: { fontSize: 16, fontFamily: FONTS.bold, color: COLORS.text },
-  headerSub: { fontSize: 12, fontFamily: FONTS.regular, color: COLORS.textSecondary, marginTop: 1 },
-  headerOptionsBtn: { padding: 4 },
+  headerName: { ...TYPOGRAPHY.h3, color: COLORS.text, textAlign: "right" },
+  headerSub: { ...TYPOGRAPHY.caption, color: COLORS.textSecondary, textAlign: "right", marginTop: 1 },
+  headerOptionsBtn: { padding: SPACING.xs },
 
   // ── פס "יוצאים לדרך יחד" ──
   journeyBar: {
     flexDirection: "row-reverse",
     alignItems: "center",
     justifyContent: "center",
-    gap: 8,
-    paddingVertical: 11,
-    paddingHorizontal: 16,
+    gap: SPACING.sm,
+    paddingVertical: SPACING.md,
+    paddingHorizontal: SPACING.lg,
     backgroundColor: COLORS.brand,
   },
-  journeyBarText: {
-    fontFamily: FONTS.bold,
-    fontSize: 14.5,
-    color: COLORS.onBrand,
-    letterSpacing: 0.2,
-  },
+  journeyBarText: { ...TYPOGRAPHY.bodyBold, color: COLORS.onBrand, letterSpacing: 0.2 },
 
   // ── באנר "יצאתם לדרך" (אחרי האישור) ──
   journeyBanner: {
     backgroundColor: COLORS.brandLight,
-    paddingHorizontal: 14,
-    paddingVertical: 12,
+    paddingHorizontal: SPACING.md,
+    paddingVertical: SPACING.md,
     borderBottomWidth: 1,
-    borderBottomColor: COLORS.border,
+    borderBottomColor: COLORS.hairline,
   },
-  journeyBannerRow: {
-    flexDirection: "row-reverse",
-    alignItems: "center",
-    gap: 10,
-  },
+  journeyBannerRow: { flexDirection: "row-reverse", alignItems: "center", gap: SPACING.md },
   journeyBannerIcon: {
     width: 36,
     height: 36,
@@ -603,16 +584,10 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
   },
-  journeyBannerTexts: { flex: 1 },
-  journeyBannerTitle: {
-    fontFamily: FONTS.bold,
-    fontSize: 15,
-    color: COLORS.brand,
-    textAlign: "right",
-  },
+  journeyBannerTexts: { flex: 1, alignItems: "flex-end" },
+  journeyBannerTitle: { ...TYPOGRAPHY.bodyBold, color: COLORS.brand, textAlign: "right" },
   journeyBannerText: {
-    fontFamily: FONTS.regular,
-    fontSize: 12.5,
+    ...TYPOGRAPHY.caption,
     color: COLORS.textSecondary,
     textAlign: "right",
     marginTop: 1,
@@ -621,30 +596,26 @@ const styles = StyleSheet.create({
     flexDirection: "row-reverse",
     alignItems: "center",
     justifyContent: "center",
-    gap: 7,
+    gap: SPACING.sm,
     backgroundColor: COLORS.brand,
-    borderRadius: 12,
-    paddingVertical: 10,
-    marginTop: 10,
+    borderRadius: RADIUS.md,
+    paddingVertical: SPACING.md,
+    marginTop: SPACING.md,
   },
-  journeyBannerBtnText: {
-    fontFamily: FONTS.bold,
-    fontSize: 14,
-    color: COLORS.onBrand,
-  },
+  journeyBannerBtnText: { ...TYPOGRAPHY.bodyBold, color: COLORS.onBrand },
 
   // ── Messages ──
-  listContent: { paddingHorizontal: 12, paddingVertical: 14 },
+  listContent: { paddingHorizontal: SPACING.md, paddingVertical: SPACING.lg },
 
   dateSeparator: {
     alignSelf: "center",
     backgroundColor: COLORS.surface,
-    borderRadius: 12,
-    paddingHorizontal: 12,
-    paddingVertical: 4,
-    marginVertical: 10,
+    borderRadius: RADIUS.md,
+    paddingHorizontal: SPACING.md,
+    paddingVertical: SPACING.xs,
+    marginVertical: SPACING.md,
   },
-  dateSeparatorText: { fontSize: 12, fontFamily: FONTS.bold, color: COLORS.textSecondary },
+  dateSeparatorText: { ...TYPOGRAPHY.caption, fontFamily: FONTS.bold, color: COLORS.textSecondary },
 
   bubbleRow: { flexDirection: "row", marginBottom: 6 },
   rowMine: { justifyContent: "flex-end" },
@@ -652,60 +623,54 @@ const styles = StyleSheet.create({
 
   bubble: {
     maxWidth: "78%",
-    paddingVertical: 7,
-    paddingHorizontal: 11,
-    borderRadius: 16,
+    paddingVertical: SPACING.sm,
+    paddingHorizontal: SPACING.md,
+    borderRadius: RADIUS.lg,
   },
   bubbleMine: { backgroundColor: COLORS.brand, borderBottomRightRadius: 4 },
   bubbleOther: { backgroundColor: COLORS.surface, borderBottomLeftRadius: 4 },
-  bubbleText: { fontFamily: FONTS.regular, fontSize: 15, lineHeight: 21, color: COLORS.text, textAlign: "right" },
+  bubbleText: { ...TYPOGRAPHY.body, color: COLORS.text, textAlign: "right" },
   metaRow: { flexDirection: "row-reverse", alignItems: "center", justifyContent: "flex-start", marginTop: 3 },
-  bubbleTime: { fontSize: 10, fontFamily: FONTS.regular },
+  bubbleTime: { ...TYPOGRAPHY.tiny },
   timeMine: { color: "rgba(255,255,255,0.7)" },
   timeOther: { color: COLORS.textMuted },
 
-  // ── Empty ──
+  // ── Empty / Error (עטיפות מרכוז ל-EmptyState) ──
   emptyListContent: { flexGrow: 1, justifyContent: "center", alignItems: "center" },
-  emptyState: { alignItems: "center", paddingHorizontal: 40 },
-  emptyIconCircle: {
-    width: 80, height: 80, borderRadius: 40,
-    backgroundColor: COLORS.surface,
-    justifyContent: "center", alignItems: "center",
-    marginBottom: 14,
-  },
-  emptyTitle: { fontFamily: FONTS.bold, fontSize: 16, color: COLORS.text },
-  emptySub: { fontFamily: FONTS.regular, fontSize: 13, color: COLORS.textSecondary, textAlign: "center", marginTop: 6 },
+  emptyState: { alignItems: "center", paddingHorizontal: SPACING.xl },
 
   // ── Input ──
   inputBar: {
     flexDirection: "row-reverse",
     alignItems: "flex-end",
-    paddingHorizontal: 10,
-    paddingVertical: 8,
-    gap: 8,
+    paddingHorizontal: SPACING.sm,
+    paddingVertical: SPACING.sm,
+    gap: SPACING.sm,
     backgroundColor: COLORS.surface,
     borderTopWidth: 1,
-    borderTopColor: COLORS.border,
+    borderTopColor: COLORS.hairline,
   },
   inputWrapper: {
     flex: 1,
     backgroundColor: COLORS.background,
-    borderRadius: 22,
-    paddingHorizontal: 16,
+    borderRadius: RADIUS.xl + 2,
+    paddingHorizontal: SPACING.lg,
     minHeight: 44,
     justifyContent: "center",
   },
   input: {
-    fontFamily: FONTS.regular,
-    fontSize: 15,
+    ...TYPOGRAPHY.body,
     color: COLORS.text,
     maxHeight: 120,
-    paddingVertical: 10,
+    paddingVertical: SPACING.sm + 2,
   },
   sendBtn: {
     backgroundColor: COLORS.brand,
-    width: 44, height: 44, borderRadius: 22,
-    justifyContent: "center", alignItems: "center",
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    justifyContent: "center",
+    alignItems: "center",
   },
   sendBtnDisabled: { backgroundColor: COLORS.textMuted },
 });

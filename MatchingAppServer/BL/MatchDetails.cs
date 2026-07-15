@@ -9,9 +9,9 @@ namespace MatchingAppServer.BL
         public bool JourneyStarted { get; set; }   // 1 = נלחץ "יצאנו לדרך"
         public DateTime CreatedAt { get; set; }
 
-        public int TripID { get; set; }
+        public int? TripID { get; set; }
         public string Destination { get; set; }
-        public DateTime StartDate { get; set; }
+        public DateTime? StartDate { get; set; }
         public DateTime? EndDate { get; set; }   // NULL = כרטיס לכיוון אחד
 
         public int ChatID { get; set; }

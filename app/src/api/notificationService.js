@@ -1,5 +1,6 @@
 import { getToken } from "../auth/authStore";
 import { BASE_URL } from "./config";
+import { fetchWithTimeout } from "./fetchWithTimeout";
 
 // בונה את ה-headers (טוקן + Content-Type) לכל הקריאות
 function authHeaders() {
@@ -27,45 +28,58 @@ export async function getPendingRequests(userId) {
 // משיכת ההתאמות הפעילות (הצ'אטים) של המשתמש, מועשרות בשם/תמונה/הודעה אחרונה.
 // משתמשים ב-MatchDetails (ולא ב-/Match/user) כי הוא מחזיר את כל מה שרשימת צ'אטים צריכה,
 // וגם תומך כעת בהתאמות בלי טיול (אחרי תיקון ה-LEFT JOIN בשרת).
+//
+// גרסה "strict": יש לה timeout (כמו שאר קריאות הרשת) והיא *זורקת* בכשל/timeout
+// במקום להחזיר []. כך הקורא (שכבת נתוני-האתחול) יכול להבחין בין "אין התאמות"
+// (מערך ריק) ל"נכשל/פג-זמן" (זריקה) ולשמר את המצב הקודם.
+export async function getMyMatchesStrict(userId) {
+  const res = await fetchWithTimeout(
+    `${BASE_URL}/MatchDetails/user/${userId}`,
+    { headers: authHeaders() },
+    // 20s chosen because Azure Free cold starts are typically below this
+    // threshold while avoiding indefinite UI waiting (זהה ל-STARTUP_TIMEOUT ב-homeData).
+    20000
+  );
+  if (!res.ok) throw new Error(`MatchDetails ${res.status}`);
+
+  const list = (await res.json()) || [];
+  return list.map((m) => {
+    const iAmUser1 = m.user1ID === userId;
+    const otherName = (
+      iAmUser1
+        ? [m.user2FirstName, m.user2LastName]
+        : [m.user1FirstName, m.user1LastName]
+    )
+      .filter(Boolean)
+      .join(" ")
+      .trim();
+
+    // השרת מחזיר זמן UTC בלי סימון אזור-זמן → מוסיפים "Z" כדי שיוצג נכון מקומית.
+    const lastTime = m.lastMessageTime
+      ? (/[zZ]|[+-]\d{2}:?\d{2}$/.test(m.lastMessageTime)
+          ? m.lastMessageTime
+          : `${m.lastMessageTime}Z`)
+      : null;
+
+    return {
+      matchID: m.matchID,
+      chatID: m.chatID, // נדרש לספירת הודעות שלא נקראו בצד הלקוח
+      status: m.matchStatus,
+      journeyStarted: !!m.journeyStarted, // "יצאנו לדרך" (נשמר בשרת)
+      otherUserID: iAmUser1 ? m.user2ID : m.user1ID,
+      otherUserName: otherName || "משתמש",
+      otherUserImage: iAmUser1 ? m.user2Image : m.user1Image,
+      tripName: m.destination, // עשוי להיות null בצ'אט בלי טיול
+      lastMessage: m.lastMessage,
+      lastMessageTime: lastTime,
+    };
+  });
+}
+
+// עטיפה תואמת-לאחור: מחזירה [] בכשל (החוזה שעליו נשענים activeChats/PersonalProfile).
 export async function getMyMatches(userId) {
   try {
-    const res = await fetch(`${BASE_URL}/MatchDetails/user/${userId}`, {
-      headers: authHeaders(),
-    });
-    if (!res.ok) return [];
-
-    const list = (await res.json()) || [];
-    return list.map((m) => {
-      const iAmUser1 = m.user1ID === userId;
-      const otherName = (
-        iAmUser1
-          ? [m.user2FirstName, m.user2LastName]
-          : [m.user1FirstName, m.user1LastName]
-      )
-        .filter(Boolean)
-        .join(" ")
-        .trim();
-
-      // השרת מחזיר זמן UTC בלי סימון אזור-זמן → מוסיפים "Z" כדי שיוצג נכון מקומית.
-      const lastTime = m.lastMessageTime
-        ? (/[zZ]|[+-]\d{2}:?\d{2}$/.test(m.lastMessageTime)
-            ? m.lastMessageTime
-            : `${m.lastMessageTime}Z`)
-        : null;
-
-      return {
-        matchID: m.matchID,
-        chatID: m.chatID, // נדרש לספירת הודעות שלא נקראו בצד הלקוח
-        status: m.matchStatus,
-        journeyStarted: !!m.journeyStarted, // "יצאנו לדרך" (נשמר בשרת)
-        otherUserID: iAmUser1 ? m.user2ID : m.user1ID,
-        otherUserName: otherName || "משתמש",
-        otherUserImage: iAmUser1 ? m.user2Image : m.user1Image,
-        tripName: m.destination, // עשוי להיות null בצ'אט בלי טיול
-        lastMessage: m.lastMessage,
-        lastMessageTime: lastTime,
-      };
-    });
+    return await getMyMatchesStrict(userId);
   } catch (err) {
     console.error("getMyMatches:", err);
     return [];
@@ -150,5 +164,16 @@ export async function saveExpoPushToken(userId, token) {
     headers: authHeaders(),
     body: JSON.stringify({ UserID: userId, Token: token }),
   });
+  return res.ok;
+}
+
+// מחיקת ה-Expo Push Token של המשתמש המחובר בשרת (בעת logout). מזוהה דרך ה-JWT
+// בלבד — אין body ואין UserID. timeout קצר כדי ש-logout לא ייחסם על שרת איטי.
+export async function clearExpoPushToken() {
+  const res = await fetchWithTimeout(
+    `${BASE_URL}/User/pushToken`,
+    { method: "DELETE", headers: authHeaders() },
+    8000,
+  );
   return res.ok;
 }

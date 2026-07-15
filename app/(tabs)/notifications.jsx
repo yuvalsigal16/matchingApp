@@ -17,6 +17,7 @@ function iconForType(type) {
   if (type === "RequestReceived") return { name: "person-add-outline", color: COLORS.brand };
   if (type === "RequestApproved") return { name: "checkmark-circle-outline", color: COLORS.success };
   if (type === "RequestRejected") return { name: "close-circle-outline", color: COLORS.danger };
+  if (type === "NewMessage") return { name: "chatbubble-ellipses-outline", color: COLORS.brand };
   return { name: "notifications-outline", color: COLORS.textMuted };
 }
 
@@ -58,6 +59,8 @@ export default function NotificationsScreen() {
     if (notif.type === "RequestReceived") router.push("/matchesForYou");
     else if (notif.type === "RequestApproved") router.push("/activeChats");
     else if (notif.type === "RequestRejected") router.push("/requestStatus");
+    else if (notif.type === "NewMessage" && notif.relatedID != null)
+      router.push(`/chat/${notif.relatedID}`);
   };
 
   return (

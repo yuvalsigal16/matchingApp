@@ -42,9 +42,9 @@ namespace MatchingAppServer.DAL
 
                 return null;
             }
-            catch (Exception)
-            {
-                throw;
+            catch (Exception) 
+            { 
+                throw; 
             }
             finally
             {

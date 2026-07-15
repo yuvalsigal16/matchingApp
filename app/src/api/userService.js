@@ -1,3 +1,4 @@
+import { getToken } from "../auth/authStore";
 import { BASE_URL } from "./config";
 
 // מחזיר את כל המשתמשים מועשרים (פרופיל + שאלון + תחומי עניין) ב-קריאה אחת.
@@ -6,7 +7,11 @@ export async function getAllUsers(currentUserId) {
   const url = `${BASE_URL}/User?currentUserId=${currentUserId}`;
   console.log(`[userService] → GET ${url}`);
   try {
-    const response = await fetch(url);
+    // ה-endpoint דורש עכשיו טוקן (Authorization). התוכן זהה — כל המשתמשים.
+    const token = getToken();
+    const response = await fetch(url, {
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+    });
     console.log(`[userService] ← ${response.status} ${response.statusText}`);
 
     if (!response.ok) {

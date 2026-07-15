@@ -1,4 +1,5 @@
-using MatchingAppServer.DAL;
+﻿using MatchingAppServer.DAL;
+using MatchingAppServer.Services;
 
 namespace MatchingAppServer.BL
 {
@@ -24,14 +25,23 @@ namespace MatchingAppServer.BL
             try
             {
                 string token = new User().GetExpoPushToken(userID);
+                Console.WriteLine($"[Push] Notification.Create userID={userID} type={type} tokenFound={!string.IsNullOrEmpty(token)}");
                 if (!string.IsNullOrEmpty(token))
                 {
+                    // מיסוך ה-token בלוג — לא מדפיסים אותו במלואו (מידע רגיש).
+                    string tokenPrefix = token.Length > 24 ? token.Substring(0, 24) + "...]" : token;
+                    Console.WriteLine($"[Push] Sending push to userID={userID}, tokenPrefix={tokenPrefix}");
                     _ = ExpoPushService.SendAsync(token, title, body, new { type, relatedID });
                 }
+                else
+                {
+                    Console.WriteLine($"[Push] No push token for userID={userID} — skipping send");
+                }
             }
-            catch
+            catch (Exception ex)
             {
-                // לא מפילים בקשה רק כי push נכשל
+                // לא מפילים בקשה רק כי push נכשל — אבל כן רושמים ללוג
+                Console.WriteLine($"[Push] Notification.Create push error: {ex.Message}");
             }
 
             return notificationID;

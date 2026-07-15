@@ -1,9 +1,7 @@
-using MatchingAppServer.DAL;
+﻿using MatchingAppServer.DAL;
 
 namespace MatchingAppServer.BL
 {
-    // אינטראקציה בין משתמשים (צפייה/לייק/בקשת צ'אט) — הבסיס למנוע ההתנהגותי.
-    // Weight מאוכלס רק בתוצאות GetEngagementPairs (זוגות מסוכמים לפי משקל).
     public class UserProfileInteraction
     {
         public int FromUserID { get; set; }

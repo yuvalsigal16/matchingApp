@@ -1,9 +1,7 @@
-using MatchingAppServer.DAL;
+﻿using MatchingAppServer.DAL;
 
 namespace MatchingAppServer.BL
 {
-    // דירוג חשיבות של גורם התאמה בודד (gender/interests/age/...) להעדפת טיול.
-    // PriorityRank = 1 הוא הכי חשוב. משמש לשקלול אישי של האלגוריתם.
     public class TripPreferencePriority
     {
         public int TripPreferenceID { get; set; }

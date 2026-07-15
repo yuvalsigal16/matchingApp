@@ -40,22 +40,22 @@ namespace MatchingAppServer.DAL
                     // מנע 63 קריאות נוספות בקליינט (פרופיל/תחומים/שאלון לכל משתמש).
                     users.Add(new User()
                     {
-                        UserID    = Convert.ToInt32(reader["UserID"]),
-                        Email     = reader["Email"].ToString(),
+                        UserID = Convert.ToInt32(reader["UserID"]),
+                        Email = reader["Email"].ToString(),
                         CreatedAt = Convert.ToDateTime(reader["CreatedAt"]),
 
-                        FirstName    = reader["FirstName"]    == DBNull.Value ? null : reader["FirstName"].ToString(),
-                        LastName     = reader["LastName"]     == DBNull.Value ? null : reader["LastName"].ToString(),
-                        BirthDate    = reader["BirthDate"]    == DBNull.Value ? (DateTime?)null : Convert.ToDateTime(reader["BirthDate"]),
-                        Gender       = reader["Gender"]       == DBNull.Value ? null : reader["Gender"].ToString(),
-                        City         = reader["City"]         == DBNull.Value ? null : reader["City"].ToString(),
+                        FirstName = reader["FirstName"] == DBNull.Value ? null : reader["FirstName"].ToString(),
+                        LastName = reader["LastName"] == DBNull.Value ? null : reader["LastName"].ToString(),
+                        BirthDate = reader["BirthDate"] == DBNull.Value ? (DateTime?)null : Convert.ToDateTime(reader["BirthDate"]),
+                        Gender = reader["Gender"] == DBNull.Value ? null : reader["Gender"].ToString(),
+                        City = reader["City"] == DBNull.Value ? null : reader["City"].ToString(),
                         ProfileImage = reader["ProfileImage"] == DBNull.Value ? null : reader["ProfileImage"].ToString(),
 
-                        IsSmoker         = reader["IsSmoker"]         == DBNull.Value ? (bool?)null : Convert.ToBoolean(reader["IsSmoker"]),
-                        KeepsKosher      = reader["KeepsKosher"]      == DBNull.Value ? (bool?)null : Convert.ToBoolean(reader["KeepsKosher"]),
-                        KeepsShabbat     = reader["KeepsShabbat"]     == DBNull.Value ? (bool?)null : Convert.ToBoolean(reader["KeepsShabbat"]),
-                        SpontaneityLevel = reader["SpontaneityLevel"] == DBNull.Value ? (int?)null  : Convert.ToInt32(reader["SpontaneityLevel"]),
-                        LifestyleLevel   = reader["LifestyleLevel"]   == DBNull.Value ? (int?)null  : Convert.ToInt32(reader["LifestyleLevel"]),
+                        IsSmoker = reader["IsSmoker"] == DBNull.Value ? (bool?)null : Convert.ToBoolean(reader["IsSmoker"]),
+                        KeepsKosher = reader["KeepsKosher"] == DBNull.Value ? (bool?)null : Convert.ToBoolean(reader["KeepsKosher"]),
+                        KeepsShabbat = reader["KeepsShabbat"] == DBNull.Value ? (bool?)null : Convert.ToBoolean(reader["KeepsShabbat"]),
+                        SpontaneityLevel = reader["SpontaneityLevel"] == DBNull.Value ? (int?)null : Convert.ToInt32(reader["SpontaneityLevel"]),
+                        LifestyleLevel = reader["LifestyleLevel"] == DBNull.Value ? (int?)null : Convert.ToInt32(reader["LifestyleLevel"]),
 
                         // Interests מגיע כמחרוזת JSON (FOR JSON PATH ב-SP)
                         Interests = reader["Interests"] == DBNull.Value ? null : reader["Interests"].ToString(),
@@ -440,6 +440,39 @@ namespace MatchingAppServer.DAL
                     return Convert.ToInt32(reader["Success"]);
 
                 return 0;
+            }
+            catch (Exception)
+            {
+                throw;
+            }   
+            finally
+            {
+                if (con != null)
+                    con.Close();
+            }
+        }
+
+
+        // CLEAR EXPO PUSH TOKEN - מנקה את ה-token של המשתמש (NULL) בעת logout. SP: ClearExpoPushToken.
+        public int ClearExpoPushToken(int userId)
+        {
+            try
+            {
+                con = connect();
+            }
+            catch (Exception) { throw; }
+
+            var param = new Dictionary<string, object>()
+            {
+                { "@UserID", userId }
+            };
+
+            cmd = CreateCommandWithStoredProcedureGeneral("ClearExpoPushToken", con, param);
+
+            try
+            {
+                object result = cmd.ExecuteScalar();
+                return Convert.ToInt32(result);
             }
             catch (Exception)
             {

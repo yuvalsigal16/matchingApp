@@ -1,6 +1,7 @@
 ﻿using MatchingAppServer.BL;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using System.Security.Claims;
 
 namespace MatchingAppServer.Controllers
 {
@@ -10,6 +11,15 @@ namespace MatchingAppServer.Controllers
     {
         MatchRequest bl = new MatchRequest();
 
+        // שולף את UserID של המשתמש המחובר מה-JWT.
+        private int GetCurrentUserId()
+        {
+            var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier);
+            if (userIdClaim == null)
+                throw new UnauthorizedAccessException("No user ID in token");
+            return int.Parse(userIdClaim.Value);
+        }
+
         // SEND REQUEST - TripID אופציונלי (לבקשות צ'אט חופשיות בלי טיול)
         [Authorize]
         [HttpPost]
@@ -17,7 +27,8 @@ namespace MatchingAppServer.Controllers
         {
             try
             {
-                return Ok(bl.Send(fromUserID, toUserID, tripID));
+                // השולח נקבע מה-JWT — לא ניתן לשלוח בקשה בשם משתמש אחר.
+                return Ok(bl.Send(GetCurrentUserId(), toUserID, tripID));
             }
             catch (Exception ex)
             {
@@ -32,6 +43,11 @@ namespace MatchingAppServer.Controllers
         {
             try
             {
+                // בדיקת בעלות: אפשר לאשר רק בקשה שממתינה אליי (ToUserID == המשתמש המחובר).
+                int uid = GetCurrentUserId();
+                if (!bl.GetPending(uid).Any(r => r.RequestID == requestID && r.ToUserID == uid))
+                    return Forbid();
+
                 int matchID = bl.Approve(requestID);
 
                 if (matchID > 0)
@@ -52,6 +68,11 @@ namespace MatchingAppServer.Controllers
         {
             try
             {
+                // בדיקת בעלות: אפשר לדחות רק בקשה שממתינה אליי (ToUserID == המשתמש המחובר).
+                int uid = GetCurrentUserId();
+                if (!bl.GetPending(uid).Any(r => r.RequestID == requestID && r.ToUserID == uid))
+                    return Forbid();
+
                 int result = bl.Reject(requestID);
 
                 if (result > 0)
@@ -72,6 +93,11 @@ namespace MatchingAppServer.Controllers
         {
             try
             {
+                // בדיקת בעלות: אפשר לבטל רק בקשה שאני שלחתי (FromUserID == המשתמש המחובר).
+                int uid = GetCurrentUserId();
+                if (!bl.GetPending(uid).Any(r => r.RequestID == requestID && r.FromUserID == uid))
+                    return Forbid();
+
                 int result = bl.Cancel(requestID);
 
                 if (result > 0)
@@ -92,7 +118,8 @@ namespace MatchingAppServer.Controllers
         {
             try
             {
-                return Ok(bl.GetPending(userID));
+                // מחזיר רק את הבקשות של המשתמש המחובר (userID מה-JWT, מונע IDOR).
+                return Ok(bl.GetPending(GetCurrentUserId()));
             }
             catch (Exception ex)
             {

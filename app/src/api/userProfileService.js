@@ -46,11 +46,15 @@ export async function createUserProfile(profile) {
   const url = `${BASE_URL}/UserProfile`;
   console.log(`[userProfile] → POST ${url}`, profile);
 
+  const token = getToken();
   let res;
   try {
     res = await fetch(url, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: {
+        "Content-Type": "application/json",
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      },
       body: JSON.stringify(profile),
     });
   } catch (networkErr) {

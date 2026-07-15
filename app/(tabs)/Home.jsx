@@ -9,9 +9,7 @@ import Button from "../../components/ui/Button";
 import RouteLine from "../../components/ui/RouteLine";
 import Screen from "../../components/ui/Screen";
 import SectionLabel from "../../components/ui/SectionLabel";
-import { BASE_URL } from "../src/api/config";
-import { fetchWithTimeout } from "../src/api/fetchWithTimeout";
-import { getMyMatches } from "../src/api/notificationService";
+import { getSnapshot, loadMatches, loadProfile, loadTrips } from "../src/api/homeData";
 import { getToken, getUser } from "../src/auth/authStore";
 import { COLORS, FONTS, RADIUS, SHADOWS, SPACING, TYPOGRAPHY } from "../src/theme";
 
@@ -53,71 +51,70 @@ function tripDatesLabel(t) {
 export default function Home() {
   const router = useRouter();
   const cachedUser = getUser();
+  const userId = cachedUser?.userID;
 
-  const [firstName, setFirstName] = useState(firstNameOf(cachedUser?.firstName));
-  const [profileImage, setProfileImage] = useState("");
-  const [needsQuiz, setNeedsQuiz] = useState(false);
-  const [partners, setPartners] = useState([]);
-  const [journeyPartner, setJourneyPartner] = useState(null);
-  const [trips, setTrips] = useState([]);
-  const [loading, setLoading] = useState(true);
+  // תמונת-מצב אחרונה (SWR): מציגים מיד תוכן אמיתי מהמטמון, ומרעננים ברקע.
+  const snap = getSnapshot(userId);
+
+  // כל מקטע מנהל את מצב-הטעינה שלו — אף קריאה בודדת לא חוסמת את כל המסך.
+  const [matchesState, setMatchesState] = useState(() => ({
+    status: snap?.matches ? "ready" : "loading",
+    list: snap?.matches || null,
+  }));
+  const [tripsState, setTripsState] = useState(() => ({
+    status: snap?.trips ? "ready" : "loading",
+    list: snap?.trips || null,
+  }));
+  const [firstName, setFirstName] = useState(
+    firstNameOf(snap?.profile?.firstName || cachedUser?.firstName)
+  );
+  const [profileImage, setProfileImage] = useState(snap?.profile?.profileImage || "");
+  const [needsQuiz, setNeedsQuiz] = useState(!!snap?.profile?.needsQuiz);
 
   useEffect(() => {
-    const load = async () => {
-      try {
-        const token = getToken();
-        const userId = getUser()?.userID;
-        if (!token || !userId) {
-          setLoading(false);
-          return;
-        }
-        const headers = { "Content-Type": "application/json", Authorization: `Bearer ${token}` };
+    if (!userId || !getToken()) return;
+    let alive = true;
 
-        // כל המקורות במקביל, כל אחד נכשל בנפרד — מציגים את מה שנטען.
-        const [profileRes, imageRes, questRes, matchesRes, tripsRes] = await Promise.allSettled([
-          fetchWithTimeout(`${BASE_URL}/UserProfile/${userId}`, { method: "GET", headers }, 30000),
-          fetchWithTimeout(`${BASE_URL}/UserProfile/image/${userId}`, { method: "GET", headers }, 30000),
-          fetchWithTimeout(`${BASE_URL}/Questionnaire/${userId}`, { method: "GET", headers }, 30000),
-          getMyMatches(userId),
-          fetchWithTimeout(`${BASE_URL}/Trip/user/${userId}`, { method: "GET", headers }, 30000),
-        ]);
+    // התאמות — מזינות את ה-hero ואת רצועת השותפים. בכשל/timeout שומרים את מה
+    // שכבר יש (מהמטמון) ולא קובעים "אין התאמות".
+    loadMatches(userId)
+      .then((list) => alive && setMatchesState({ status: "ready", list }))
+      .catch(() => alive && setMatchesState((s) => ({ status: s.list ? "ready" : "error", list: s.list })));
 
-        if (profileRes.status === "fulfilled" && profileRes.value?.ok) {
-          const d = await profileRes.value.json();
-          setFirstName(firstNameOf(d.firstName || d.FirstName || getUser()?.firstName));
-          setProfileImage(d.profileImage || d.ProfileImage || "");
-        }
-        if (imageRes.status === "fulfilled" && imageRes.value?.ok) {
-          const img = await imageRes.value.json();
-          if (img?.imagePath) setProfileImage(img.imagePath);
-        }
-        if (profileRes.status === "fulfilled" && questRes.status === "fulfilled") {
-          const pOk = profileRes.value?.ok;
-          const qOk = questRes.value?.ok;
-          setNeedsQuiz(!pOk || !qOk);
-        }
+    // מסעות — אותו עיקרון: כשל לא מתפרש כ"אין מסעות".
+    loadTrips(userId)
+      .then((list) => alive && setTripsState({ status: "ready", list }))
+      .catch(() => alive && setTripsState((s) => ({ status: s.list ? "ready" : "error", list: s.list })));
 
-        const matches = matchesRes.status === "fulfilled" ? matchesRes.value || [] : [];
-        const active = matches.filter((m) => m.status !== "Closed");
-        setPartners(active);
-        setJourneyPartner(active.find((m) => m.journeyStarted) || null);
+    // פרופיל: שם, תמונה ובאנר-שאלון. מעדכן רק ערכים שחזרו בפועל; אחרת נשמר המטמון.
+    loadProfile(userId)
+      .then((p) => {
+        if (!alive || !p) return;
+        if (p.firstName != null) setFirstName(firstNameOf(p.firstName || cachedUser?.firstName));
+        if (p.profileImage != null) setProfileImage(p.profileImage);
+        if (p.needsQuiz !== undefined) setNeedsQuiz(!!p.needsQuiz);
+      })
+      .catch(() => {}); // שומרים שם/תמונה/באנר מהמטמון
 
-        if (tripsRes.status === "fulfilled" && tripsRes.value?.ok) {
-          const all = (await tripsRes.value.json()) || [];
-          const usable = all
-            .filter((t) => (t.status || t.Status) !== "Cancelled")
-            .sort((a, b) => String(a.startDate || "").localeCompare(String(b.startDate || "")))
-            .slice(0, 6);
-          setTrips(usable);
-        }
-      } catch {
-        // נשארים עם נתוני המטמון; ה-hero עדיין תקין במצב ההזמנה.
-      } finally {
-        setLoading(false);
-      }
+    return () => {
+      alive = false;
     };
-    load();
-  }, []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [userId]);
+
+  // ── נגזרות לתצוגה ──
+  const partners = (matchesState.list || []).filter((m) => m.status !== "Closed");
+  const journeyPartner = partners.find((m) => m.journeyStarted) || null;
+
+  const trips = (tripsState.list || [])
+    .filter((t) => (t.status || t.Status) !== "Cancelled")
+    .sort((a, b) => String(a.startDate || "").localeCompare(String(b.startDate || "")))
+    .slice(0, 6);
+
+  // ה-hero מציג שלד רק כשאין עדיין נתוני התאמות כלל (גם לא מהמטמון).
+  const matchesPending = matchesState.status === "loading" && !matchesState.list;
+  // מקטע המסעות מופיע ברגע שיש נתונים או שהטעינה הסתיימה (גם בשגיאה).
+  const tripsReady = tripsState.status !== "loading" || !!tripsState.list;
 
   // ── מצב ה-hero: תמיד פעולה אחת ברורה, לפי המקום במסע ──
   let hero;
@@ -206,7 +203,7 @@ export default function Home() {
         ) : null}
 
         {/* ── HERO: הפעולה הראשית, מודעת-הקשר ── */}
-        {loading ? (
+        {matchesPending ? (
           <View style={styles.heroSkeleton} />
         ) : (
           <View style={styles.hero}>
@@ -229,7 +226,7 @@ export default function Home() {
         )}
 
         {/* ── השותפים שלך: חברות, פנים אמיתיות ── */}
-        {!loading && partners.length > 0 ? (
+        {partners.length > 0 ? (
           <View style={styles.section}>
             <SectionLabel
               title="השותפים שלך"
@@ -264,7 +261,7 @@ export default function Home() {
         ) : null}
 
         {/* ── המסעות שלי: חקר, מקומות ── */}
-        {!loading ? (
+        {tripsReady ? (
           <View style={styles.section}>
             <SectionLabel
               title="המסעות שלי"
