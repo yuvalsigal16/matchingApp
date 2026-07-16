@@ -1,8 +1,7 @@
-import { Ionicons } from "@expo/vector-icons";
 import DateTimePicker from "@react-native-community/datetimepicker";
 import { useRouter } from "expo-router";
-import { Cigarette, CigaretteOff, MoonStar, UtensilsCrossed } from "lucide-react-native";
-import React, { useEffect, useState } from "react";
+import { Calendar, Cigarette, CigaretteOff, MoonStar, UtensilsCrossed } from "lucide-react-native";
+import { useEffect, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
@@ -11,17 +10,18 @@ import {
   ScrollView,
   StyleSheet,
   Text,
-  TextInput,
-  TouchableOpacity,
   View,
 } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
 
 import { addUserInterest, getAllInterests, getUserInterests, removeUserInterest } from "../src/api/interestService";
 import { getQuestionnaire, updateQuestionnaire } from "../src/api/questionnaireService";
 import { getUserProfile, updateUserProfile } from "../src/api/userProfileService";
 import { getUser } from "../src/auth/authStore";
-import { COLORS, FONTS } from "../src/theme";
+import { COLORS, FONTS, RADIUS, SPACING, TYPOGRAPHY } from "../src/theme";
+import Screen from "../../components/ui/Screen";
+import ScreenHeader from "../../components/ui/ScreenHeader";
+import Input from "../../components/ui/Input";
+import Button from "../../components/ui/Button";
 
 const GENDER_OPTIONS = [
   { label: "זכר", value: "Male" },
@@ -213,22 +213,18 @@ export default function UpdateIntroQuizScreen() {
 
   if (loading) {
     return (
-      <SafeAreaView style={[styles.container, styles.center]}>
-        <ActivityIndicator size="large" color={COLORS.brand} />
-      </SafeAreaView>
+      <Screen>
+        <ScreenHeader title="עריכת פרופיל" onBack={() => router.back()} />
+        <View style={styles.center}>
+          <ActivityIndicator size="large" color={COLORS.brand} />
+        </View>
+      </Screen>
     );
   }
 
   return (
-    <SafeAreaView style={styles.container}>
-      {/* Header עם חץ חזרה */}
-      <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.back()}>
-          <Ionicons name="arrow-forward" size={26} color={COLORS.brand} />
-        </TouchableOpacity>
-        <Text style={styles.headerTitle}>עדכון שאלון היכרות</Text>
-        <View style={{ width: 26 }} />
-      </View>
+    <Screen>
+      <ScreenHeader title="עריכת פרופיל" onBack={() => router.back()} />
 
       <ScrollView
         contentContainerStyle={styles.scrollContent}
@@ -238,28 +234,26 @@ export default function UpdateIntroQuizScreen() {
         <Text style={styles.section}>פרטים אישיים</Text>
 
         <Text style={styles.label}>שם פרטי</Text>
-        <TextInput
-          style={styles.input}
+        <Input
           value={firstName}
           onChangeText={setFirstName}
-          textAlign="right"
           placeholder="שם פרטי"
-          placeholderTextColor={COLORS.textMuted}
+          accessibilityLabel="שם פרטי"
+          style={styles.field}
         />
 
         <Text style={styles.label}>שם משפחה</Text>
-        <TextInput
-          style={styles.input}
+        <Input
           value={lastName}
           onChangeText={setLastName}
-          textAlign="right"
           placeholder="שם משפחה"
-          placeholderTextColor={COLORS.textMuted}
+          accessibilityLabel="שם משפחה"
+          style={styles.field}
         />
 
         <Text style={styles.label}>תאריך לידה</Text>
         <Pressable style={styles.dateBtn} onPress={() => setDatePickerOpen(true)}>
-          <Ionicons name="calendar-outline" size={20} color={COLORS.textMuted} />
+          <Calendar size={20} color={COLORS.textMuted} strokeWidth={2} />
           <Text style={[styles.dateText, !birthDate && styles.placeholder]}>
             {birthDate ? formatDate(birthDate) : "בחר/י תאריך"}
           </Text>
@@ -278,13 +272,12 @@ export default function UpdateIntroQuizScreen() {
         )}
 
         <Text style={styles.label}>מקום מגורים</Text>
-        <TextInput
-          style={styles.input}
+        <Input
           value={city}
           onChangeText={setCity}
-          textAlign="right"
           placeholder="עיר מגורים"
-          placeholderTextColor={COLORS.textMuted}
+          accessibilityLabel="מקום מגורים"
+          style={styles.field}
         />
 
         <Text style={styles.label}>מגדר</Text>
@@ -339,7 +332,7 @@ export default function UpdateIntroQuizScreen() {
         <Text style={styles.helpText}>1 = אולי בפעם אחרת   ·   5 = מי טס מחר?</Text>
         {renderRating(spontaneity, setSpontaneity)}
 
-        <Text style={[styles.label, { marginTop: 16 }]}>אורח החיים בטיול</Text>
+        <Text style={[styles.label, { marginTop: SPACING.lg }]}>אורח החיים בטיול</Text>
         <Text style={styles.helpText}>1 = פשוט   ·   5 = יוקרתי</Text>
         {renderRating(lifestyle, setLifestyle)}
 
@@ -371,126 +364,88 @@ export default function UpdateIntroQuizScreen() {
 
       {/* כפתור שמירה — sticky בתחתית */}
       <View style={styles.saveBar}>
-        <TouchableOpacity
-          style={[styles.saveBtn, saving && styles.saveBtnDisabled]}
+        <Button
+          label="שמירת השינויים"
           onPress={handleSave}
-          disabled={saving}
-          activeOpacity={0.85}
-        >
-          {saving ? (
-            <ActivityIndicator color={COLORS.onBrand} />
-          ) : (
-            <Text style={styles.saveBtnText}>שמירת השינויים</Text>
-          )}
-        </TouchableOpacity>
+          loading={saving}
+          size="lg"
+        />
       </View>
-    </SafeAreaView>
+    </Screen>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: COLORS.background },
-  center: { justifyContent: "center", alignItems: "center" },
+  center: { flex: 1, justifyContent: "center", alignItems: "center" },
 
-  header: {
-    flexDirection: "row-reverse",
-    alignItems: "center",
-    justifyContent: "space-between",
-    paddingHorizontal: 20,
-    paddingTop: 12,
-    paddingBottom: 16,
-  },
-  headerTitle: {
-    fontSize: 18,
-    fontFamily: FONTS.bold,
-    color: COLORS.brand,
-  },
-
-  scrollContent: { paddingHorizontal: 20, paddingBottom: 40 },
+  scrollContent: { paddingHorizontal: SPACING.xl, paddingBottom: SPACING.xxxl },
 
   section: {
-    fontSize: 17,
-    fontFamily: FONTS.bold,
-    color: COLORS.brand,
+    ...TYPOGRAPHY.h3,
+    color: COLORS.text,
     textAlign: "right",
-    marginTop: 16,
-    marginBottom: 12,
+    marginTop: SPACING.lg,
+    marginBottom: SPACING.md,
   },
 
   label: {
-    fontSize: 13,
-    fontFamily: FONTS.regular,
+    ...TYPOGRAPHY.caption,
     color: COLORS.textMuted,
     textAlign: "right",
-    marginBottom: 6,
-    marginTop: 8,
+    marginBottom: SPACING.xs + 2,
+    marginTop: SPACING.sm,
   },
   helpText: {
-    fontSize: 12,
+    ...TYPOGRAPHY.caption,
     color: COLORS.textMuted,
-    fontFamily: FONTS.regular,
     textAlign: "right",
-    marginBottom: 8,
+    marginBottom: SPACING.sm,
   },
-
-  input: {
-    backgroundColor: COLORS.surface,
-    paddingVertical: 14,
-    paddingHorizontal: 16,
-    borderRadius: 12,
-    fontSize: 16,
-    fontFamily: FONTS.regular,
-    color: COLORS.text,
-    marginBottom: 4,
-  },
+  field: { marginBottom: SPACING.xs },
 
   dateBtn: {
     flexDirection: "row-reverse",
     alignItems: "center",
+    height: 54,
     backgroundColor: COLORS.surface,
-    paddingVertical: 14,
-    paddingHorizontal: 16,
-    borderRadius: 12,
-    gap: 10,
+    borderWidth: 1.5,
+    borderColor: COLORS.hairline,
+    borderRadius: RADIUS.lg,
+    paddingHorizontal: SPACING.lg,
+    gap: SPACING.sm,
   },
-  dateText: {
-    flex: 1,
-    fontSize: 16,
-    fontFamily: FONTS.regular,
-    textAlign: "right",
-    color: COLORS.text,
-  },
+  dateText: { ...TYPOGRAPHY.body, flex: 1, color: COLORS.text, textAlign: "right" },
   placeholder: { color: COLORS.textMuted },
 
   segmented: {
     flexDirection: "row-reverse",
     backgroundColor: COLORS.surface,
-    borderRadius: 12,
-    padding: 4,
+    borderRadius: RADIUS.md,
+    padding: SPACING.xs,
   },
   segment: {
     flex: 1,
-    paddingVertical: 10,
+    paddingVertical: SPACING.sm + 2,
     alignItems: "center",
-    borderRadius: 9,
+    borderRadius: RADIUS.sm,
   },
   segmentActive: { backgroundColor: COLORS.brand },
-  segmentText: { fontSize: 15, fontFamily: FONTS.regular, color: COLORS.brand },
+  segmentText: { ...TYPOGRAPHY.body, color: COLORS.brand },
   segmentTextActive: { color: COLORS.onBrand, fontFamily: FONTS.bold },
 
-  smokingRow: { flexDirection: "row-reverse", gap: 10, marginBottom: 12 },
+  smokingRow: { flexDirection: "row-reverse", gap: SPACING.sm, marginBottom: SPACING.md },
   smokingBtn: {
     flex: 1,
     flexDirection: "row-reverse",
     alignItems: "center",
     justifyContent: "center",
-    gap: 8,
+    gap: SPACING.sm,
     backgroundColor: COLORS.surface,
-    paddingVertical: 16,
-    borderRadius: 12,
+    paddingVertical: SPACING.lg,
+    borderRadius: RADIUS.md,
   },
   smokingBtnActive: { backgroundColor: COLORS.brand },
-  smokingText: { fontSize: 15, fontFamily: FONTS.regular, color: COLORS.brand },
+  smokingText: { ...TYPOGRAPHY.body, color: COLORS.brand },
   smokingTextActive: { color: COLORS.onBrand, fontFamily: FONTS.bold },
 
   yesNoCard: {
@@ -498,68 +453,60 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "space-between",
     backgroundColor: COLORS.surface,
-    paddingVertical: 14,
-    paddingHorizontal: 16,
-    borderRadius: 12,
-    marginBottom: 12,
+    paddingVertical: SPACING.md + 2,
+    paddingHorizontal: SPACING.lg,
+    borderRadius: RADIUS.md,
+    marginBottom: SPACING.md,
   },
-  yesNoLabelRow: { flexDirection: "row-reverse", alignItems: "center", gap: 10 },
-  yesNoLabel: { fontSize: 15, fontFamily: FONTS.regular, color: COLORS.brand },
-  yesNoBtns: { flexDirection: "row", gap: 8 },
+  yesNoLabelRow: { flexDirection: "row-reverse", alignItems: "center", gap: SPACING.sm },
+  yesNoLabel: { ...TYPOGRAPHY.body, color: COLORS.brand },
+  yesNoBtns: { flexDirection: "row", gap: SPACING.sm },
   smallBtn: {
-    paddingVertical: 8,
-    paddingHorizontal: 18,
-    borderRadius: 8,
+    paddingVertical: SPACING.sm,
+    paddingHorizontal: SPACING.lg - 2,
+    borderRadius: RADIUS.sm,
     backgroundColor: COLORS.background,
   },
   smallBtnActive: { backgroundColor: COLORS.brand },
-  smallBtnText: { fontSize: 14, fontFamily: FONTS.regular, color: COLORS.brand },
+  smallBtnText: { ...TYPOGRAPHY.caption, color: COLORS.brand },
   smallBtnTextActive: { color: COLORS.onBrand, fontFamily: FONTS.bold },
 
-  ratingRow: { flexDirection: "row-reverse", justifyContent: "space-between", gap: 8 },
+  ratingRow: { flexDirection: "row-reverse", justifyContent: "space-between", gap: SPACING.sm },
   ratingDot: {
     flex: 1,
     aspectRatio: 1,
     maxWidth: 56,
-    borderRadius: 12,
+    borderRadius: RADIUS.md,
     backgroundColor: COLORS.surface,
     alignItems: "center",
     justifyContent: "center",
   },
   ratingDotActive: { backgroundColor: COLORS.brand },
-  ratingNumber: { fontSize: 16, fontFamily: FONTS.bold, color: COLORS.brand },
-  ratingNumberActive: { color: COLORS.surface },
+  ratingNumber: { ...TYPOGRAPHY.bodyBold, color: COLORS.brand },
+  ratingNumberActive: { color: COLORS.onBrand },
 
   tagsGrid: {
     flexDirection: "row-reverse",
     flexWrap: "wrap",
-    gap: 8,
+    gap: SPACING.sm,
   },
   tag: {
-    paddingVertical: 10,
-    paddingHorizontal: 16,
-    borderRadius: 20,
+    paddingVertical: SPACING.sm + 2,
+    paddingHorizontal: SPACING.lg,
+    borderRadius: RADIUS.pill,
     backgroundColor: COLORS.surface,
     borderWidth: 1.5,
-    borderColor: COLORS.border,
+    borderColor: COLORS.hairline,
   },
   tagActive: { backgroundColor: COLORS.brand, borderColor: COLORS.brand },
-  tagText: { fontSize: 14, fontFamily: FONTS.regular, color: COLORS.brand },
+  tagText: { ...TYPOGRAPHY.caption, color: COLORS.brand },
   tagTextActive: { color: COLORS.onBrand, fontFamily: FONTS.bold },
 
   saveBar: {
-    paddingHorizontal: 20,
-    paddingVertical: 14,
+    paddingHorizontal: SPACING.xl,
+    paddingVertical: SPACING.md + 2,
     backgroundColor: COLORS.background,
     borderTopWidth: 1,
-    borderTopColor: COLORS.border,
+    borderTopColor: COLORS.hairline,
   },
-  saveBtn: {
-    backgroundColor: COLORS.brand,
-    paddingVertical: 16,
-    borderRadius: 14,
-    alignItems: "center",
-  },
-  saveBtnDisabled: { opacity: 0.6 },
-  saveBtnText: { color: COLORS.surface, fontSize: 16, fontFamily: FONTS.bold },
 });

@@ -10,4 +10,3 @@ export { FONTS } from "./fonts";
 export { TYPOGRAPHY } from "./typography";
 export { SPACING, RADIUS } from "./spacing";
 export { SHADOWS } from "./shadows";
-export { globalStyles } from "./globalStyles";

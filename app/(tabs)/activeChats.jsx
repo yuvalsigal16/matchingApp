@@ -1,25 +1,25 @@
-import React, { useCallback, useState } from "react";
+import { useCallback, useState } from "react";
 import {
   ActivityIndicator,
   FlatList,
-  Image,
   RefreshControl,
   StyleSheet,
   Text,
   TouchableOpacity,
   View,
 } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
 import { useFocusEffect, useRouter } from "expo-router";
-import { Ionicons } from "@expo/vector-icons";
-import { MapPin } from "lucide-react-native";
+import { MapPin, MessageCircle } from "lucide-react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
-import { buildImageUri } from "../src/utils/image";
-import { COLORS, FONTS } from "../src/theme";
+import { COLORS, FONTS, RADIUS, SPACING, TYPOGRAPHY } from "../src/theme";
 import { getUser } from "../src/auth/authStore";
 import { getMyMatches } from "../src/api/notificationService";
 import { getChatMessages } from "../src/api/chatService";
+import Screen from "../../components/ui/Screen";
+import ScreenHeader from "../../components/ui/ScreenHeader";
+import Avatar from "../../components/ui/Avatar";
+import EmptyState from "../../components/ui/EmptyState";
 import BottomNav from "../../components/BottomNav";
 
 // "נקרא לאחרונה" לכל צ'אט — נשמר מקומית (matchID → timestamp במילישניות).
@@ -57,15 +57,6 @@ function formatChatTime(iso) {
   }
   if (k(d) === k(yesterday)) return "אתמול";
   return `${String(d.getDate()).padStart(2, "0")}/${String(d.getMonth() + 1).padStart(2, "0")}/${d.getFullYear()}`;
-}
-
-// צבעי אווטר פסטליים — צבע יציב לכל משתמש לפי שמו (מראה מודרני כמו במוקאפ).
-const AVATAR_COLORS = ["#F5D9E0", "#D9E7F5", "#D6F0E6", "#F5EAD3", "#E7DCF5", "#F5DAD6", "#DCEFF0"];
-function avatarColor(name) {
-  const s = String(name || "");
-  let h = 0;
-  for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) % AVATAR_COLORS.length;
-  return AVATAR_COLORS[h];
 }
 
 export default function ActiveChatsScreen() {
@@ -140,28 +131,6 @@ export default function ActiveChatsScreen() {
     router.push({ pathname: "/chat/[matchId]", params: { matchId } });
   };
 
-  const renderAvatar = (chat) => {
-    const uri = buildImageUri(chat.otherUserImage);
-    if (uri) return <Image source={{ uri }} style={styles.avatar} />;
-    const initials =
-      (chat.otherUserName || "")
-        .split(" ")
-        .map((s) => s[0])
-        .filter(Boolean)
-        .slice(0, 2)
-        .join("")
-        .toUpperCase() || "";
-    return (
-      <View style={[styles.avatar, styles.avatarFallback, { backgroundColor: avatarColor(chat.otherUserName) }]}>
-        {initials ? (
-          <Text style={styles.avatarInitials}>{initials}</Text>
-        ) : (
-          <Ionicons name="person" size={24} color="rgba(0,0,0,0.4)" />
-        )}
-      </View>
-    );
-  };
-
   const renderChat = ({ item }) => {
     // צ'אט שמקורו בטיול — יש לו יעד אמיתי (לא ה-placeholder "טיול"). הצ'יפ מסמן זאת.
     const isTrip = item.tripName && item.tripName !== "טיול";
@@ -171,22 +140,24 @@ export default function ActiveChatsScreen() {
         ? "התחילו לתכנן יחד"
         : "התחילו לשוחח";
     const time = item.lastMessageTime ? formatChatTime(item.lastMessageTime) : "";
-    const unread = item.unreadCount || 0; // מוצג רק אם קיים נתון (כרגע השרת לא מספק)
+    const unread = item.unreadCount || 0;
 
     return (
       <TouchableOpacity
         style={styles.chatRow}
         activeOpacity={0.7}
         onPress={() => openChat(item.matchID)}
+        accessibilityRole="button"
+        accessibilityLabel={`צ'אט עם ${item.otherUserName}`}
       >
-        {renderAvatar(item)}
+        <Avatar uri={item.otherUserImage} name={item.otherUserName} size="md" />
 
         <View style={styles.chatInfo}>
           <View style={styles.nameRow}>
             <Text style={styles.chatName} numberOfLines={1}>
               {item.otherUserName}
             </Text>
-            {/* צ'יפ הקשר-טיול — רק לצ'אטים שמקורם בטיול; צ'אטים כלליים נשארים כמו שהם. */}
+            {/* צ'יפ הקשר-הטיול — שומר על זהות ה-Travel: יעד המסע המשותף לצד השם. */}
             {isTrip ? (
               <View style={styles.tripChip}>
                 <MapPin size={11} color={COLORS.brand} strokeWidth={2.2} />
@@ -208,7 +179,9 @@ export default function ActiveChatsScreen() {
           {time ? <Text style={styles.chatTime}>{time}</Text> : null}
           {unread > 0 ? (
             <View style={styles.unreadBadge}>
-              <Text style={styles.unreadBadgeText}>{unread > 99 ? "99+" : unread}</Text>
+              <Text style={styles.unreadBadgeText}>
+                {unread > 99 ? "99+" : unread}
+              </Text>
             </View>
           ) : null}
         </View>
@@ -218,26 +191,19 @@ export default function ActiveChatsScreen() {
 
   if (loading) {
     return (
-      <SafeAreaView style={styles.center}>
-        <ActivityIndicator size="large" color={COLORS.brand} />
-      </SafeAreaView>
+      <Screen>
+        <ScreenHeader title="צ'אטים פעילים" onBack={() => router.back()} />
+        <View style={styles.center}>
+          <ActivityIndicator size="large" color={COLORS.brand} />
+        </View>
+        <BottomNav active="notifications" />
+      </Screen>
     );
   }
 
   return (
-    <SafeAreaView style={styles.container}>
-      <View style={styles.topBar}>
-        <TouchableOpacity
-          onPress={() => router.back()}
-          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-          accessibilityRole="button"
-          accessibilityLabel="חזרה"
-        >
-          <Ionicons name="arrow-forward" size={26} color={COLORS.brand} />
-        </TouchableOpacity>
-      </View>
-
-      <Text style={styles.pageTitle}>{"צ'אטים פעילים"}</Text>
+    <Screen>
+      <ScreenHeader title="צ'אטים פעילים" onBack={() => router.back()} />
 
       <FlatList
         data={chats}
@@ -257,173 +223,96 @@ export default function ActiveChatsScreen() {
           />
         }
         ListEmptyComponent={
-          <View style={styles.emptyState}>
-            <View style={styles.emptyIconCircle}>
-              <Ionicons name="chatbubbles-outline" size={40} color={COLORS.brand} />
-            </View>
-            <Text style={styles.emptyTitle}>{"אין צ'אטים עדיין"}</Text>
-            <Text style={styles.emptySub}>
-              {"כשתאשרו בקשת צ'אט, השיחה תופיע כאן"}
-            </Text>
-          </View>
+          <EmptyState
+            Icon={MessageCircle}
+            title="אין צ'אטים עדיין"
+            subtitle="כשתאשרו בקשת צ'אט השיחה תופיע כאן. בינתיים — מצאו מישהו לצאת איתו לדרך."
+            actionLabel="מצאו עם מי לצאת לדרך"
+            onAction={() => router.push("/matchesForYou")}
+          />
         }
       />
 
       <BottomNav active="notifications" />
-    </SafeAreaView>
+    </Screen>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: COLORS.background },
-  center: {
-    flex: 1,
+  center: { flex: 1, justifyContent: "center", alignItems: "center" },
+
+  listContent: { paddingTop: SPACING.xs, paddingBottom: SPACING.xl },
+  emptyListContent: {
+    flexGrow: 1,
     justifyContent: "center",
     alignItems: "center",
-    backgroundColor: COLORS.background,
   },
 
-  topBar: {
-    flexDirection: "row-reverse",
-    alignItems: "center",
-    paddingHorizontal: 20,
-    paddingTop: 16,
-  },
-  pageTitle: {
-    fontSize: 26,
-    fontFamily: FONTS.bold,
-    color: COLORS.text,
-    textAlign: "center",
-    paddingHorizontal: 20,
-    paddingTop: 6,
-    paddingBottom: 12,
-  },
-
-  listContent: { paddingTop: 4, paddingBottom: 20 },
-
+  // קו-הפרדה מתחיל אחרי האווטר (רשימת-שיחות, כמו iMessage): גוטר + אווטר(52) + gap.
   separator: {
     height: 1,
-    backgroundColor: COLORS.divider,
-    marginRight: 84, // מתחיל אחרי האווטר (כמו וואטסאפ)
+    backgroundColor: COLORS.hairline,
+    marginRight: SPACING.xl + 52 + SPACING.md,
   },
 
   chatRow: {
     flexDirection: "row-reverse",
     alignItems: "center",
-    paddingVertical: 12,
-    paddingHorizontal: 20,
+    gap: SPACING.md,
+    paddingVertical: SPACING.md,
+    paddingHorizontal: SPACING.xl,
   },
 
-  avatar: {
-    width: 52,
-    height: 52,
-    borderRadius: 26,
-    backgroundColor: COLORS.divider,
-    marginLeft: 12,
-  },
-  avatarFallback: {
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  avatarInitials: {
-    fontSize: 18,
-    fontFamily: FONTS.bold,
-    color: "rgba(0,0,0,0.5)",
-  },
-
-  chatInfo: {
-    flex: 1,
-    justifyContent: "center",
-    gap: 3,
-  },
+  chatInfo: { flex: 1, justifyContent: "center", gap: SPACING.xs / 2 },
   nameRow: {
     flexDirection: "row-reverse",
     alignItems: "center",
-    gap: 6,
+    gap: SPACING.xs + 2,
   },
   chatName: {
-    fontSize: 16,
-    fontFamily: FONTS.bold,
+    ...TYPOGRAPHY.h3,
     color: COLORS.text,
     textAlign: "right",
-    flexShrink: 1, // שם ארוך יתקצר לפני שהצ'יפ נדחק
+    flexShrink: 1,
   },
-  // צ'יפ הקשר-טיול — גוון מותג עדין, MapPin + יעד. סימון קליל ולא דומיננטי.
+  // צ'יפ הקשר-טיול — גוון מותג עדין, MapPin + יעד. סימון קליל, travel-native.
   tripChip: {
     flexDirection: "row-reverse",
     alignItems: "center",
     gap: 3,
     backgroundColor: COLORS.brandLight,
-    paddingHorizontal: 7,
+    paddingHorizontal: SPACING.sm,
     paddingVertical: 2,
-    borderRadius: 999,
+    borderRadius: RADIUS.pill,
     flexShrink: 0,
     maxWidth: 130,
   },
   tripChipText: {
-    fontSize: 12,
+    ...TYPOGRAPHY.caption,
     fontFamily: FONTS.medium,
     color: COLORS.brand,
   },
   chatPreview: {
-    fontSize: 14,
-    fontFamily: FONTS.regular,
+    ...TYPOGRAPHY.body,
     color: COLORS.textMuted,
     textAlign: "right",
   },
-  chatPreviewUnread: {
-    color: COLORS.text,
-    fontFamily: FONTS.bold,
-  },
+  chatPreviewUnread: { color: COLORS.text, fontFamily: FONTS.bold },
 
-  chatMeta: {
-    alignItems: "center",
-    gap: 6,
-    marginRight: 6,
-    minWidth: 40,
-  },
-  chatTime: {
-    fontSize: 12,
-    fontFamily: FONTS.regular,
-    color: COLORS.textMuted,
-  },
+  chatMeta: { alignItems: "center", gap: SPACING.xs + 2, minWidth: 40 },
+  chatTime: { ...TYPOGRAPHY.caption, color: COLORS.textMuted },
   unreadBadge: {
     minWidth: 20,
     height: 20,
-    borderRadius: 10,
-    paddingHorizontal: 6,
+    borderRadius: RADIUS.pill,
+    paddingHorizontal: SPACING.xs + 2,
     backgroundColor: COLORS.brand,
     justifyContent: "center",
     alignItems: "center",
   },
   unreadBadgeText: {
-    fontSize: 12,
+    ...TYPOGRAPHY.caption,
     fontFamily: FONTS.bold,
     color: COLORS.onBrand,
-  },
-
-  // ── Empty ──
-  emptyListContent: { flexGrow: 1, justifyContent: "center", alignItems: "center" },
-  emptyState: { alignItems: "center", paddingHorizontal: 40 },
-  emptyIconCircle: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
-    backgroundColor: COLORS.surface,
-    justifyContent: "center",
-    alignItems: "center",
-    marginBottom: 14,
-    shadowColor: COLORS.shadow,
-    shadowOpacity: 0.08,
-    shadowRadius: 8,
-    elevation: 2,
-  },
-  emptyTitle: { fontFamily: FONTS.bold, fontSize: 16, color: COLORS.text },
-  emptySub: {
-    fontFamily: FONTS.regular,
-    fontSize: 13,
-    color: COLORS.textSecondary,
-    textAlign: "center",
-    marginTop: 6,
   },
 });

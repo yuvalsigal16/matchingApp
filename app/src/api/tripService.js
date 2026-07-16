@@ -15,7 +15,6 @@ function safeParse(text) {
 // מחזיר את כל הטיולים של המשתמש (GET /api/Trip/user/{userId}). דורש token.
 export async function getUserTrips(userId) {
   const url = `${BASE_URL}/Trip/user/${userId}`;
-  console.log(`[trip] → GET ${url}`);
 
   const token = getToken();
   let res;
@@ -29,7 +28,6 @@ export async function getUserTrips(userId) {
   }
 
   const text = await res.text();
-  console.log(`[trip] ← ${res.status}`);
   if (!res.ok) {
     let msg = text;
     try { msg = JSON.parse(text)?.message || msg; } catch {}
@@ -42,7 +40,6 @@ export async function getUserTrips(userId) {
 // trip חייב לכלול את TripID + שאר השדות (כולל Status שהוא חובה במודל השרת).
 export async function updateTrip(trip) {
   const url = `${BASE_URL}/Trip`;
-  console.log(`[trip] → PUT ${url}`, trip);
 
   const token = getToken();
   let res;
@@ -61,7 +58,6 @@ export async function updateTrip(trip) {
   }
 
   const text = await res.text();
-  console.log(`[trip] ← ${res.status}`, text);
   
   if (!res.ok) {
     let msg = text;
@@ -74,7 +70,6 @@ export async function updateTrip(trip) {
 // מחזיר את ההעדפות של טיול לפי TripID (GET /api/TripPreferences/{tripId}).
 export async function getTripPreferences(tripId) {
   const url = `${BASE_URL}/TripPreferences/${tripId}`;
-  console.log(`[trip-pref] → GET ${url}`);
 
   let res;
   try {
@@ -84,7 +79,6 @@ export async function getTripPreferences(tripId) {
     throw new Error(`לא ניתן להתחבר לשרת. פרטים: ${networkErr.message}`);
   }
 
-  console.log(`[trip-pref] ← ${res.status}`);
   if (res.status === 404) return null;
 
   const text = await res.text();
@@ -100,7 +94,6 @@ export async function getTripPreferences(tripId) {
 // pref חייב לכלול TripPreferenceID + TripID + שאר השדות.
 export async function updateTripPreferences(pref) {
   const url = `${BASE_URL}/TripPreferences`;
-  console.log(`[trip-pref] → PUT ${url}`, pref);
 
   let res;
   try {
@@ -115,7 +108,6 @@ export async function updateTripPreferences(pref) {
   }
 
   const text = await res.text();
-  console.log(`[trip-pref] ← ${res.status}`, text);
   if (!res.ok) {
     let msg = text;
     try { msg = JSON.parse(text)?.message || msg; } catch {}
@@ -127,7 +119,6 @@ export async function updateTripPreferences(pref) {
 // מחזיר תחומי עניין של העדפת טיול (GET /api/TripPreferenceInterests/{tripPreferenceID}).
 export async function getTripPreferenceInterests(tripPreferenceId) {
   const url = `${BASE_URL}/TripPreferenceInterests/${tripPreferenceId}`;
-  console.log(`[trip-pref-int] → GET ${url}`);
 
   let res;
   try {
@@ -138,7 +129,6 @@ export async function getTripPreferenceInterests(tripPreferenceId) {
   }
 
   const text = await res.text();
-  console.log(`[trip-pref-int] ← ${res.status}`);
   if (!res.ok) {
     let msg = text;
     try { msg = JSON.parse(text)?.message || msg; } catch {}
@@ -150,7 +140,6 @@ export async function getTripPreferenceInterests(tripPreferenceId) {
 // מסיר תחום עניין מהעדפת טיול (DELETE /api/TripPreferenceInterests?tripPreferenceID=X&interestID=Y).
 export async function removeTripPreferenceInterest(tripPreferenceId, interestId) {
   const url = `${BASE_URL}/TripPreferenceInterests?tripPreferenceID=${tripPreferenceId}&interestID=${interestId}`;
-  console.log(`[trip-pref-int] → DELETE ${url}`);
 
   let res;
   try {
@@ -161,7 +150,6 @@ export async function removeTripPreferenceInterest(tripPreferenceId, interestId)
   }
 
   const text = await res.text();
-  console.log(`[trip-pref-int] ← ${res.status}`, text);
   if (!res.ok) {
     let msg = text;
     try { msg = JSON.parse(text)?.message || msg; } catch {}
@@ -174,7 +162,6 @@ export async function removeTripPreferenceInterest(tripPreferenceId, interestId)
 // trip = { CreatedByUserID, Destination, StartDate (ISO), EndDate (ISO) }
 export async function createTrip(trip) {
   const url = `${BASE_URL}/Trip`;
-  console.log(`[trip] → POST ${url}`, trip);
 
   const token = getToken();
   let res;
@@ -190,12 +177,9 @@ export async function createTrip(trip) {
     });
   } catch (networkErr) {
     console.error(`[trip] ✖ network error:`, networkErr);
-    throw new Error(
-      `לא ניתן להתחבר לשרת (${url}). פרטים: ${networkErr.message}`,
-    );
+    throw new Error("לא ניתן להתחבר כרגע. נסו שוב מאוחר יותר.");
   }
 
-  console.log(`[trip] ← ${res.status} ${res.statusText}`);
 
   const text = await res.text();
   if (!res.ok) {
@@ -257,7 +241,6 @@ export async function createFullTrip({
 // שליחת העדפות הפרטנר המבוקש לטיול (גיל, מגדר וכו') ושמירתן בשרת
 export async function createTripPreferences(pref) {
   const url = `${BASE_URL}/TripPreferences`;
-  console.log(`[trip-pref] → POST ${url}`, pref);
 
   let res;
   try {
@@ -268,12 +251,9 @@ export async function createTripPreferences(pref) {
     });
   } catch (networkErr) {
     console.error(`[trip-pref] ✖ network error:`, networkErr);
-    throw new Error(
-      `לא ניתן להתחבר לשרת (${url}). פרטים: ${networkErr.message}`,
-    );
+    throw new Error("לא ניתן להתחבר כרגע. נסו שוב מאוחר יותר.");
   }
 
-  console.log(`[trip-pref] ← ${res.status} ${res.statusText}`);
 
   const text = await res.text();
   if (!res.ok) {
@@ -293,7 +273,6 @@ export async function createTripPreferences(pref) {
 // קישור תחומי עניין ספציפיים להעדפות הטיול באמצעות פרמטרים בכתובת ה-URL
 export async function addTripPreferenceInterest(tripPreferenceId, interestId) {
   const url = `${BASE_URL}/TripPreferenceInterests?tripPreferenceID=${tripPreferenceId}&interestID=${interestId}`;
-  console.log(`[trip-pref-int] → POST ${url}`);
 
   let res;
   try {
@@ -303,7 +282,6 @@ export async function addTripPreferenceInterest(tripPreferenceId, interestId) {
     throw new Error(`לא ניתן להתחבר לשרת. פרטים: ${networkErr.message}`);
   }
 
-  console.log(`[trip-pref-int] ← ${res.status} ${res.statusText}`);
 
   const text = await res.text();
   if (!res.ok) {
@@ -323,7 +301,6 @@ export async function addTripPreferenceInterest(tripPreferenceId, interestId) {
 // כל פריט: { tripPreferenceID, factor, priorityRank }, ממוין לפי priorityRank.
 export async function getTripPreferencePriorities(tripPreferenceId) {
   const url = `${BASE_URL}/TripPreferencePriorities/${tripPreferenceId}`;
-  console.log(`[trip-pref-prio] → GET ${url}`);
 
   let res;
   try {
@@ -334,7 +311,6 @@ export async function getTripPreferencePriorities(tripPreferenceId) {
   }
 
   const text = await res.text();
-  console.log(`[trip-pref-prio] ← ${res.status}`);
   if (!res.ok) {
     let msg = text;
     try { msg = JSON.parse(text)?.message || msg; } catch {}
@@ -374,7 +350,6 @@ export async function getTripScoringInputs(tripId) {
 // מוסיף שורת דירוג אחת (POST query string, כמו addTripPreferenceInterest).
 export async function addTripPreferencePriority(tripPreferenceId, factor, priorityRank) {
   const url = `${BASE_URL}/TripPreferencePriorities?tripPreferenceID=${tripPreferenceId}&factor=${encodeURIComponent(factor)}&priorityRank=${priorityRank}`;
-  console.log(`[trip-pref-prio] → POST ${url}`);
 
   let res;
   try {
@@ -385,7 +360,6 @@ export async function addTripPreferencePriority(tripPreferenceId, factor, priori
   }
 
   const text = await res.text();
-  console.log(`[trip-pref-prio] ← ${res.status}`, text);
   if (!res.ok) {
     let msg = text;
     try { msg = JSON.parse(text)?.message || msg; } catch {}
@@ -397,7 +371,6 @@ export async function addTripPreferencePriority(tripPreferenceId, factor, priori
 // מנקה את כל דירוגי החשיבות של העדפת טיול (DELETE /api/TripPreferencePriorities/{id}).
 export async function clearTripPreferencePriorities(tripPreferenceId) {
   const url = `${BASE_URL}/TripPreferencePriorities/${tripPreferenceId}`;
-  console.log(`[trip-pref-prio] → DELETE ${url}`);
 
   let res;
   try {
@@ -408,7 +381,6 @@ export async function clearTripPreferencePriorities(tripPreferenceId) {
   }
 
   const text = await res.text();
-  console.log(`[trip-pref-prio] ← ${res.status}`, text);
   if (!res.ok) {
     let msg = text;
     try { msg = JSON.parse(text)?.message || msg; } catch {}

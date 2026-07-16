@@ -1,57 +1,25 @@
-import { Ionicons } from "@expo/vector-icons";
 import { useLocalSearchParams, useRouter } from "expo-router";
-import React, { useState } from "react";
+import { useState } from "react";
 import {
-  ActivityIndicator,
   KeyboardAvoidingView,
   Platform,
   ScrollView,
   StyleSheet,
   Text,
-  TextInput,
   TouchableOpacity,
   View,
 } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
+import { Check } from "lucide-react-native";
 
 import { apiResetPassword } from "./src/api/authService";
-import { COLORS, FONTS } from "./src/theme";
+import { COLORS, FONTS, SPACING, TYPOGRAPHY } from "./src/theme";
+import Screen from "../components/ui/Screen";
+import Input from "../components/ui/Input";
+import Button from "../components/ui/Button";
+import EmptyState from "../components/ui/EmptyState";
 
 // אורך מינימלי — עקבי עם מסך שינוי הסיסמה הקיים.
 const MIN_PASSWORD_LENGTH = 6;
-
-// שדה סיסמה עם כפתור עין (מקומי למסך זה, בסגנון שדות ההתחברות).
-function PasswordInput({ value, onChangeText, placeholder }) {
-  const [show, setShow] = useState(false);
-  return (
-    <View style={styles.passwordWrapper}>
-      <TouchableOpacity
-        onPress={() => setShow((s) => !s)}
-        activeOpacity={0.7}
-        style={styles.eyeBtn}
-        accessibilityRole="button"
-        accessibilityLabel={show ? "הסתר סיסמה" : "הצג סיסמה"}
-      >
-        <Ionicons
-          name={show ? "eye-outline" : "eye-off-outline"}
-          size={22}
-          color={COLORS.textMuted}
-        />
-      </TouchableOpacity>
-      <TextInput
-        style={styles.passwordInput}
-        placeholder={placeholder}
-        placeholderTextColor={COLORS.textMuted}
-        value={value}
-        onChangeText={onChangeText}
-        secureTextEntry={!show}
-        autoCapitalize="none"
-        autoCorrect={false}
-        textAlign="right"
-      />
-    </View>
-  );
-}
 
 export default function ResetPasswordScreen() {
   const router = useRouter();
@@ -97,9 +65,9 @@ export default function ResetPasswordScreen() {
   };
 
   return (
-    <SafeAreaView style={styles.safe}>
+    <Screen>
       <KeyboardAvoidingView
-        style={{ flex: 1 }}
+        style={styles.flex}
         behavior={Platform.OS === "ios" ? "padding" : undefined}
       >
         <ScrollView
@@ -109,22 +77,13 @@ export default function ResetPasswordScreen() {
         >
           {done ? (
             // ── הצלחה ── //
-            <View style={styles.center}>
-              <View style={styles.iconCircle}>
-                <Ionicons name="checkmark" size={44} color={COLORS.onBrand} />
-              </View>
-              <Text style={styles.title}>הסיסמה עודכנה</Text>
-              <Text style={styles.subtitle}>
-                אפשר להתחבר עכשיו עם הסיסמה החדשה שלכם.
-              </Text>
-              <TouchableOpacity
-                style={styles.mainButton}
-                onPress={() => router.replace("/Login")}
-                activeOpacity={0.85}
-              >
-                <Text style={styles.mainButtonText}>התחברות</Text>
-              </TouchableOpacity>
-            </View>
+            <EmptyState
+              Icon={Check}
+              title="הסיסמה עודכנה"
+              subtitle="אפשר להתחבר עכשיו עם הסיסמה החדשה שלכם."
+              actionLabel="התחברות"
+              onAction={() => router.replace("/Login")}
+            />
           ) : (
             // ── טופס סיסמה חדשה ── //
             <>
@@ -134,161 +93,96 @@ export default function ResetPasswordScreen() {
               </Text>
 
               <View style={styles.form}>
-                <PasswordInput
+                <Input
                   value={newPassword}
                   onChangeText={(v) => {
                     setNewPassword(v);
                     setError("");
                   }}
                   placeholder="סיסמה חדשה"
+                  secure
+                  accessibilityLabel="סיסמה חדשה"
+                  style={styles.field}
                 />
-                <PasswordInput
+                <Input
                   value={confirmPassword}
                   onChangeText={(v) => {
                     setConfirmPassword(v);
                     setError("");
                   }}
                   placeholder="אימות סיסמה חדשה"
+                  secure
+                  accessibilityLabel="אימות סיסמה חדשה"
                 />
-              </View>
 
-              {error ? <Text style={styles.apiErrorText}>{error}</Text> : null}
+                {error ? <Text style={styles.errorText}>{error}</Text> : null}
 
-              <TouchableOpacity
-                style={[styles.mainButton, submitting && styles.mainButtonDisabled]}
-                onPress={handleSubmit}
-                activeOpacity={0.85}
-                disabled={submitting}
-              >
-                {submitting ? (
-                  <ActivityIndicator color={COLORS.onBrand} />
-                ) : (
-                  <Text style={styles.mainButtonText}>עדכון סיסמה</Text>
-                )}
-              </TouchableOpacity>
+                <Button
+                  label="עדכון סיסמה"
+                  onPress={handleSubmit}
+                  loading={submitting}
+                  size="lg"
+                  style={styles.submitBtn}
+                />
 
-              <View style={styles.centeredRow}>
-                <TouchableOpacity
-                  onPress={() => router.replace("/Login")}
-                  activeOpacity={0.7}
-                >
-                  <Text style={styles.linkText}>חזרה להתחברות</Text>
-                </TouchableOpacity>
+                <View style={styles.linkRow}>
+                  <TouchableOpacity
+                    onPress={() => router.replace("/Login")}
+                    activeOpacity={0.7}
+                  >
+                    <Text style={styles.linkText}>חזרה להתחברות</Text>
+                  </TouchableOpacity>
+                </View>
               </View>
             </>
           )}
         </ScrollView>
       </KeyboardAvoidingView>
-    </SafeAreaView>
+    </Screen>
   );
 }
 
 const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: COLORS.background },
-
+  flex: { flex: 1 },
   scroll: {
     flexGrow: 1,
     justifyContent: "center",
     alignItems: "center",
-    paddingHorizontal: 28,
-    paddingVertical: 32,
+    paddingHorizontal: SPACING.xl,
+    paddingVertical: SPACING.xxl,
   },
-
-  center: { width: "100%", alignItems: "center" },
 
   title: {
-    fontSize: 30,
-    fontFamily: FONTS.extraBold,
+    ...TYPOGRAPHY.h1,
     color: COLORS.text,
     textAlign: "center",
-    marginBottom: 12,
+    marginBottom: SPACING.md,
   },
   subtitle: {
-    fontSize: 15,
-    fontFamily: FONTS.regular,
+    ...TYPOGRAPHY.body,
     color: COLORS.textSecondary,
     textAlign: "center",
-    lineHeight: 22,
-    marginBottom: 28,
-    paddingHorizontal: 6,
+    marginBottom: SPACING.xxl,
+    paddingHorizontal: SPACING.xs,
   },
 
-  form: { width: "100%", marginBottom: 6 },
+  form: { width: "100%" },
+  field: { marginBottom: SPACING.md },
 
-  passwordWrapper: {
-    flexDirection: "row",
-    alignItems: "center",
-    width: "100%",
-    height: 54,
-    borderRadius: 30,
-    borderWidth: 1.5,
-    borderColor: COLORS.border,
-    backgroundColor: COLORS.surface,
-    paddingHorizontal: 16,
-    marginBottom: 12,
-  },
-  passwordInput: {
-    flex: 1,
-    fontSize: 16,
-    fontFamily: FONTS.regular,
-    color: COLORS.text,
-    height: "100%",
-  },
-  eyeBtn: { padding: 6 },
-
-  apiErrorText: {
+  errorText: {
+    ...TYPOGRAPHY.caption,
     color: COLORS.danger,
-    fontSize: 14,
-    fontFamily: FONTS.regular,
     textAlign: "center",
-    marginTop: 8,
+    marginTop: SPACING.md,
   },
 
-  mainButton: {
-    width: "100%",
-    height: 54,
-    backgroundColor: COLORS.brand,
-    borderRadius: 30,
-    justifyContent: "center",
-    alignItems: "center",
-    marginTop: 20,
-    shadowColor: COLORS.shadow,
-    shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.15,
-    shadowRadius: 6,
-    elevation: 4,
-  },
-  mainButtonDisabled: {
-    backgroundColor: COLORS.textMuted,
-    shadowOpacity: 0,
-    elevation: 0,
-  },
-  mainButtonText: {
-    color: COLORS.onBrand,
-    fontSize: 17,
-    fontFamily: FONTS.bold,
-    letterSpacing: 0.5,
-  },
+  submitBtn: { marginTop: SPACING.lg },
 
-  centeredRow: {
+  linkRow: {
     flexDirection: "row",
     justifyContent: "center",
     alignItems: "center",
-    marginTop: 18,
+    marginTop: SPACING.lg,
   },
-  linkText: {
-    color: COLORS.brand,
-    fontSize: 14,
-    fontFamily: FONTS.bold,
-  },
-
-  iconCircle: {
-    width: 88,
-    height: 88,
-    borderRadius: 44,
-    backgroundColor: COLORS.brand,
-    justifyContent: "center",
-    alignItems: "center",
-    marginBottom: 20,
-  },
+  linkText: { ...TYPOGRAPHY.caption, fontFamily: FONTS.bold, color: COLORS.brand },
 });

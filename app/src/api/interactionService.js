@@ -14,7 +14,7 @@ export async function logInteraction(toUserId, type = "View") {
   try {
     await fetch(url, { method: "POST" });
   } catch (err) {
-    console.log("[interaction] log failed (ignored):", err?.message);
+    console.error("[interaction] log failed (ignored):", err?.message);
   }
 }
 
@@ -28,7 +28,7 @@ export async function getEngagementPairs() {
     const data = await res.json();
     return Array.isArray(data) ? data : [];
   } catch (err) {
-    console.log("[interaction] getEngagementPairs failed:", err?.message);
+    console.error("[interaction] getEngagementPairs failed:", err?.message);
     return [];
   }
 }

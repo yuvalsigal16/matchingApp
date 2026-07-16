@@ -1,6 +1,5 @@
-import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
-import React, { useState } from "react";
+import { useState } from "react";
 import {
   ActivityIndicator,
   Alert,
@@ -10,11 +9,14 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
+import { CircleX, TriangleAlert, Trash2 } from "lucide-react-native";
 
 import { apiDeleteAccount } from "./src/api/authService";
 import { clearAuth, getUser } from "./src/auth/authStore";
-import { COLORS, FONTS } from "./src/theme";
+import { COLORS, RADIUS, SPACING, TYPOGRAPHY } from "./src/theme";
+import Screen from "../components/ui/Screen";
+import ScreenHeader from "../components/ui/ScreenHeader";
+import Button from "../components/ui/Button";
 
 // רשימת הדברים שיימחקו - כדי שהמשתמש יבין מה הוא עומד לאבד.
 const ITEMS_TO_DELETE = [
@@ -72,25 +74,13 @@ export default function DeleteAccountScreen() {
   };
 
   return (
-    <SafeAreaView style={styles.container}>
-      <View style={styles.headerRow}>
-        <TouchableOpacity
-          onPress={() => router.back()}
-          disabled={deleting}
-          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-          accessibilityRole="button"
-          accessibilityLabel="חזרה"
-        >
-          <Ionicons name="arrow-forward" size={26} color={COLORS.brand} />
-        </TouchableOpacity>
-        <Text style={styles.header}>מחיקת חשבון</Text>
-        <View style={{ width: 26 }} />
-      </View>
+    <Screen>
+      <ScreenHeader title="מחיקת חשבון" onBack={() => router.back()} />
 
-      <ScrollView contentContainerStyle={styles.content}>
+      <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         {/* כרטיס אזהרה */}
         <View style={styles.warningCard}>
-          <Ionicons name="warning" size={32} color={COLORS.danger} />
+          <TriangleAlert size={32} color={COLORS.danger} strokeWidth={2} />
           <Text style={styles.warningTitle}>פעולה בלתי הפיכה</Text>
           <Text style={styles.warningText}>
             מחיקת החשבון תמחק את כל הנתונים מהאפליקציה לצמיתות. לא ניתן
@@ -103,149 +93,115 @@ export default function DeleteAccountScreen() {
         <View style={styles.itemsList}>
           {ITEMS_TO_DELETE.map((item, index) => (
             <View key={index} style={styles.itemRow}>
-              <Ionicons name="close-circle" size={18} color={COLORS.danger} />
+              <CircleX size={18} color={COLORS.danger} strokeWidth={2} />
               <Text style={styles.itemText}>{item}</Text>
             </View>
           ))}
         </View>
 
-        {/* כפתור מחיקה - תמיד פעיל. האישור מתבצע ב-Alert. */}
+        {/* כפתור מחיקה — solid danger מכוון: פעולה בלתי-הפיכה, חזק מהוריאנט הרך. */}
         <TouchableOpacity
-          style={[styles.deleteBtn, deleting && { opacity: 0.6 }]}
+          style={[styles.deleteBtn, deleting && styles.deleteBtnOff]}
           onPress={handleDelete}
           disabled={deleting}
           activeOpacity={0.85}
+          accessibilityRole="button"
+          accessibilityLabel="מחק את החשבון לצמיתות"
         >
           {deleting ? (
             <ActivityIndicator color={COLORS.onBrand} />
           ) : (
             <>
-              <Ionicons name="trash" size={20} color={COLORS.onBrand} />
+              <Trash2 size={20} color={COLORS.onBrand} strokeWidth={2} />
               <Text style={styles.deleteBtnText}>מחק את החשבון לצמיתות</Text>
             </>
           )}
         </TouchableOpacity>
 
         {/* כפתור ביטול */}
-        <TouchableOpacity
-          style={styles.cancelBtn}
+        <Button
+          label="ביטול - חזרה להגדרות"
           onPress={() => router.back()}
+          variant="ghost"
+          size="md"
           disabled={deleting}
-          activeOpacity={0.7}
-        >
-          <Text style={styles.cancelBtnText}>ביטול - חזרה להגדרות</Text>
-        </TouchableOpacity>
+          style={styles.cancelBtn}
+        />
       </ScrollView>
-    </SafeAreaView>
+    </Screen>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: COLORS.background },
-
-  headerRow: {
-    flexDirection: "row-reverse",
-    justifyContent: "space-between",
-    alignItems: "center",
-    paddingHorizontal: 20,
-    paddingTop: 20,
-    paddingBottom: 10,
-  },
-
-  header: {
-    fontSize: 20,
-    fontFamily: FONTS.bold,
-    color: COLORS.brand,
-  },
-
   content: {
-    paddingHorizontal: 22,
-    paddingTop: 8,
-    paddingBottom: 40,
+    paddingHorizontal: SPACING.xl,
+    paddingTop: SPACING.sm,
+    paddingBottom: SPACING.xxxl,
   },
 
   warningCard: {
     backgroundColor: COLORS.dangerLight,
     borderColor: COLORS.dangerBorder,
     borderWidth: 1,
-    borderRadius: 16,
-    padding: 18,
+    borderRadius: RADIUS.lg,
+    padding: SPACING.lg,
     alignItems: "center",
-    marginBottom: 24,
+    marginBottom: SPACING.xxl,
   },
-
   warningTitle: {
-    fontSize: 18,
-    fontFamily: FONTS.bold,
+    ...TYPOGRAPHY.h3,
     color: COLORS.danger,
-    marginTop: 8,
-    marginBottom: 6,
+    marginTop: SPACING.sm,
+    marginBottom: SPACING.xs + 2,
   },
-
   warningText: {
-    fontSize: 14,
+    ...TYPOGRAPHY.body,
     color: COLORS.danger,
-    fontFamily: FONTS.regular,
     textAlign: "center",
-    lineHeight: 22,
   },
 
   sectionTitle: {
-    fontSize: 16,
-    fontFamily: FONTS.bold,
-    color: COLORS.brand,
+    ...TYPOGRAPHY.h3,
+    color: COLORS.text,
     textAlign: "right",
-    marginBottom: 10,
-    marginTop: 8,
+    marginBottom: SPACING.sm,
   },
-
   itemsList: {
     backgroundColor: COLORS.surface,
-    borderRadius: 14,
-    padding: 14,
-    marginBottom: 22,
+    borderRadius: RADIUS.lg,
+    borderWidth: 1,
+    borderColor: COLORS.hairline,
+    padding: SPACING.md,
+    marginBottom: SPACING.xxl,
   },
-
   itemRow: {
     flexDirection: "row-reverse",
     alignItems: "center",
-    gap: 10,
-    paddingVertical: 6,
+    gap: SPACING.sm + 2,
+    paddingVertical: SPACING.xs + 2,
   },
-
   itemText: {
+    ...TYPOGRAPHY.body,
     flex: 1,
-    fontSize: 14,
-    color: COLORS.brand,
-    fontFamily: FONTS.regular,
+    color: COLORS.text,
     textAlign: "right",
   },
 
   deleteBtn: {
     backgroundColor: COLORS.danger,
-    paddingVertical: 16,
-    borderRadius: 14,
+    height: 54,
+    borderRadius: RADIUS.lg,
     flexDirection: "row-reverse",
     alignItems: "center",
     justifyContent: "center",
-    gap: 8,
-    marginBottom: 12,
+    gap: SPACING.sm,
+    marginBottom: SPACING.sm,
   },
-
+  deleteBtnOff: { opacity: 0.6 },
   deleteBtnText: {
-    color: COLORS.surface,
-    fontSize: 16,
-    fontFamily: FONTS.bold,
+    ...TYPOGRAPHY.button,
+    color: COLORS.onBrand,
   },
 
-  cancelBtn: {
-    paddingVertical: 14,
-    alignItems: "center",
-  },
-
-  cancelBtnText: {
-    color: COLORS.textSecondary,
-    fontSize: 15,
-    fontFamily: FONTS.regular,
-  },
+  cancelBtn: { marginTop: SPACING.xs },
 });

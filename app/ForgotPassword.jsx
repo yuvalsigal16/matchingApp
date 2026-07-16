@@ -1,21 +1,23 @@
-import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
-import React, { useState } from "react";
+import { useState } from "react";
 import {
-  ActivityIndicator,
   KeyboardAvoidingView,
   Platform,
   ScrollView,
   StyleSheet,
   Text,
-  TextInput,
   TouchableOpacity,
   View,
 } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
+import { MailCheck } from "lucide-react-native";
 
 import { apiForgotPassword } from "./src/api/authService";
-import { COLORS, FONTS } from "./src/theme";
+import { COLORS, FONTS, SPACING, TYPOGRAPHY } from "./src/theme";
+import Screen from "../components/ui/Screen";
+import ScreenHeader from "../components/ui/ScreenHeader";
+import Input from "../components/ui/Input";
+import Button from "../components/ui/Button";
+import EmptyState from "../components/ui/EmptyState";
 
 const isValidEmail = (val) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(val.trim());
 
@@ -57,20 +59,11 @@ export default function ForgotPasswordScreen() {
   };
 
   return (
-    <SafeAreaView style={styles.safe}>
-      {/* כפתור חזרה */}
-      <TouchableOpacity
-        style={styles.backBtn}
-        onPress={() => router.back()}
-        hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-        accessibilityRole="button"
-        accessibilityLabel="חזרה"
-      >
-        <Ionicons name="arrow-forward" size={26} color={COLORS.brand} />
-      </TouchableOpacity>
+    <Screen>
+      <ScreenHeader title="" onBack={() => router.back()} />
 
       <KeyboardAvoidingView
-        style={{ flex: 1 }}
+        style={styles.flex}
         behavior={Platform.OS === "ios" ? "padding" : undefined}
       >
         <ScrollView
@@ -79,21 +72,14 @@ export default function ForgotPasswordScreen() {
           showsVerticalScrollIndicator={false}
         >
           {sent ? (
-            // ── מצב אחרי שליחה — הודעה גנרית ── //
-            <View style={styles.sentBox}>
-              <View style={styles.iconCircle}>
-                <Ionicons name="mail-outline" size={40} color={COLORS.brand} />
-              </View>
-              <Text style={styles.title}>בדקו את המייל</Text>
-              <Text style={styles.sentText}>{GENERIC_MESSAGE}</Text>
-              <TouchableOpacity
-                style={styles.mainButton}
-                onPress={() => router.replace("/Login")}
-                activeOpacity={0.85}
-              >
-                <Text style={styles.mainButtonText}>חזרה להתחברות</Text>
-              </TouchableOpacity>
-            </View>
+            // ── מצב אחרי שליחה — הודעה גנרית (anti-enumeration) ── //
+            <EmptyState
+              Icon={MailCheck}
+              title="בדקו את המייל"
+              subtitle={GENERIC_MESSAGE}
+              actionLabel="חזרה להתחברות"
+              onAction={() => router.replace("/Login")}
+            />
           ) : (
             // ── טופס בקשת איפוס ── //
             <>
@@ -103,204 +89,89 @@ export default function ForgotPasswordScreen() {
               </Text>
 
               <View style={styles.form}>
-                <TextInput
-                  style={[styles.input, emailError ? styles.inputError : null]}
-                  placeholder="כתובת אימייל"
-                  placeholderTextColor={COLORS.textMuted}
+                <Input
                   value={email}
                   onChangeText={(v) => {
                     setEmail(v);
                     setEmailError("");
                     setApiError("");
                   }}
+                  placeholder="כתובת אימייל"
                   keyboardType="email-address"
                   autoCapitalize="none"
-                  autoCorrect={false}
-                  textAlign="right"
+                  error={emailError}
+                  accessibilityLabel="כתובת אימייל"
                 />
-                {emailError ? (
-                  <Text style={styles.errorText}>{emailError}</Text>
-                ) : null}
-              </View>
 
-              {apiError ? (
-                <Text style={styles.apiErrorText}>{apiError}</Text>
-              ) : null}
+                {apiError ? <Text style={styles.apiErrorText}>{apiError}</Text> : null}
 
-              <TouchableOpacity
-                style={[styles.mainButton, loading && styles.mainButtonDisabled]}
-                onPress={handleSubmit}
-                activeOpacity={0.85}
-                disabled={loading}
-              >
-                {loading ? (
-                  <ActivityIndicator color={COLORS.onBrand} />
-                ) : (
-                  <Text style={styles.mainButtonText}>שליחת קישור איפוס</Text>
-                )}
-              </TouchableOpacity>
+                <Button
+                  label="שליחת קישור איפוס"
+                  onPress={handleSubmit}
+                  loading={loading}
+                  size="lg"
+                  style={styles.submitBtn}
+                />
 
-              <View style={styles.centeredRow}>
-                <TouchableOpacity
-                  onPress={() => router.replace("/Login")}
-                  activeOpacity={0.7}
-                >
-                  <Text style={styles.linkText}>חזרה להתחברות</Text>
-                </TouchableOpacity>
-                <Text style={styles.mutedText}>נזכרתם בסיסמה? </Text>
+                <View style={styles.linkRow}>
+                  <TouchableOpacity
+                    onPress={() => router.replace("/Login")}
+                    activeOpacity={0.7}
+                  >
+                    <Text style={styles.linkText}>חזרה להתחברות</Text>
+                  </TouchableOpacity>
+                  <Text style={styles.mutedText}>נזכרתם בסיסמה? </Text>
+                </View>
               </View>
             </>
           )}
         </ScrollView>
       </KeyboardAvoidingView>
-    </SafeAreaView>
+    </Screen>
   );
 }
 
 const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: COLORS.background },
-
-  backBtn: {
-    position: "absolute",
-    top: 54,
-    right: 20,
-    zIndex: 10,
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: COLORS.surface,
-    justifyContent: "center",
-    alignItems: "center",
-    shadowColor: COLORS.shadow,
-    shadowOpacity: 0.06,
-    shadowRadius: 4,
-    elevation: 2,
-  },
-
+  flex: { flex: 1 },
   scroll: {
     flexGrow: 1,
     justifyContent: "center",
     alignItems: "center",
-    paddingHorizontal: 28,
-    paddingVertical: 32,
+    paddingHorizontal: SPACING.xl,
+    paddingVertical: SPACING.xxl,
   },
 
   title: {
-    fontSize: 30,
-    fontFamily: FONTS.extraBold,
+    ...TYPOGRAPHY.h1,
     color: COLORS.text,
     textAlign: "center",
-    marginBottom: 12,
+    marginBottom: SPACING.md,
   },
-
   subtitle: {
-    fontSize: 15,
-    fontFamily: FONTS.regular,
+    ...TYPOGRAPHY.body,
     color: COLORS.textSecondary,
     textAlign: "center",
-    lineHeight: 22,
-    marginBottom: 28,
-    paddingHorizontal: 6,
+    marginBottom: SPACING.xxl,
+    paddingHorizontal: SPACING.xs,
   },
 
-  form: { width: "100%", marginBottom: 6 },
-
-  input: {
-    width: "100%",
-    height: 54,
-    borderRadius: 30,
-    borderWidth: 1.5,
-    borderColor: COLORS.border,
-    paddingHorizontal: 20,
-    fontSize: 16,
-    fontFamily: FONTS.regular,
-    color: COLORS.text,
-    marginBottom: 6,
-    backgroundColor: COLORS.surface,
-  },
-
-  inputError: { borderColor: COLORS.danger },
-
-  errorText: {
-    color: COLORS.danger,
-    fontSize: 12,
-    fontFamily: FONTS.regular,
-    textAlign: "right",
-    marginBottom: 8,
-    marginRight: 8,
-  },
+  form: { width: "100%" },
 
   apiErrorText: {
+    ...TYPOGRAPHY.caption,
     color: COLORS.danger,
-    fontSize: 14,
-    fontFamily: FONTS.regular,
     textAlign: "center",
-    marginTop: 12,
+    marginTop: SPACING.md,
   },
 
-  mainButton: {
-    width: "100%",
-    height: 54,
-    backgroundColor: COLORS.brand,
-    borderRadius: 30,
-    justifyContent: "center",
-    alignItems: "center",
-    marginTop: 20,
-    shadowColor: COLORS.shadow,
-    shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.15,
-    shadowRadius: 6,
-    elevation: 4,
-  },
+  submitBtn: { marginTop: SPACING.lg },
 
-  mainButtonDisabled: {
-    backgroundColor: COLORS.textMuted,
-    shadowOpacity: 0,
-    elevation: 0,
-  },
-
-  mainButtonText: {
-    color: COLORS.onBrand,
-    fontSize: 17,
-    fontFamily: FONTS.bold,
-    letterSpacing: 0.5,
-  },
-
-  centeredRow: {
+  linkRow: {
     flexDirection: "row",
     justifyContent: "center",
     alignItems: "center",
-    marginTop: 18,
+    marginTop: SPACING.lg,
   },
-  mutedText: {
-    color: COLORS.textSecondary,
-    fontSize: 14,
-    fontFamily: FONTS.regular,
-  },
-  linkText: {
-    color: COLORS.brand,
-    fontSize: 14,
-    fontFamily: FONTS.bold,
-  },
-
-  // ── מצב "נשלח" ── //
-  sentBox: { width: "100%", alignItems: "center" },
-  iconCircle: {
-    width: 88,
-    height: 88,
-    borderRadius: 44,
-    backgroundColor: COLORS.brandLight,
-    justifyContent: "center",
-    alignItems: "center",
-    marginBottom: 20,
-  },
-  sentText: {
-    fontSize: 15,
-    fontFamily: FONTS.regular,
-    color: COLORS.textSecondary,
-    textAlign: "center",
-    lineHeight: 23,
-    marginBottom: 8,
-    paddingHorizontal: 10,
-  },
+  mutedText: { ...TYPOGRAPHY.caption, color: COLORS.textSecondary },
+  linkText: { ...TYPOGRAPHY.caption, fontFamily: FONTS.bold, color: COLORS.brand },
 });

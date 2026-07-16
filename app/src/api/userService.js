@@ -5,30 +5,13 @@ import { BASE_URL } from "./config";
 // ה-SP בשרת מסנן אוטומטית את המשתמש הנוכחי + משתמשים חסומים.
 export async function getAllUsers(currentUserId) {
   const url = `${BASE_URL}/User?currentUserId=${currentUserId}`;
-  console.log(`[userService] → GET ${url}`);
-  try {
-    // ה-endpoint דורש עכשיו טוקן (Authorization). התוכן זהה — כל המשתמשים.
-    const token = getToken();
-    const response = await fetch(url, {
-      headers: token ? { Authorization: `Bearer ${token}` } : {},
-    });
-    console.log(`[userService] ← ${response.status} ${response.statusText}`);
+  // ה-endpoint דורש טוקן (Authorization). התוכן זהה — כל המשתמשים.
+  const token = getToken();
+  const response = await fetch(url, {
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
+  });
 
-    if (!response.ok) {
-      const text = await response.text();
-      console.log(`[userService] error body:`, text);
-      throw new Error("Failed to fetch users");
-    }
+  if (!response.ok) throw new Error("Failed to fetch users");
 
-    const data = await response.json();
-    console.log(`[userService] got ${Array.isArray(data) ? data.length : "?"} users`);
-    if (Array.isArray(data) && data[0]) {
-      console.log(`[userService] first user keys:`, Object.keys(data[0]));
-      console.log(`[userService] first user:`, JSON.stringify(data[0]).slice(0, 300));
-    }
-    return data;
-  } catch (error) {
-    console.log("Error in getAllUsers:", error);
-    throw error;
-  }
+  return response.json();
 }

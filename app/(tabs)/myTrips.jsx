@@ -41,7 +41,7 @@ export default function MyTripsScreen() {
       const data = text ? JSON.parse(text) : [];
       setTrips(data);
     } catch (err) {
-      console.log("Trips error:", err);
+      console.error("Trips error:", err);
     } finally {
       setLoading(false);
     }

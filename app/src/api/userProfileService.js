@@ -6,7 +6,6 @@ import { BASE_URL } from "./config";
 // 404 מהשרת מתורגם ל-null כי הוא משמעותו הלגיטימית "אין פרופיל".
 export async function getUserProfile(userId) {
   const url = `${BASE_URL}/UserProfile/${userId}`;
-  console.log(`[userProfile] → GET ${url}`);
 
   const token = getToken();
   let res;
@@ -17,12 +16,9 @@ export async function getUserProfile(userId) {
     });
   } catch (networkErr) {
     console.error(`[userProfile] ✖ network error:`, networkErr);
-    throw new Error(
-      `לא ניתן להתחבר לשרת (${url}). פרטים: ${networkErr.message}`,
-    );
+    throw new Error("לא ניתן להתחבר כרגע. נסו שוב מאוחר יותר.");
   }
 
-  console.log(`[userProfile] ← ${res.status} ${res.statusText}`);
 
   // אין פרופיל — מצב לגיטימי
   if (res.status === 404) return null;
@@ -44,7 +40,6 @@ export async function getUserProfile(userId) {
 // פונקציית POST ליצירת רשומת פרופיל חדשה עבור המשתמש בבסיס הנתונים
 export async function createUserProfile(profile) {
   const url = `${BASE_URL}/UserProfile`;
-  console.log(`[userProfile] → POST ${url}`, profile);
 
   const token = getToken();
   let res;
@@ -59,13 +54,10 @@ export async function createUserProfile(profile) {
     });
   } catch (networkErr) {
     console.error(`[userProfile] ✖ network error:`, networkErr);
-    throw new Error(
-      `לא ניתן להתחבר לשרת (${url}). פרטים: ${networkErr.message}`,
-    );
+    throw new Error("לא ניתן להתחבר כרגע. נסו שוב מאוחר יותר.");
   }
 
   const text = await res.text();
-  console.log(`[userProfile] ← ${res.status} ${res.statusText}`, text);
 
   if (!res.ok) {
     let msg = text;
@@ -84,7 +76,6 @@ export async function createUserProfile(profile) {
 // השרת מעדכן את הרשומה הקיימת לפי UserID.
 export async function updateUserProfile(profile) {
   const url = `${BASE_URL}/UserProfile`;
-  console.log(`[userProfile] → PUT ${url}`, profile);
 
   const token = getToken();
   let res;
@@ -99,13 +90,10 @@ export async function updateUserProfile(profile) {
     });
   } catch (networkErr) {
     console.error(`[userProfile] ✖ network error:`, networkErr);
-    throw new Error(
-      `לא ניתן להתחבר לשרת (${url}). פרטים: ${networkErr.message}`,
-    );
+    throw new Error("לא ניתן להתחבר כרגע. נסו שוב מאוחר יותר.");
   }
 
   const text = await res.text();
-  console.log(`[userProfile] ← ${res.status} ${res.statusText}`, text);
 
   if (!res.ok) {
     let msg = text;
@@ -122,7 +110,6 @@ export async function updateUserProfile(profile) {
 export async function uploadProfileImage(userId, localUri) {
 
   const url = `${BASE_URL}/UserProfile/updateImage/${userId}`;
-  console.log(`[userProfile] → PUT ${url} (image)`);
 
   //מנסה למצוא את סוג הקובץ מתוך הכתובת
   const match = /\.([a-zA-Z0-9]+)$/.exec(localUri);
@@ -164,7 +151,6 @@ export async function uploadProfileImage(userId, localUri) {
   }
 
   const text = await res.text();
-  console.log(`[userProfile] ← image ${res.status}`, text);
 
   if (!res.ok) {
     let msg = text;
@@ -182,7 +168,6 @@ export async function uploadProfileImage(userId, localUri) {
 // השרת מצפה ל-DELETE /api/UserProfile/deleteImage/{userId} ומחזיר { ok: true } בהצלחה.
 export async function deleteProfileImage(userId) {
   const url = `${BASE_URL}/UserProfile/deleteImage/${userId}`;
-  console.log(`[userProfile] → DELETE ${url}`);
 
   const token = getToken();
   let res;
@@ -198,7 +183,6 @@ export async function deleteProfileImage(userId) {
   }
 
   const text = await res.text();
-  console.log(`[userProfile] ← delete ${res.status}`, text);
 
   if (!res.ok) {
     let msg = text;

@@ -1,21 +1,22 @@
-import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
-  ActivityIndicator,
   KeyboardAvoidingView,
   Platform,
   ScrollView,
   StyleSheet,
   Text,
   TextInput,
-  TouchableOpacity,
   View,
 } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
+import { Check } from "lucide-react-native";
 
 import { createCommunity } from "./src/api/communityService";
-import { COLORS, FONTS } from "./src/theme";
+import { COLORS, RADIUS, SPACING, TYPOGRAPHY } from "./src/theme";
+import Screen from "../components/ui/Screen";
+import ScreenHeader from "../components/ui/ScreenHeader";
+import Input from "../components/ui/Input";
+import Button from "../components/ui/Button";
 
 const MIN_NAME = 3;
 
@@ -76,21 +77,13 @@ export default function CommunityCreateScreen() {
   }, [name, description, submitting, created, router]);
 
   return (
-    <SafeAreaView style={styles.container} edges={["top", "left", "right"]}>
-      {/* ── HEADER ── */}
-      <View style={styles.header}>
-        <TouchableOpacity
-          onPress={() => router.back()}
-          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-          accessibilityRole="button"
-          accessibilityLabel="חזרה"
-          disabled={disabled}
-        >
-          <Ionicons name="arrow-forward" size={24} color={COLORS.brand} />
-        </TouchableOpacity>
-        <Text style={styles.headerTitle}>קהילה חדשה</Text>
-        <View style={{ width: 24 }} />
-      </View>
+    <Screen>
+      <ScreenHeader
+        title="קהילה חדשה"
+        onBack={() => {
+          if (!disabled) router.back();
+        }}
+      />
 
       <KeyboardAvoidingView
         style={styles.flex}
@@ -103,31 +96,30 @@ export default function CommunityCreateScreen() {
         >
           {created ? (
             <View style={styles.successBanner}>
-              <Ionicons name="checkmark-circle" size={20} color={COLORS.onBrand} />
+              <Check size={18} color={COLORS.onBrand} strokeWidth={2.4} />
               <Text style={styles.successText}>הקהילה נוצרה בהצלחה</Text>
             </View>
           ) : null}
 
           <Text style={styles.label}>שם הקהילה *</Text>
-          <TextInput
+          <Input
             value={name}
             onChangeText={setName}
             placeholder="לדוגמה: טיולים בדרום אמריקה"
-            placeholderTextColor={COLORS.textMuted}
-            style={styles.input}
-            textAlign="right"
             maxLength={60}
             editable={!disabled}
             returnKeyType="next"
+            accessibilityLabel="שם הקהילה"
           />
 
-          <Text style={styles.label}>תיאור (לא חובה)</Text>
+          <Text style={[styles.label, styles.labelSpaced]}>תיאור (לא חובה)</Text>
+          {/* שדה רב-שורתי מקומי בסגנון Input (primitive ה-Input הוא חד-שורתי). */}
           <TextInput
             value={description}
             onChangeText={setDescription}
             placeholder="ספרו על הקהילה..."
             placeholderTextColor={COLORS.textMuted}
-            style={[styles.input, styles.inputMulti]}
+            style={styles.multiInput}
             textAlign="right"
             multiline
             maxLength={200}
@@ -136,91 +128,66 @@ export default function CommunityCreateScreen() {
 
           {error ? <Text style={styles.errorText}>{error}</Text> : null}
 
-          <TouchableOpacity
-            style={[styles.submitBtn, (!valid || disabled) && styles.submitBtnDisabled]}
+          <Button
+            label="יצירת קהילה"
             onPress={handleSubmit}
+            loading={submitting}
             disabled={!valid || disabled}
-            activeOpacity={0.85}
-            accessibilityRole="button"
+            size="lg"
+            style={styles.submitBtn}
             accessibilityLabel="יצירת קהילה"
-          >
-            {submitting ? (
-              <ActivityIndicator color={COLORS.onBrand} size="small" />
-            ) : (
-              <Text style={styles.submitText}>יצירת קהילה</Text>
-            )}
-          </TouchableOpacity>
+          />
         </ScrollView>
       </KeyboardAvoidingView>
-    </SafeAreaView>
+    </Screen>
   );
 }
 
 const styles = StyleSheet.create({
   flex: { flex: 1 },
-  container: { flex: 1, backgroundColor: COLORS.background },
 
-  header: {
-    flexDirection: "row-reverse",
-    alignItems: "center",
-    justifyContent: "space-between",
-    paddingVertical: 12,
-    paddingHorizontal: 16,
-    backgroundColor: COLORS.surface,
-    borderBottomWidth: 1,
-    borderBottomColor: COLORS.border,
-  },
-  headerTitle: { fontSize: 17, fontFamily: FONTS.bold, color: COLORS.text },
-
-  body: { padding: 20, gap: 4 },
+  body: { paddingHorizontal: SPACING.xl, paddingTop: SPACING.sm, paddingBottom: SPACING.xxxl },
 
   successBanner: {
     flexDirection: "row-reverse",
     alignItems: "center",
-    gap: 8,
+    gap: SPACING.sm,
     backgroundColor: COLORS.brand,
-    borderRadius: 12,
-    paddingVertical: 12,
-    paddingHorizontal: 16,
-    marginBottom: 16,
+    borderRadius: RADIUS.md,
+    paddingVertical: SPACING.md,
+    paddingHorizontal: SPACING.lg,
+    marginBottom: SPACING.lg,
   },
-  successText: { color: COLORS.onBrand, fontFamily: FONTS.bold, fontSize: 14 },
+  successText: { ...TYPOGRAPHY.bodyBold, color: COLORS.onBrand },
 
   label: {
-    fontSize: 13,
-    fontFamily: FONTS.bold,
+    ...TYPOGRAPHY.caption,
     color: COLORS.textSecondary,
     textAlign: "right",
-    marginBottom: 6,
-    marginTop: 10,
+    marginBottom: SPACING.xs + 2,
   },
-  input: {
+  labelSpaced: { marginTop: SPACING.lg },
+
+  // שדה רב-שורתי — מראה תואם ל-Input: surface, מסגרת-שיער, פינות RADIUS.lg.
+  multiInput: {
+    ...TYPOGRAPHY.body,
     backgroundColor: COLORS.surface,
-    borderRadius: 12,
-    paddingHorizontal: 14,
-    paddingVertical: 12,
-    fontSize: 15,
-    fontFamily: FONTS.regular,
+    borderWidth: 1.5,
+    borderColor: COLORS.hairline,
+    borderRadius: RADIUS.lg,
+    paddingHorizontal: SPACING.lg,
+    paddingVertical: SPACING.md,
     color: COLORS.text,
-    textAlign: "right",
+    minHeight: 100,
+    textAlignVertical: "top",
   },
-  inputMulti: { minHeight: 100, textAlignVertical: "top" },
 
   errorText: {
-    color: COLORS.danger || "#DC2626",
-    fontFamily: FONTS.regular,
-    fontSize: 13,
+    ...TYPOGRAPHY.caption,
+    color: COLORS.danger,
     textAlign: "right",
-    marginTop: 10,
+    marginTop: SPACING.md,
   },
 
-  submitBtn: {
-    backgroundColor: COLORS.brand,
-    borderRadius: 14,
-    paddingVertical: 15,
-    alignItems: "center",
-    marginTop: 24,
-  },
-  submitBtnDisabled: { backgroundColor: COLORS.textMuted },
-  submitText: { color: COLORS.onBrand, fontSize: 16, fontFamily: FONTS.bold },
+  submitBtn: { marginTop: SPACING.xl },
 });

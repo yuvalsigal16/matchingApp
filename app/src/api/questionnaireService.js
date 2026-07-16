@@ -10,7 +10,6 @@ function safeParse(text) {
 // 404 → null (אין שאלון).
 export async function getQuestionnaire(userId) {
   const url = `${BASE_URL}/Questionnaire/${userId}`;
-  console.log(`[questionnaire] → GET ${url}`);
 
   let res;
   try {
@@ -20,7 +19,6 @@ export async function getQuestionnaire(userId) {
     throw new Error(`לא ניתן להתחבר לשרת. פרטים: ${networkErr.message}`);
   }
 
-  console.log(`[questionnaire] ← ${res.status} ${res.statusText}`);
   if (res.status === 404) return null;
 
   const text = await res.text();
@@ -36,7 +34,6 @@ export async function getQuestionnaire(userId) {
 // q = אובייקט שאלון מלא הכולל QuestionnaireID + UserID + שאר השדות.
 export async function updateQuestionnaire(q) {
   const url = `${BASE_URL}/Questionnaire`;
-  console.log(`[questionnaire] → PUT ${url}`, q);
 
   let res;
   try {
@@ -51,7 +48,6 @@ export async function updateQuestionnaire(q) {
   }
 
   const text = await res.text();
-  console.log(`[questionnaire] ← ${res.status}`, text);
 
   if (!res.ok) {
     let msg = text;
@@ -65,7 +61,6 @@ export async function updateQuestionnaire(q) {
 // q = { UserID, IsSmoker, KeepsKosher, KeepsShabbat, SpontaneityLevel, LifestyleLevel, SocialNetworks }
 export async function createQuestionnaire(q) {
   const url = `${BASE_URL}/Questionnaire`;
-  console.log(`[questionnaire] → POST ${url}`, q);
 
   let res;
   try {
@@ -77,12 +72,9 @@ export async function createQuestionnaire(q) {
     });
   } catch (networkErr) {
     console.error(`[questionnaire] ✖ network error:`, networkErr);
-    throw new Error(
-      `לא ניתן להתחבר לשרת (${url}). פרטים: ${networkErr.message}`,
-    );
+    throw new Error("לא ניתן להתחבר כרגע. נסו שוב מאוחר יותר.");
   }
 
-  console.log(`[questionnaire] ← ${res.status} ${res.statusText}`);
 
   const text = await res.text();
   // בדיקת תקינות התשובה מהשרת וחילוץ הודעת שגיאה במידה והפעולה נכשלה

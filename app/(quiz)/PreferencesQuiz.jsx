@@ -402,7 +402,7 @@ export default function PreferencesQuizScreen() {
         // קפוץ ישר לשלב הראשון הממשי (דלג על מסך intro)
         setStep(1);
       } catch (err) {
-        console.log("[editTrip] load error:", err);
+        console.error("[editTrip] load error:", err);
       }
     })();
   }, [mode, tripId]);

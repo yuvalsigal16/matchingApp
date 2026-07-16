@@ -25,12 +25,14 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
-import { Check, ChevronRight, MapPin, Sparkles, User, Users, X } from "lucide-react-native";
+import { Check, MapPin, Sparkles, User, Users, X } from "lucide-react-native";
 
 import BottomNav from "../../components/BottomNav";
 import Screen from "../../components/ui/Screen";
+import ScreenHeader from "../../components/ui/ScreenHeader";
 import Avatar from "../../components/ui/Avatar";
 import SectionLabel from "../../components/ui/SectionLabel";
+import EmptyState from "../../components/ui/EmptyState";
 import Tappable from "../../components/ui/Tappable";
 import MatchReasons from "../../components/ui/MatchReasons";
 import { buildMatchReasons } from "../src/utils/matchReasons";
@@ -195,7 +197,7 @@ export default function MatchesScreen() {
         pairsRes.status === "fulfilled" ? pairsRes.value || [] : [],
       );
     } catch (err) {
-      console.log("Failed loading users:", err);
+      console.error("Failed loading users:", err);
     } finally {
       setLoading(false);
     }
@@ -374,22 +376,9 @@ export default function MatchesScreen() {
     [renderMatchCard],
   );
 
-  // כותרת המסך — חץ חזרה מימין (RTL) + כותרת. משמשת גם בטעינה וגם בתוכן.
+  // כותרת המסך — ScreenHeader המשותף (חץ חזרה מימין + כותרת). משמש בטעינה ובתוכן.
   const header = (
-    <View style={styles.header}>
-      <TouchableOpacity
-        onPress={() => router.back()}
-        hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-        accessibilityRole="button"
-        accessibilityLabel="חזרה"
-      >
-        <ChevronRight size={26} color={COLORS.brand} strokeWidth={2.2} />
-      </TouchableOpacity>
-      <Text style={styles.headerTitle} numberOfLines={1}>
-        התאמות עבורך
-      </Text>
-      <View style={styles.headerSpacer} />
-    </View>
+    <ScreenHeader title="התאמות עבורך" onBack={() => router.back()} />
   );
 
   // מצב טעינה — שלד סטטי של כרטיסים (במקום ספינר), כדי שהמעבר לתוכן ירגיש חלק.
@@ -519,15 +508,12 @@ export default function MatchesScreen() {
           </>
         }
         ListEmptyComponent={
-          <View style={styles.empty}>
-            <View style={styles.emptyIcon}>
-              <Users size={30} color={COLORS.brand} strokeWidth={1.8} />
-            </View>
-            <Text style={styles.emptyTitle}>עדיין אין התאמות</Text>
-            <Text style={styles.emptySub}>
-              השלימו את הפרופיל וההעדפות — וכך נמצא לכם שותפים שבאמת מתאימים לכם.
-            </Text>
-          </View>
+          <EmptyState
+            Icon={Users}
+            title="עדיין אין התאמות"
+            subtitle="השלימו את הפרופיל וההעדפות — וכך נמצא לכם שותפים שבאמת מתאימים לכם."
+            style={styles.empty}
+          />
         }
       />
 
@@ -537,24 +523,6 @@ export default function MatchesScreen() {
 }
 
 const styles = StyleSheet.create({
-  // ── כותרת ──
-  header: {
-    flexDirection: "row-reverse",
-    alignItems: "center",
-    justifyContent: "space-between",
-    paddingHorizontal: SPACING.xl,
-    paddingTop: SPACING.md,
-    paddingBottom: SPACING.sm,
-  },
-  headerTitle: {
-    ...TYPOGRAPHY.h1,
-    color: COLORS.text,
-    textAlign: "right",
-    flex: 1,
-    marginHorizontal: SPACING.md,
-  },
-  headerSpacer: { width: 26 },
-
   content: {
     paddingHorizontal: SPACING.xl,
     paddingTop: SPACING.xs,
@@ -562,9 +530,8 @@ const styles = StyleSheet.create({
   },
 
   intro: {
+    ...TYPOGRAPHY.body,
     fontFamily: FONTS.medium,
-    fontSize: 15,
-    lineHeight: 22,
     color: COLORS.textSecondary,
     textAlign: "right",
     marginBottom: SPACING.xl,
@@ -588,14 +555,13 @@ const styles = StyleSheet.create({
   },
   requestInfo: { flex: 1, alignItems: "flex-end" },
   requestName: {
+    ...TYPOGRAPHY.body,
     fontFamily: FONTS.semibold,
-    fontSize: 15,
     color: COLORS.text,
     textAlign: "right",
   },
   requestMeta: {
-    fontFamily: FONTS.regular,
-    fontSize: 13,
+    ...TYPOGRAPHY.caption,
     color: COLORS.textSecondary,
     textAlign: "right",
     marginTop: 2,
@@ -619,8 +585,7 @@ const styles = StyleSheet.create({
   railHeaderPad: { paddingHorizontal: SPACING.xl },
   railLabel: { marginBottom: 2 },
   railSub: {
-    fontFamily: FONTS.regular,
-    fontSize: 13,
+    ...TYPOGRAPHY.caption,
     color: COLORS.textMuted,
     textAlign: "right",
     marginBottom: SPACING.md,
@@ -680,6 +645,8 @@ const styles = StyleSheet.create({
     paddingHorizontal: 8,
     borderRadius: RADIUS.pill,
   },
+  // מידה קומפקטית מכוונת לתג האחוז (בין tiny 11 ל-caption 13) — נשמרת כמות שהיא
+  // כדי לא לשנות את מראה אות-ההתאמה החתימתי.
   scoreBadgeText: {
     fontFamily: FONTS.bold,
     fontSize: 12,
@@ -692,8 +659,8 @@ const styles = StyleSheet.create({
     paddingBottom: SPACING.md,
   },
   cardName: {
+    ...TYPOGRAPHY.body,
     fontFamily: FONTS.semibold,
-    fontSize: 15,
     color: COLORS.text,
     textAlign: "right",
   },
@@ -704,8 +671,7 @@ const styles = StyleSheet.create({
     marginTop: 3,
   },
   cityText: {
-    fontFamily: FONTS.regular,
-    fontSize: 12.5,
+    ...TYPOGRAPHY.caption,
     color: COLORS.textMuted,
     textAlign: "right",
     flexShrink: 1,
@@ -714,34 +680,8 @@ const styles = StyleSheet.create({
   // מרווח עליון לסיבות ההתאמה (הרכיב המשותף MatchReasons מטפל בשאר).
   cardReasons: { marginTop: SPACING.sm },
 
-  // ── מצב ריק ──
-  empty: {
-    alignItems: "center",
-    paddingTop: SPACING.xxxl,
-    paddingHorizontal: SPACING.lg,
-  },
-  emptyIcon: {
-    width: 64,
-    height: 64,
-    borderRadius: RADIUS.pill,
-    backgroundColor: COLORS.brandLight,
-    justifyContent: "center",
-    alignItems: "center",
-    marginBottom: SPACING.lg,
-  },
-  emptyTitle: {
-    ...TYPOGRAPHY.h3,
-    color: COLORS.text,
-    textAlign: "center",
-    marginBottom: SPACING.xs,
-  },
-  emptySub: {
-    fontFamily: FONTS.regular,
-    fontSize: 15,
-    lineHeight: 22,
-    color: COLORS.textSecondary,
-    textAlign: "center",
-  },
+  // ── מצב ריק ── (EmptyState המשותף; כאן רק ההיסט העליון בתוך ה-FlatList)
+  empty: { paddingTop: SPACING.xxxl },
 
   // ── שלד טעינה (סטטי) ──
   skelIntro: {
@@ -760,16 +700,16 @@ const styles = StyleSheet.create({
   skelLine: {
     height: 12,
     width: "70%",
-    borderRadius: 6,
+    borderRadius: RADIUS.sm,
     backgroundColor: COLORS.backgroundSunk,
     alignSelf: "flex-end",
   },
   skelLineShort: {
     height: 12,
     width: "45%",
-    borderRadius: 6,
+    borderRadius: RADIUS.sm,
     backgroundColor: COLORS.backgroundSunk,
     alignSelf: "flex-end",
-    marginTop: 8,
+    marginTop: SPACING.sm,
   },
 });

@@ -2,24 +2,34 @@
 // מצב שגיאה, וכפתור עין מובנה לסיסמאות. מחליף את שדות ה-pill הידניים
 // שחזרו בכל מסכי הטופס (Login/Register/ForgotPassword/ChangePassword...).
 import { Eye, EyeOff } from "lucide-react-native";
-import { useState } from "react";
+import { forwardRef, useState } from "react";
 import { Pressable, StyleSheet, Text, TextInput, View } from "react-native";
 import { COLORS, FONTS, RADIUS, SPACING } from "../../app/src/theme";
 
-export default function Input({
-  value,
-  onChangeText,
-  onBlur,
-  placeholder,
-  error,
-  secure = false,
-  keyboardType,
-  autoCapitalize = "none",
-  autoComplete,
-  textContentType,
-  accessibilityLabel,
-  style,
-}) {
+// forwardRef: מאפשר למסך להחזיק ref לשדה הפנימי (למשל מיקוד יזום) בלי לשבור
+// קוראים קיימים (שאינם מעבירים ref). התנהגות זהה לחלוטין כשאין ref.
+const Input = forwardRef(function Input(
+  {
+    value,
+    onChangeText,
+    onBlur,
+    placeholder,
+    error,
+    secure = false,
+    keyboardType,
+    autoCapitalize = "none",
+    autoComplete,
+    textContentType,
+    autoFocus,
+    onSubmitEditing,
+    returnKeyType,
+    maxLength,
+    editable,
+    accessibilityLabel,
+    style,
+  },
+  ref,
+) {
   const [focused, setFocused] = useState(false);
   const [show, setShow] = useState(false);
 
@@ -49,6 +59,7 @@ export default function Input({
         ) : null}
 
         <TextInput
+          ref={ref}
           style={styles.input}
           value={value}
           onChangeText={onChangeText}
@@ -64,6 +75,11 @@ export default function Input({
           autoCapitalize={autoCapitalize}
           autoComplete={autoComplete}
           textContentType={textContentType}
+          autoFocus={autoFocus}
+          onSubmitEditing={onSubmitEditing}
+          returnKeyType={returnKeyType}
+          maxLength={maxLength}
+          editable={editable}
           autoCorrect={false}
           textAlign="right"
           accessibilityLabel={accessibilityLabel || placeholder}
@@ -73,7 +89,9 @@ export default function Input({
       {error ? <Text style={styles.error}>{error}</Text> : null}
     </View>
   );
-}
+});
+
+export default Input;
 
 const styles = StyleSheet.create({
   wrap: {

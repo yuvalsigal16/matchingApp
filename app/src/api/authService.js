@@ -16,9 +16,7 @@ async function postJson(path, body) {
     });
   } catch (networkErr) {
     console.error(`[authService] ✖ network error on ${url}:`, networkErr);
-    throw new Error(
-      `לא ניתן להתחבר לשרת (${url}). פרטים: ${networkErr.message}`,
-    );
+    throw new Error("לא ניתן להתחבר כרגע. נסו שוב מאוחר יותר.");
   }
 
   // קבלת התשובה מהשרת והפיכתה מטקסט חזרה לאובייקט JavaScript
