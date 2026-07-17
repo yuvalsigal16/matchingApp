@@ -1,18 +1,12 @@
-import { Ionicons } from "@expo/vector-icons";
 import Constants from "expo-constants";
 import { useRouter } from "expo-router";
-import React from "react";
-import {
-  Image,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TouchableOpacity,
-  View,
-} from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
+import { Image, ScrollView, StyleSheet, Text, View } from "react-native";
+import { User } from "lucide-react-native";
 
-import { COLORS, FONTS } from "./src/theme";
+import { COLORS, FONTS, RADIUS, SPACING, TYPOGRAPHY } from "./src/theme";
+import Screen from "../components/ui/Screen";
+import ScreenHeader from "../components/ui/ScreenHeader";
+import Card from "../components/ui/Card";
 
 // שליפת מספר גרסה אוטומטית מ-app.json. אם לא קיים - נציג "1.0.0".
 const APP_VERSION = Constants.expoConfig?.version || "1.0.0";
@@ -29,16 +23,10 @@ export default function AboutScreen() {
   const router = useRouter();
 
   return (
-    <SafeAreaView style={styles.container}>
-      <View style={styles.headerRow}>
-        <TouchableOpacity onPress={() => router.back()}>
-          <Ionicons name="arrow-forward" size={26} color={COLORS.brand} />
-        </TouchableOpacity>
-        <Text style={styles.header}>אודות</Text>
-        <View style={{ width: 26 }} />
-      </View>
+    <Screen>
+      <ScreenHeader title="אודות" onBack={() => router.back()} />
 
-      <ScrollView contentContainerStyle={styles.content}>
+      <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         {/* Hero - לוגו + שם + סלוגן */}
         <View style={styles.hero}>
           <Image
@@ -54,28 +42,28 @@ export default function AboutScreen() {
         </View>
 
         {/* תיאור האפליקציה */}
-        <View style={styles.card}>
+        <Card style={styles.card}>
           <Text style={styles.sectionTitle}>על האפליקציה</Text>
           <Text style={styles.bodyText}>
             צמד חמד היא אפליקציה לחיבור בין אנשים המחפשים פרטנר לטיול הבא. האפליקציה
             מתאימה בין משתמשים על בסיס תחומי עניין משותפים, אורח חיים והעדפות אישיות,
             ומאפשרת תקשורת ישירה לתכנון הטיול יחד.
           </Text>
-        </View>
+        </Card>
 
         {/* צוות הפיתוח */}
-        <View style={styles.card}>
+        <Card style={styles.card}>
           <Text style={styles.sectionTitle}>צוות הפיתוח</Text>
           {TEAM.map((name, index) => (
             <View key={index} style={styles.teamRow}>
-              <Ionicons name="person-circle-outline" size={20} color={COLORS.brand} />
+              <User size={18} color={COLORS.brand} strokeWidth={2} />
               <Text style={styles.teamName}>{name}</Text>
             </View>
           ))}
-        </View>
+        </Card>
 
         {/* פרטי הפרויקט */}
-        <View style={styles.card}>
+        <Card style={styles.card}>
           <Text style={styles.sectionTitle}>פרויקט גמר</Text>
           <View style={styles.metaRow}>
             <Text style={styles.metaLabel}>מסלול</Text>
@@ -91,148 +79,91 @@ export default function AboutScreen() {
               React Native, ASP.NET Core, SQL Server
             </Text>
           </View>
-        </View>
+        </Card>
 
         {/* Footer */}
         <Text style={styles.footer}>© 2026 צמד חמד</Text>
       </ScrollView>
-    </SafeAreaView>
+    </Screen>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: COLORS.background },
-
-  headerRow: {
-    flexDirection: "row-reverse",
-    justifyContent: "space-between",
-    alignItems: "center",
-    paddingHorizontal: 20,
-    paddingTop: 20,
-    paddingBottom: 10,
-  },
-
-  header: {
-    fontSize: 20,
-    fontFamily: FONTS.bold,
-    color: COLORS.brand,
-  },
-
   content: {
-    paddingHorizontal: 20,
-    paddingBottom: 40,
+    paddingHorizontal: SPACING.xl,
+    paddingBottom: SPACING.xxxl,
   },
 
-  // ====== Hero ======
+  // ── Hero ──
   hero: {
     alignItems: "center",
-    paddingVertical: 24,
-    marginBottom: 18,
+    paddingVertical: SPACING.xxl,
+    marginBottom: SPACING.lg,
   },
-
-  logo: {
-    width: 110,
-    height: 110,
-    marginBottom: 8,
-  },
-
+  logo: { width: 110, height: 110, marginBottom: SPACING.sm },
+  // שם המותג בהירו — שימוש brand מכוון (wordmark), לא טקסט רגיל.
   appName: {
-    fontSize: 28,
-    fontFamily: FONTS.extraBold,
+    ...TYPOGRAPHY.h1,
     color: COLORS.brand,
-    marginTop: 4,
+    marginTop: SPACING.xs,
   },
-
   tagline: {
-    fontSize: 14,
+    ...TYPOGRAPHY.body,
     color: COLORS.textSecondary,
-    fontFamily: FONTS.regular,
-    marginTop: 6,
+    marginTop: SPACING.xs + 2,
   },
-
   versionBadge: {
-    marginTop: 12,
+    marginTop: SPACING.md,
     backgroundColor: COLORS.brandLight,
-    paddingHorizontal: 12,
-    paddingVertical: 5,
-    borderRadius: 12,
+    paddingHorizontal: SPACING.md,
+    paddingVertical: SPACING.xs + 1,
+    borderRadius: RADIUS.md,
   },
-
   versionText: {
-    fontSize: 12,
+    ...TYPOGRAPHY.caption,
     fontFamily: FONTS.bold,
     color: COLORS.brand,
   },
 
-  // ====== Cards ======
-  card: {
-    backgroundColor: COLORS.surface,
-    borderRadius: 14,
-    padding: 16,
-    marginBottom: 14,
-    shadowColor: COLORS.shadow,
-    shadowOpacity: 0.04,
-    shadowRadius: 5,
-    elevation: 1,
-  },
-
+  // ── Cards ──
+  card: { marginBottom: SPACING.md },
   sectionTitle: {
-    fontSize: 15,
-    fontFamily: FONTS.bold,
-    color: COLORS.brand,
-    textAlign: "right",
-    marginBottom: 10,
-  },
-
-  bodyText: {
-    fontSize: 14,
+    ...TYPOGRAPHY.bodyBold,
     color: COLORS.text,
-    fontFamily: FONTS.regular,
     textAlign: "right",
-    lineHeight: 22,
+    marginBottom: SPACING.sm,
   },
+  bodyText: { ...TYPOGRAPHY.body, color: COLORS.text, textAlign: "right" },
 
-  // ====== Team ======
+  // ── Team ──
   teamRow: {
     flexDirection: "row-reverse",
     alignItems: "center",
-    gap: 10,
-    paddingVertical: 6,
+    gap: SPACING.sm,
+    paddingVertical: SPACING.xs + 2,
   },
+  teamName: { ...TYPOGRAPHY.body, color: COLORS.text },
 
-  teamName: {
-    fontSize: 14,
-    fontFamily: FONTS.regular,
-    color: COLORS.brand,
-  },
-
-  // ====== Project meta ======
+  // ── Project meta ──
   metaRow: {
     flexDirection: "row-reverse",
     justifyContent: "space-between",
-    paddingVertical: 6,
+    paddingVertical: SPACING.xs + 2,
   },
-
-  metaLabel: {
-    fontSize: 13,
-    color: COLORS.textMuted,
-    fontFamily: FONTS.regular,
-  },
-
+  metaLabel: { ...TYPOGRAPHY.caption, color: COLORS.textMuted },
   metaValue: {
-    fontSize: 13,
-    fontFamily: FONTS.bold,
-    color: COLORS.brand,
+    ...TYPOGRAPHY.caption,
+    fontFamily: FONTS.semibold,
+    color: COLORS.text,
     maxWidth: "70%",
     textAlign: "left",
   },
 
-  // ====== Footer ======
+  // ── Footer ──
   footer: {
-    textAlign: "center",
-    fontSize: 12,
+    ...TYPOGRAPHY.caption,
     color: COLORS.textMuted,
-    fontFamily: FONTS.regular,
-    marginTop: 8,
+    textAlign: "center",
+    marginTop: SPACING.sm,
   },
 });

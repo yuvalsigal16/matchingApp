@@ -1,21 +1,22 @@
-import { Ionicons } from "@expo/vector-icons";
 import { useFocusEffect, useRouter } from "expo-router";
-import React, { useCallback, useState } from "react";
+import { useCallback, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
-  Image,
   ScrollView,
   StyleSheet,
   Text,
   TouchableOpacity,
   View,
 } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
+import { ShieldCheck } from "lucide-react-native";
 
 import { getBlockedUsers, unblockUser } from "./src/api/blockService";
-import { buildImageUri } from "./src/utils/image";
-import { COLORS, FONTS } from "./src/theme";
+import { COLORS, FONTS, RADIUS, SHADOWS, SPACING, TYPOGRAPHY } from "./src/theme";
+import Screen from "../components/ui/Screen";
+import ScreenHeader from "../components/ui/ScreenHeader";
+import Avatar from "../components/ui/Avatar";
+import EmptyState from "../components/ui/EmptyState";
 
 // פורמט תאריך פשוט: DD/MM/YYYY
 function formatDate(raw) {
@@ -25,6 +26,42 @@ function formatDate(raw) {
   const dd = String(d.getDate()).padStart(2, "0");
   const mm = String(d.getMonth() + 1).padStart(2, "0");
   return `${dd}/${mm}/${d.getFullYear()}`;
+}
+
+// BlockedRow — שורת משתמש חסום (מקומית): אווטר + שם/תאריך + כפתור ביטול-חסימה.
+// ListRow לא מתאים (דורש אווטר במקום עיגול-אייקון + פעולת trailing מותאמת).
+function BlockedRow({ user, unblocking, onUnblock }) {
+  const name =
+    [user.firstName, user.lastName].filter(Boolean).join(" ").trim() ||
+    `משתמש #${user.blockedUserID}`;
+
+  return (
+    <View style={styles.row}>
+      <Avatar uri={user.profileImage} name={name} size="md" />
+
+      <View style={styles.info}>
+        <Text style={styles.name} numberOfLines={1}>
+          {name}
+        </Text>
+        <Text style={styles.date}>נחסם ב-{formatDate(user.blockedAt)}</Text>
+      </View>
+
+      <TouchableOpacity
+        style={[styles.unblockBtn, unblocking && styles.unblockOff]}
+        onPress={onUnblock}
+        disabled={unblocking}
+        activeOpacity={0.85}
+        accessibilityRole="button"
+        accessibilityLabel={`ביטול חסימה של ${name}`}
+      >
+        {unblocking ? (
+          <ActivityIndicator size="small" color={COLORS.brand} />
+        ) : (
+          <Text style={styles.unblockText}>בטל חסימה</Text>
+        )}
+      </TouchableOpacity>
+    </View>
+  );
 }
 
 export default function BlockedUsersScreen() {
@@ -83,197 +120,97 @@ export default function BlockedUsersScreen() {
     }
   };
 
-  // רנדור שורה של משתמש חסום.
-  const renderUser = (user) => {
-    const name = [user.firstName, user.lastName]
-      .filter(Boolean)
-      .join(" ")
-      .trim();
-    const imageUri = buildImageUri(user.profileImage);
-    const isUnblocking = unblockingId === user.blockedUserID;
-
-    return (
-      <View key={user.blockID} style={styles.card}>
-        {imageUri ? (
-          <Image source={{ uri: imageUri }} style={styles.avatar} />
-        ) : (
-          <View style={[styles.avatar, styles.avatarFallback]}>
-            <Ionicons name="person" size={24} color={COLORS.onBrand} />
-          </View>
-        )}
-
-        <View style={styles.info}>
-          <Text style={styles.name}>
-            {name || `משתמש #${user.blockedUserID}`}
-          </Text>
-          <Text style={styles.date}>נחסם ב-{formatDate(user.blockedAt)}</Text>
-        </View>
-
-        <TouchableOpacity
-          style={[styles.unblockBtn, isUnblocking && { opacity: 0.6 }]}
-          onPress={() => handleUnblock(user)}
-          disabled={isUnblocking}
-          activeOpacity={0.85}
-        >
-          {isUnblocking ? (
-            <ActivityIndicator size="small" color={COLORS.brand} />
-          ) : (
-            <Text style={styles.unblockText}>בטל חסימה</Text>
-          )}
-        </TouchableOpacity>
-      </View>
-    );
-  };
-
   return (
-    <SafeAreaView style={styles.container}>
-      <View style={styles.headerRow}>
-        <TouchableOpacity onPress={() => router.back()}>
-          <Ionicons name="arrow-forward" size={26} color={COLORS.brand} />
-        </TouchableOpacity>
-        <Text style={styles.header}>משתמשים חסומים</Text>
-        <View style={{ width: 26 }} />
-      </View>
+    <Screen>
+      <ScreenHeader title="משתמשים חסומים" onBack={() => router.back()} />
 
       {loading ? (
         <View style={styles.centerBox}>
           <ActivityIndicator size="large" color={COLORS.brand} />
         </View>
       ) : users.length === 0 ? (
-        // מצב ריק - אייקון + הסבר ידידותי.
         <View style={styles.centerBox}>
-          <Ionicons name="shield-checkmark-outline" size={64} color={COLORS.textMuted} />
-          <Text style={styles.emptyTitle}>אין משתמשים חסומים</Text>
-          <Text style={styles.emptyText}>
-            כשתחסום משתמש, הוא יופיע כאן ויהיה אפשר לבטל את החסימה בכל רגע.
-          </Text>
+          <EmptyState
+            Icon={ShieldCheck}
+            title="אין משתמשים חסומים"
+            subtitle="כשתחסום משתמש, הוא יופיע כאן ויהיה אפשר לבטל את החסימה בכל רגע."
+          />
         </View>
       ) : (
-        <ScrollView contentContainerStyle={styles.content}>
+        <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
           <Text style={styles.subTitle}>
             המשתמשים האלה לא יוכלו לראות את הפרופיל שלך או ליצור איתך קשר.
           </Text>
-          {users.map(renderUser)}
+          {users.map((u) => (
+            <BlockedRow
+              key={u.blockID}
+              user={u}
+              unblocking={unblockingId === u.blockedUserID}
+              onUnblock={() => handleUnblock(u)}
+            />
+          ))}
         </ScrollView>
       )}
-    </SafeAreaView>
+    </Screen>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: COLORS.background },
-
-  headerRow: {
-    flexDirection: "row-reverse",
-    justifyContent: "space-between",
-    alignItems: "center",
-    paddingHorizontal: 20,
-    paddingTop: 20,
-    paddingBottom: 10,
-  },
-
-  header: {
-    fontSize: 20,
-    fontFamily: FONTS.bold,
-    color: COLORS.brand,
-  },
-
   content: {
-    paddingHorizontal: 20,
-    paddingBottom: 40,
+    paddingHorizontal: SPACING.xl,
+    paddingBottom: SPACING.xxxl,
   },
-
   subTitle: {
-    fontSize: 13,
+    ...TYPOGRAPHY.caption,
     color: COLORS.textSecondary,
-    fontFamily: FONTS.regular,
     textAlign: "right",
-    marginBottom: 14,
-    lineHeight: 20,
+    marginTop: SPACING.xs,
+    marginBottom: SPACING.md,
   },
 
-  // ====== מצב ריק / טעינה ======
   centerBox: {
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
-    paddingHorizontal: 32,
   },
 
-  emptyTitle: {
-    fontSize: 18,
-    fontFamily: FONTS.bold,
-    color: COLORS.brand,
-    marginTop: 14,
-  },
-
-  emptyText: {
-    fontSize: 14,
-    color: COLORS.textMuted,
-    fontFamily: FONTS.regular,
-    textAlign: "center",
-    marginTop: 8,
-    lineHeight: 22,
-  },
-
-  // ====== כרטיס משתמש ======
-  card: {
+  // ── שורת משתמש חסום ──
+  row: {
     flexDirection: "row-reverse",
     alignItems: "center",
+    gap: SPACING.md,
     backgroundColor: COLORS.surface,
-    padding: 12,
-    borderRadius: 14,
-    marginBottom: 10,
-    shadowColor: COLORS.shadow,
-    shadowOpacity: 0.04,
-    shadowRadius: 5,
-    elevation: 1,
+    borderRadius: RADIUS.lg,
+    borderWidth: 1,
+    borderColor: COLORS.hairline,
+    padding: SPACING.md,
+    marginBottom: SPACING.sm,
+    ...SHADOWS.sm,
   },
-
-  avatar: {
-    width: 50,
-    height: 50,
-    borderRadius: 25,
-    backgroundColor: COLORS.divider,
-    marginLeft: 12,
-  },
-
-  avatarFallback: {
-    backgroundColor: COLORS.primary,
-    justifyContent: "center",
-    alignItems: "center",
-  },
-
-  info: {
-    flex: 1,
-    alignItems: "flex-end",
-  },
-
+  info: { flex: 1, alignItems: "flex-end" },
   name: {
-    fontSize: 15,
-    fontFamily: FONTS.bold,
-    color: COLORS.brand,
+    ...TYPOGRAPHY.body,
+    fontFamily: FONTS.semibold,
+    color: COLORS.text,
+    textAlign: "right",
   },
-
   date: {
-    fontSize: 12,
+    ...TYPOGRAPHY.caption,
     color: COLORS.textMuted,
-    fontFamily: FONTS.regular,
-    marginTop: 3,
+    marginTop: 2,
   },
-
   unblockBtn: {
     backgroundColor: COLORS.brandLight,
-    paddingHorizontal: 14,
-    paddingVertical: 8,
-    borderRadius: 10,
+    paddingHorizontal: SPACING.md,
+    paddingVertical: SPACING.sm,
+    borderRadius: RADIUS.pill,
     minWidth: 84,
     alignItems: "center",
   },
-
+  unblockOff: { opacity: 0.6 },
   unblockText: {
-    color: COLORS.brand,
+    ...TYPOGRAPHY.caption,
     fontFamily: FONTS.bold,
-    fontSize: 13,
+    color: COLORS.brand,
   },
 });

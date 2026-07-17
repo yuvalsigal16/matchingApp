@@ -1,4 +1,3 @@
-import { Ionicons } from "@expo/vector-icons";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
@@ -11,11 +10,11 @@ import {
   Pressable,
   StyleSheet,
   Text,
-  TextInput,
   TouchableOpacity,
   View,
 } from "react-native";
-import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { Check, ClipboardList, CloudOff, ListChecks, Plus } from "lucide-react-native";
 
 import {
   addTask,
@@ -24,8 +23,37 @@ import {
   setTaskDone,
 } from "../src/api/todoService";
 import { getUser } from "../src/auth/authStore";
-import { COLORS, FONTS } from "../src/theme";
+import { COLORS, RADIUS, SHADOWS, SPACING, TYPOGRAPHY } from "../src/theme";
+import Screen from "../../components/ui/Screen";
+import ScreenHeader from "../../components/ui/ScreenHeader";
+import EmptyState from "../../components/ui/EmptyState";
+import Input from "../../components/ui/Input";
+import Button from "../../components/ui/Button";
 import Snackbar from "../../components/Snackbar";
+
+// TaskRow — שורת משימה (מקומית): תיבת-סימון + כותרת עם קו-חוצה בהשלמה,
+// לחיצה = סימון, לחיצה-ארוכה = מחיקה. ListRow לא מתאים (אין checkbox/קו-חוצה/long-press).
+function TaskRow({ task, onToggle, onDelete }) {
+  const done = task.isDone;
+  return (
+    <TouchableOpacity
+      style={styles.taskCard}
+      activeOpacity={0.8}
+      onPress={() => onToggle(task)}
+      onLongPress={() => onDelete(task)}
+      accessibilityRole="checkbox"
+      accessibilityState={{ checked: done }}
+      accessibilityLabel={task.taskText}
+    >
+      <Text style={[styles.taskText, done && styles.taskTextDone]} numberOfLines={2}>
+        {task.taskText}
+      </Text>
+      <View style={[styles.checkbox, done && styles.checkboxDone]}>
+        {done ? <Check size={16} color={COLORS.onBrand} strokeWidth={3} /> : null}
+      </View>
+    </TouchableOpacity>
+  );
+}
 
 export default function TripToDoScreen() {
   const router = useRouter();
@@ -86,7 +114,12 @@ export default function TripToDoScreen() {
     load();
   }, [load]);
 
-  const doneCount = tasks.filter((t) => t.isDone).length;
+  // תצוגה בלבד: פעילות תחילה, הושלמו בסוף — בלי לשנות את מערך ה-state/הסדר בשרת.
+  const activeTasks = tasks.filter((t) => !t.isDone);
+  const doneTasks = tasks.filter((t) => t.isDone);
+  const displayTasks = [...activeTasks, ...doneTasks];
+
+  const doneCount = doneTasks.length;
   const total = tasks.length;
   const pct = total ? Math.round((doneCount / total) * 100) : 0;
 
@@ -160,70 +193,43 @@ export default function TripToDoScreen() {
   };
 
   const renderTask = ({ item }) => (
-    <TouchableOpacity
-      style={styles.taskCard}
-      activeOpacity={0.8}
-      onPress={() => toggleDone(item)}
-      onLongPress={() => confirmDelete(item)}
-      accessibilityRole="checkbox"
-      accessibilityState={{ checked: item.isDone }}
-      accessibilityLabel={item.taskText}
-    >
-      <Text
-        style={[styles.taskText, item.isDone && styles.taskTextDone]}
-        numberOfLines={2}
-      >
-        {item.taskText}
-      </Text>
-      <View style={[styles.checkbox, item.isDone && styles.checkboxDone]}>
-        {item.isDone ? <Ionicons name="checkmark" size={16} color={COLORS.onBrand} /> : null}
-      </View>
-    </TouchableOpacity>
+    <TaskRow task={item} onToggle={toggleDone} onDelete={confirmDelete} />
   );
 
-  return (
-    <SafeAreaView style={styles.container} edges={["top", "left", "right"]}>
-      {/* HEADER */}
-      <View style={styles.topBar}>
-        <TouchableOpacity
-          onPress={() => router.back()}
-          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-          accessibilityRole="button"
-          accessibilityLabel="חזרה"
-        >
-          <Ionicons name="arrow-forward" size={26} color={COLORS.brand} />
-        </TouchableOpacity>
-      </View>
+  const openAdd = () => {
+    setText("");
+    setModalVisible(true);
+  };
 
-      <View style={styles.titleBlock}>
-        <Text style={styles.bigTitle} numberOfLines={1}>
-          {name || "הטיול שלי"}
-        </Text>
-        <View style={styles.subtitleRow}>
-          <Ionicons name="checkmark-done" size={15} color={COLORS.coral} />
-          <Text style={styles.subtitle}>רשימת משימות</Text>
-        </View>
+  return (
+    <Screen edges={["top", "left", "right"]}>
+      <ScreenHeader title={name || "הטיול שלי"} onBack={() => router.back()} />
+
+      {/* חיווי רשימת-משימות — brand במקום קורל */}
+      <View style={styles.lead}>
+        <ListChecks size={15} color={COLORS.brand} strokeWidth={2} />
+        <Text style={styles.leadText}>רשימת משימות</Text>
       </View>
 
       <View style={styles.flex}>
         {loading ? (
           <View style={styles.center}>
             <ActivityIndicator size="large" color={COLORS.brand} />
-            <Text style={styles.stateSub}>טוען משימות...</Text>
+            <Text style={styles.loadingText}>טוען משימות...</Text>
           </View>
         ) : loadError ? (
-          <View style={styles.stateBox}>
-            <View style={styles.stateIcon}>
-              <Ionicons name="cloud-offline-outline" size={38} color={COLORS.brand} />
-            </View>
-            <Text style={styles.stateTitle}>לא ניתן לטעון משימות כרגע</Text>
-            <TouchableOpacity style={styles.retryBtn} onPress={load}>
-              <Text style={styles.retryText}>נסו שוב</Text>
-            </TouchableOpacity>
+          <View style={styles.stateWrap}>
+            <EmptyState
+              Icon={CloudOff}
+              title="לא ניתן לטעון משימות כרגע"
+              subtitle="בדקו את החיבור ונסו שוב."
+              actionLabel="נסו שוב"
+              onAction={load}
+            />
           </View>
         ) : (
           <FlatList
-            data={tasks}
+            data={displayTasks}
             keyExtractor={(item) => String(item.taskID)}
             renderItem={renderTask}
             contentContainerStyle={
@@ -246,49 +252,28 @@ export default function TripToDoScreen() {
               ) : null
             }
             ListEmptyComponent={
-              <View style={styles.stateBox}>
-                <View style={styles.stateIcon}>
-                  <Ionicons name="checkmark-done-outline" size={38} color={COLORS.brand} />
-                </View>
-                <Text style={styles.stateTitle}>אין עדיין משימות</Text>
-                <Text style={styles.stateSub}>
-                  כאן תרכזו כל מה שצריך להכין לקראת הטיול המשותף
-                </Text>
-                <TouchableOpacity
-                  style={styles.emptyBtn}
-                  onPress={() => {
-                    setText("");
-                    setModalVisible(true);
-                  }}
-                  activeOpacity={0.85}
-                  accessibilityRole="button"
-                  accessibilityLabel="הוספת משימה ראשונה"
-                >
-                  <Ionicons name="add" size={18} color={COLORS.onBrand} />
-                  <Text style={styles.emptyBtnText}>הוספת משימה ראשונה</Text>
-                </TouchableOpacity>
-              </View>
+              <EmptyState
+                Icon={ClipboardList}
+                title="אין עדיין משימות"
+                subtitle="כאן תרכזו כל מה שצריך להכין לקראת הטיול המשותף"
+                actionLabel="הוספת משימה ראשונה"
+                onAction={openAdd}
+              />
             }
           />
         )}
-
       </View>
 
       {/* כפתור הוספה — עוגן תחתון קבוע */}
       <View style={[styles.addDock, { paddingBottom: insets.bottom + 10 }]}>
-        <TouchableOpacity
-          style={styles.addBtn}
-          onPress={() => {
-            setText("");
-            setModalVisible(true);
-          }}
-          activeOpacity={0.9}
-          accessibilityRole="button"
+        <Button
+          label="הוספת משימה"
+          Icon={Plus}
+          onPress={openAdd}
+          size="lg"
+          style={styles.dockBtn}
           accessibilityLabel="הוספת משימה"
-        >
-          <Ionicons name="add" size={22} color={COLORS.onBrand} />
-          <Text style={styles.addBtnText}>הוספת משימה</Text>
-        </TouchableOpacity>
+        />
       </View>
 
       {/* Modal — משימה חדשה (bottom sheet) */}
@@ -309,132 +294,111 @@ export default function TripToDoScreen() {
             <View style={styles.sheetHandle} />
             <Text style={styles.sheetTitle}>משימה חדשה</Text>
 
-            <TextInput
+            <Input
               value={text}
               onChangeText={setText}
               placeholder="לדוגמה: להזמין טיסות"
-              placeholderTextColor={COLORS.textMuted}
-              style={styles.sheetInput}
-              textAlign="right"
               autoFocus
               onSubmitEditing={handleAdd}
               returnKeyType="done"
+              accessibilityLabel="תיאור המשימה"
             />
 
-            <TouchableOpacity
-              style={[styles.sheetBtn, (!text.trim() || adding) && styles.sheetBtnDisabled]}
+            <Button
+              label="הוספה"
               onPress={handleAdd}
+              loading={adding}
               disabled={!text.trim() || adding}
-              activeOpacity={0.85}
-            >
-              {adding ? (
-                <ActivityIndicator color={COLORS.onBrand} size="small" />
-              ) : (
-                <Text style={styles.sheetBtnText}>הוספה</Text>
-              )}
-            </TouchableOpacity>
+              size="lg"
+              style={styles.sheetBtn}
+            />
           </View>
         </View>
       </Modal>
 
-      <Snackbar
-        text={snack}
-        onHide={() => setSnack("")}
-        bottom={insets.bottom + 84}
-      />
-    </SafeAreaView>
+      <Snackbar text={snack} onHide={() => setSnack("")} bottom={insets.bottom + 84} />
+    </Screen>
   );
 }
 
 const styles = StyleSheet.create({
   flex: { flex: 1 },
-  container: { flex: 1, backgroundColor: COLORS.background },
-  center: { flex: 1, justifyContent: "center", alignItems: "center", gap: 12 },
 
-  topBar: {
+  lead: {
     flexDirection: "row-reverse",
     alignItems: "center",
-    paddingHorizontal: 20,
-    paddingTop: 14,
+    gap: 6,
+    paddingHorizontal: SPACING.xl,
+    marginTop: SPACING.xs,
+    marginBottom: SPACING.md,
   },
-  titleBlock: {
-    paddingHorizontal: 20,
-    paddingTop: 6,
-    paddingBottom: 14,
-    alignItems: "flex-end",
-  },
-  bigTitle: { fontSize: 28, fontFamily: FONTS.bold, color: COLORS.text, textAlign: "right" },
-  subtitleRow: {
-    flexDirection: "row-reverse",
-    alignItems: "center",
-    gap: 5,
-    marginTop: 4,
-  },
-  subtitle: { fontSize: 14, fontFamily: FONTS.regular, color: COLORS.textSecondary },
+  leadText: { ...TYPOGRAPHY.body, color: COLORS.textSecondary },
 
-  listContent: { paddingHorizontal: 20, paddingTop: 4, paddingBottom: 20 },
+  center: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    gap: SPACING.md,
+  },
+  loadingText: { ...TYPOGRAPHY.body, color: COLORS.textMuted, textAlign: "center" },
+  stateWrap: { flex: 1, justifyContent: "center" },
+
+  listContent: {
+    paddingHorizontal: SPACING.xl,
+    paddingTop: SPACING.xs,
+    paddingBottom: SPACING.xl,
+  },
   emptyContent: {
     flexGrow: 1,
     justifyContent: "center",
     alignItems: "center",
-    paddingHorizontal: 20,
   },
 
-  // ── Progress ──
+  // ── התקדמות ──
   progressCard: {
     backgroundColor: COLORS.surface,
-    borderRadius: 16,
-    padding: 16,
-    marginBottom: 16,
-    shadowColor: COLORS.shadow,
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 6,
-    elevation: 2,
+    borderRadius: RADIUS.lg,
+    borderWidth: 1,
+    borderColor: COLORS.hairline,
+    padding: SPACING.lg,
+    marginBottom: SPACING.lg,
+    ...SHADOWS.sm,
   },
   progressTopRow: {
     flexDirection: "row-reverse",
     justifyContent: "space-between",
     alignItems: "center",
-    marginBottom: 10,
+    marginBottom: SPACING.sm,
   },
-  progressLabel: { fontSize: 14, fontFamily: FONTS.bold, color: COLORS.text },
-  progressPct: { fontSize: 14, fontFamily: FONTS.bold, color: COLORS.brand },
+  progressLabel: { ...TYPOGRAPHY.bodyBold, color: COLORS.text },
+  progressPct: { ...TYPOGRAPHY.bodyBold, color: COLORS.brand },
   progressTrack: {
     height: 8,
-    borderRadius: 4,
+    borderRadius: RADIUS.sm,
     backgroundColor: COLORS.divider,
     overflow: "hidden",
   },
   progressFill: {
     height: 8,
-    borderRadius: 4,
+    borderRadius: RADIUS.sm,
     backgroundColor: COLORS.brand,
   },
 
-  // ── Task card ──
+  // ── שורת משימה ──
   taskCard: {
     flexDirection: "row-reverse",
     alignItems: "center",
-    gap: 12,
+    gap: SPACING.md,
     backgroundColor: COLORS.surface,
-    borderRadius: 14,
-    paddingVertical: 15,
-    paddingHorizontal: 16,
-    marginBottom: 10,
-    shadowColor: COLORS.shadow,
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.04,
-    shadowRadius: 5,
-    elevation: 1,
+    borderRadius: RADIUS.lg,
+    borderWidth: 1,
+    borderColor: COLORS.hairline,
+    paddingVertical: SPACING.md + 2,
+    paddingHorizontal: SPACING.lg,
+    marginBottom: SPACING.sm,
+    ...SHADOWS.sm,
   },
-  taskText: {
-    flex: 1,
-    fontSize: 15,
-    fontFamily: FONTS.regular,
-    color: COLORS.text,
-    textAlign: "right",
-  },
+  taskText: { ...TYPOGRAPHY.body, flex: 1, color: COLORS.text, textAlign: "right" },
   taskTextDone: {
     color: COLORS.textMuted,
     textDecorationLine: "line-through",
@@ -442,7 +406,7 @@ const styles = StyleSheet.create({
   checkbox: {
     width: 24,
     height: 24,
-    borderRadius: 8,
+    borderRadius: RADIUS.sm,
     borderWidth: 2,
     borderColor: COLORS.border,
     justifyContent: "center",
@@ -453,80 +417,26 @@ const styles = StyleSheet.create({
     borderColor: COLORS.brand,
   },
 
-  // ── States ──
-  stateBox: { flex: 1, alignItems: "center", justifyContent: "center", paddingHorizontal: 40 },
-  stateIcon: {
-    width: 74,
-    height: 74,
-    borderRadius: 37,
-    backgroundColor: COLORS.surface,
-    justifyContent: "center",
-    alignItems: "center",
-    marginBottom: 14,
-  },
-  stateTitle: { fontFamily: FONTS.bold, fontSize: 16, color: COLORS.text, textAlign: "center" },
-  stateSub: {
-    fontFamily: FONTS.regular,
-    fontSize: 13,
-    color: COLORS.textSecondary,
-    textAlign: "center",
-    marginTop: 6,
-    lineHeight: 20,
-  },
-  retryBtn: {
-    marginTop: 16,
-    backgroundColor: COLORS.brand,
-    paddingHorizontal: 20,
-    paddingVertical: 10,
-    borderRadius: 20,
-  },
-  retryText: { color: COLORS.onBrand, fontFamily: FONTS.bold, fontSize: 14 },
-  emptyBtn: {
-    flexDirection: "row-reverse",
-    alignItems: "center",
-    gap: 7,
-    backgroundColor: COLORS.brand,
-    borderRadius: 22,
-    paddingHorizontal: 20,
-    paddingVertical: 12,
-    marginTop: 18,
-  },
-  emptyBtnText: { color: COLORS.onBrand, fontFamily: FONTS.bold, fontSize: 14 },
-
-  // ── Add button (docked) ──
+  // ── כפתור הוספה נעוץ ──
   addDock: {
-    paddingHorizontal: 20,
-    paddingTop: 10,
+    paddingHorizontal: SPACING.xl,
+    paddingTop: SPACING.md,
     backgroundColor: COLORS.background,
   },
-  addBtn: {
-    flexDirection: "row-reverse",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 8,
-    backgroundColor: COLORS.brand,
-    borderRadius: 16,
-    paddingVertical: 16,
-    shadowColor: COLORS.brand,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.25,
-    shadowRadius: 8,
-    elevation: 4,
-  },
-  addBtnText: { color: COLORS.onBrand, fontSize: 16, fontFamily: FONTS.bold },
+  dockBtn: { ...SHADOWS.md },
 
-  // ── Add modal (bottom sheet) ──
+  // ── חלון הוספה (bottom sheet) ──
   modalOverlay: {
     flex: 1,
     justifyContent: "flex-end",
-    backgroundColor: "rgba(0,0,0,0.4)",
+    backgroundColor: COLORS.scrim,
   },
   sheet: {
     backgroundColor: COLORS.surface,
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
-    paddingHorizontal: 20,
-    paddingTop: 12,
+    borderTopLeftRadius: RADIUS.xl,
+    borderTopRightRadius: RADIUS.xl,
+    paddingHorizontal: SPACING.xl,
+    paddingTop: SPACING.md,
   },
   sheetHandle: {
     width: 40,
@@ -534,33 +444,13 @@ const styles = StyleSheet.create({
     borderRadius: 2,
     backgroundColor: COLORS.border,
     alignSelf: "center",
-    marginBottom: 16,
+    marginBottom: SPACING.lg,
   },
   sheetTitle: {
-    fontSize: 18,
-    fontFamily: FONTS.bold,
-    color: COLORS.brand,
-    textAlign: "right",
-    marginBottom: 16,
-  },
-  sheetInput: {
-    backgroundColor: COLORS.background,
-    borderRadius: 14,
-    paddingHorizontal: 16,
-    paddingVertical: 14,
-    fontSize: 16,
-    fontFamily: FONTS.regular,
+    ...TYPOGRAPHY.h3,
     color: COLORS.text,
-    borderWidth: 1,
-    borderColor: COLORS.border,
+    textAlign: "right",
+    marginBottom: SPACING.lg,
   },
-  sheetBtn: {
-    backgroundColor: COLORS.brand,
-    borderRadius: 14,
-    paddingVertical: 15,
-    alignItems: "center",
-    marginTop: 16,
-  },
-  sheetBtnDisabled: { backgroundColor: COLORS.textMuted },
-  sheetBtnText: { color: COLORS.onBrand, fontSize: 16, fontFamily: FONTS.bold },
+  sheetBtn: { marginTop: SPACING.lg },
 });

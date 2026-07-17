@@ -68,4 +68,6 @@ export const COLORS = {
 
   // ============= UTILITIES =============
   shadow: "#000000",
+  // כיסוי חצי-שקוף מאחורי modals / bottom-sheets (scrim).
+  scrim: "rgba(0,0,0,0.4)",
 };

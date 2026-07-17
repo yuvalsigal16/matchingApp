@@ -1,14 +1,14 @@
-import { Ionicons } from "@expo/vector-icons";
 import { Slider } from "@miblanchard/react-native-slider";
 import { useRouter } from "expo-router";
 import {
   Cigarette,
   Gem,
   MoonStar,
+  Plane,
   UtensilsCrossed,
   Zap,
 } from "lucide-react-native";
-import React, { useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
@@ -16,10 +16,8 @@ import {
   ScrollView,
   StyleSheet,
   Text,
-  TouchableOpacity,
   View,
 } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
 
 import { getAllInterests } from "../src/api/interestService";
 import {
@@ -32,7 +30,11 @@ import {
   updateTripPreferences,
 } from "../src/api/tripService";
 import { getUser } from "../src/auth/authStore";
-import { COLORS, FONTS } from "../src/theme";
+import { COLORS, FONTS, RADIUS, SPACING, TYPOGRAPHY } from "../src/theme";
+import Screen from "../../components/ui/Screen";
+import ScreenHeader from "../../components/ui/ScreenHeader";
+import Button from "../../components/ui/Button";
+import EmptyState from "../../components/ui/EmptyState";
 
 // "הכל" = אין העדפה → נשלח כ-NULL. ה-CHECK constraint ב-DB מתיר רק Male/Female/Other/NULL.
 const GENDER_OPTIONS = [
@@ -267,34 +269,22 @@ export default function UpdateTravelPreferencesScreen() {
   // מסך ריק כשאין טיולים
   if (!loading && trips.length === 0) {
     return (
-      <SafeAreaView style={styles.container}>
-        <View style={styles.header}>
-          <TouchableOpacity onPress={() => router.back()}>
-            <Ionicons name="arrow-forward" size={26} color={COLORS.brand} />
-          </TouchableOpacity>
-          <Text style={styles.headerTitle}>עדכון העדפות טיול</Text>
-          <View style={{ width: 26 }} />
+      <Screen>
+        <ScreenHeader title="עדכון העדפות טיול" onBack={() => router.back()} />
+        <View style={styles.emptyWrap}>
+          <EmptyState
+            Icon={Plane}
+            title="אין לך עדיין טיולים"
+            subtitle="צרי טיול חדש כדי שתוכלי להגדיר ולעדכן עבורו את העדפות הפרטנר/ית."
+          />
         </View>
-        <View style={[styles.center, { flex: 1, paddingHorizontal: 30 }]}>
-          <Ionicons name="airplane-outline" size={72} color={COLORS.textMuted} />
-          <Text style={styles.emptyTitle}>אין לך עדיין טיולים</Text>
-          <Text style={styles.emptyText}>
-            צרי טיול חדש כדי שתוכלי להגדיר ולעדכן עבורו את העדפות הפרטנר/ית.
-          </Text>
-        </View>
-      </SafeAreaView>
+      </Screen>
     );
   }
 
   return (
-    <SafeAreaView style={styles.container}>
-      <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.back()}>
-          <Ionicons name="arrow-forward" size={26} color={COLORS.brand} />
-        </TouchableOpacity>
-        <Text style={styles.headerTitle}>עדכון העדפות טיול</Text>
-        <View style={{ width: 26 }} />
-      </View>
+    <Screen>
+      <ScreenHeader title="עדכון העדפות טיול" onBack={() => router.back()} />
 
       <ScrollView
         contentContainerStyle={styles.scrollContent}
@@ -328,7 +318,7 @@ export default function UpdateTravelPreferencesScreen() {
         )}
 
         {loading ? (
-          <View style={[styles.center, { paddingVertical: 60 }]}>
+          <View style={styles.loadingBox}>
             <ActivityIndicator size="large" color={COLORS.brand} />
           </View>
         ) : (
@@ -372,7 +362,7 @@ export default function UpdateTravelPreferencesScreen() {
               maximumValue={AGE_MAX}
               step={1}
               minimumTrackTintColor={COLORS.brand}
-              maximumTrackTintColor={COLORS.border}
+              maximumTrackTintColor={COLORS.divider}
               thumbTintColor={COLORS.onBrand}
               thumbStyle={styles.ageThumb}
               trackStyle={styles.ageTrack}
@@ -459,86 +449,65 @@ export default function UpdateTravelPreferencesScreen() {
       {/* כפתור שמירה — sticky בתחתית */}
       {!loading && (
         <View style={styles.saveBar}>
-          <TouchableOpacity
-            style={[styles.saveBtn, saving && styles.saveBtnDisabled]}
+          <Button
+            label="שמירת השינויים"
             onPress={handleSave}
-            disabled={saving}
-            activeOpacity={0.85}
-          >
-            {saving ? (
-              <ActivityIndicator color={COLORS.onBrand} />
-            ) : (
-              <Text style={styles.saveBtnText}>שמירת השינויים</Text>
-            )}
-          </TouchableOpacity>
+            loading={saving}
+            size="lg"
+          />
         </View>
       )}
-    </SafeAreaView>
+    </Screen>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: COLORS.background },
-  center: { justifyContent: "center", alignItems: "center" },
+  emptyWrap: { flex: 1, justifyContent: "center" },
+  loadingBox: { justifyContent: "center", alignItems: "center", paddingVertical: SPACING.xxxl },
 
-  header: {
-    flexDirection: "row-reverse",
-    alignItems: "center",
-    justifyContent: "space-between",
-    paddingHorizontal: 20,
-    paddingTop: 12,
-    paddingBottom: 16,
-  },
-  headerTitle: {
-    fontSize: 18,
-    fontFamily: FONTS.bold,
-    color: COLORS.brand,
-  },
-
-  scrollContent: { paddingHorizontal: 20, paddingBottom: 40 },
+  scrollContent: { paddingHorizontal: SPACING.xl, paddingBottom: SPACING.xxxl },
 
   section: {
-    fontSize: 17,
-    fontFamily: FONTS.bold,
+    ...TYPOGRAPHY.h3,
     color: COLORS.brand,
     textAlign: "right",
-    marginTop: 16,
-    marginBottom: 12,
+    marginTop: SPACING.lg,
+    marginBottom: SPACING.md,
   },
 
   // ── בחירת טיול ──
   tripPickerRow: {
     flexDirection: "row-reverse",
-    gap: 8,
-    paddingVertical: 4,
+    gap: SPACING.sm,
+    paddingVertical: SPACING.xs,
   },
   tripChip: {
-    paddingVertical: 10,
-    paddingHorizontal: 16,
-    borderRadius: 20,
+    paddingVertical: SPACING.sm + 2,
+    paddingHorizontal: SPACING.lg,
+    borderRadius: RADIUS.pill,
     backgroundColor: COLORS.surface,
     borderWidth: 1.5,
-    borderColor: COLORS.border,
+    borderColor: COLORS.hairline,
   },
   tripChipActive: { backgroundColor: COLORS.brand, borderColor: COLORS.brand },
-  tripChipText: { fontSize: 14, fontFamily: FONTS.regular, color: COLORS.brand },
+  tripChipText: { ...TYPOGRAPHY.caption, color: COLORS.brand },
   tripChipTextActive: { color: COLORS.surface, fontFamily: FONTS.bold },
 
   // ── העדפת מגדר ──
   segmented: {
     flexDirection: "row-reverse",
     backgroundColor: COLORS.surface,
-    borderRadius: 12,
-    padding: 4,
+    borderRadius: RADIUS.md,
+    padding: SPACING.xs,
   },
   segment: {
     flex: 1,
-    paddingVertical: 10,
+    paddingVertical: SPACING.sm + 2,
     alignItems: "center",
-    borderRadius: 9,
+    borderRadius: RADIUS.sm,
   },
   segmentActive: { backgroundColor: COLORS.brand },
-  segmentText: { fontSize: 15, fontFamily: FONTS.regular, color: COLORS.brand },
+  segmentText: { ...TYPOGRAPHY.body, color: COLORS.brand },
   segmentTextActive: { color: COLORS.surface, fontFamily: FONTS.bold },
 
   // ── טווח גילאים ──
@@ -546,20 +515,19 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     justifyContent: "center",
     alignItems: "center",
-    gap: 12,
-    marginBottom: 16,
+    gap: SPACING.md,
+    marginBottom: SPACING.lg,
   },
   ageNumberPill: {
     minWidth: 64,
-    paddingVertical: 10,
-    paddingHorizontal: 18,
-    borderRadius: 14,
+    paddingVertical: SPACING.sm + 2,
+    paddingHorizontal: SPACING.lg - 2,
+    borderRadius: RADIUS.md,
     backgroundColor: COLORS.brand,
     alignItems: "center",
   },
   ageNumberText: {
-    fontSize: 20,
-    fontFamily: FONTS.bold,
+    ...TYPOGRAPHY.h3,
     color: COLORS.surface,
     letterSpacing: 0.5,
   },
@@ -583,160 +551,119 @@ const styles = StyleSheet.create({
   ageBoundsRow: {
     flexDirection: "row",
     justifyContent: "space-between",
-    paddingHorizontal: 4,
+    paddingHorizontal: SPACING.xs,
     marginTop: 2,
   },
-  ageBound: { fontSize: 13, fontFamily: FONTS.regular, color: COLORS.textMuted },
+  ageBound: { ...TYPOGRAPHY.caption, color: COLORS.textMuted },
 
   // ── תחומי עניין ──
   tagsGrid: {
     flexDirection: "row-reverse",
     flexWrap: "wrap",
-    gap: 8,
+    gap: SPACING.sm,
   },
   tag: {
-    paddingVertical: 10,
-    paddingHorizontal: 16,
-    borderRadius: 20,
+    paddingVertical: SPACING.sm + 2,
+    paddingHorizontal: SPACING.lg,
+    borderRadius: RADIUS.pill,
     backgroundColor: COLORS.surface,
     borderWidth: 1.5,
-    borderColor: COLORS.border,
+    borderColor: COLORS.hairline,
   },
   tagActive: { backgroundColor: COLORS.brand, borderColor: COLORS.brand },
-  tagText: { fontSize: 14, fontFamily: FONTS.regular, color: COLORS.brand },
+  tagText: { ...TYPOGRAPHY.caption, color: COLORS.brand },
   tagTextActive: { color: COLORS.surface, fontFamily: FONTS.bold },
 
   // ── Lifestyle section (5 partner preferences) ──
   lifestyleIntro: {
-    fontSize: 13,
-    fontFamily: FONTS.regular,
+    ...TYPOGRAPHY.caption,
     color: COLORS.textMuted,
     textAlign: "right",
-    marginBottom: 12,
-    lineHeight: 18,
+    marginBottom: SPACING.md,
   },
   lifestyleCard: {
     backgroundColor: COLORS.surface,
-    padding: 14,
-    borderRadius: 14,
-    marginBottom: 10,
+    padding: SPACING.md,
+    borderRadius: RADIUS.md,
+    marginBottom: SPACING.sm + 2,
   },
   lifestyleCardHeader: {
     flexDirection: "row-reverse",
     alignItems: "center",
-    gap: 10,
-    marginBottom: 12,
+    gap: SPACING.sm,
+    marginBottom: SPACING.md,
   },
   lifestyleCardLabel: {
-    fontSize: 15,
-    fontFamily: FONTS.bold,
+    ...TYPOGRAPHY.bodyBold,
     color: COLORS.brand,
     flex: 1,
     textAlign: "right",
   },
   lifestyleHelp: {
-    fontSize: 12,
-    fontFamily: FONTS.regular,
+    ...TYPOGRAPHY.caption,
     color: COLORS.textMuted,
     textAlign: "right",
-    marginBottom: 10,
+    marginBottom: SPACING.sm + 2,
   },
 
   // ── Tri-state toggle (yes / no / no-preference) ──
   triToggleRow: {
     flexDirection: "row-reverse",
-    gap: 8,
+    gap: SPACING.sm,
   },
   triBtn: {
     flex: 1,
-    paddingVertical: 10,
-    borderRadius: 10,
+    paddingVertical: SPACING.sm + 2,
+    borderRadius: RADIUS.sm,
     backgroundColor: COLORS.background,
     alignItems: "center",
   },
   triBtnWide: {
     flex: 1.4,
-    paddingVertical: 10,
-    borderRadius: 10,
+    paddingVertical: SPACING.sm + 2,
+    borderRadius: RADIUS.sm,
     backgroundColor: COLORS.background,
     alignItems: "center",
   },
   triBtnActive: { backgroundColor: COLORS.brand },
-  triBtnText: {
-    fontSize: 13,
-    fontFamily: FONTS.regular,
-    color: COLORS.brand,
-  },
+  triBtnText: { ...TYPOGRAPHY.caption, color: COLORS.brand },
   triBtnTextActive: { color: COLORS.surface, fontFamily: FONTS.bold },
 
   // ── Rating 1-5 with "no preference" option ──
   ratingRow: {
     flexDirection: "row-reverse",
-    gap: 6,
-    marginBottom: 10,
+    gap: SPACING.xs + 2,
+    marginBottom: SPACING.sm + 2,
   },
   ratingDot: {
     flex: 1,
     aspectRatio: 1,
     maxWidth: 48,
-    borderRadius: 10,
+    borderRadius: RADIUS.sm,
     backgroundColor: COLORS.background,
     alignItems: "center",
     justifyContent: "center",
   },
   ratingDotActive: { backgroundColor: COLORS.brand },
-  ratingNum: {
-    fontSize: 15,
-    fontFamily: FONTS.bold,
-    color: COLORS.brand,
-  },
+  ratingNum: { ...TYPOGRAPHY.bodyBold, color: COLORS.brand },
   ratingNumActive: { color: COLORS.surface },
   noPrefBtn: {
     alignSelf: "center",
-    paddingVertical: 7,
-    paddingHorizontal: 18,
-    borderRadius: 14,
+    paddingVertical: SPACING.sm - 1,
+    paddingHorizontal: SPACING.lg,
+    borderRadius: RADIUS.md,
     backgroundColor: COLORS.background,
   },
   noPrefBtnActive: { backgroundColor: COLORS.brand },
-  noPrefText: {
-    fontSize: 12,
-    fontFamily: FONTS.regular,
-    color: COLORS.brand,
-  },
+  noPrefText: { ...TYPOGRAPHY.caption, color: COLORS.brand },
   noPrefTextActive: { color: COLORS.surface, fontFamily: FONTS.bold },
-
-  // ── מסך ריק ──
-  emptyTitle: {
-    fontSize: 18,
-    fontFamily: FONTS.bold,
-    color: COLORS.brand,
-    marginTop: 16,
-    textAlign: "center",
-  },
-  emptyText: {
-    fontSize: 14,
-    fontFamily: FONTS.regular,
-    color: COLORS.textMuted,
-    marginTop: 8,
-    textAlign: "center",
-    lineHeight: 22,
-  },
 
   // ── שמירה ──
   saveBar: {
-    paddingHorizontal: 20,
-    paddingVertical: 14,
+    paddingHorizontal: SPACING.xl,
+    paddingVertical: SPACING.md + 2,
     backgroundColor: COLORS.background,
     borderTopWidth: 1,
-    borderTopColor: COLORS.border,
+    borderTopColor: COLORS.hairline,
   },
-  saveBtn: {
-    backgroundColor: COLORS.brand,
-    paddingVertical: 16,
-    borderRadius: 14,
-    alignItems: "center",
-  },
-  saveBtnDisabled: { opacity: 0.6 },
-  saveBtnText: { color: COLORS.surface, fontSize: 16, fontFamily: FONTS.bold },
 });

@@ -1,4 +1,3 @@
-import { Ionicons } from "@expo/vector-icons";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useEffect, useMemo, useState } from "react";
 import {
@@ -8,12 +7,24 @@ import {
   ScrollView,
   StyleSheet,
   Text,
-  TouchableOpacity,
   View,
 } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
+import {
+  Calendar,
+  Plane,
+  SlidersHorizontal,
+  Sparkles,
+  TriangleAlert,
+  User,
+  Users,
+} from "lucide-react-native";
 
 import BottomNav from "../../../components/BottomNav";
+import Screen from "../../../components/ui/Screen";
+import ScreenHeader from "../../../components/ui/ScreenHeader";
+import SectionLabel from "../../../components/ui/SectionLabel";
+import EmptyState from "../../../components/ui/EmptyState";
+import Tappable from "../../../components/ui/Tappable";
 import { BASE_URL } from "../../src/api/config";
 import { buildImageUri } from "../../src/utils/image";
 import { getAllUsers } from "../../src/api/userService";
@@ -26,11 +37,11 @@ import {
 import { logInteraction } from "../../src/api/interactionService";
 import { getToken, getUser } from "../../src/auth/authStore";
 import { computeTripPreferenceScore } from "../../src/matching/tripPreferenceScore";
-import { COLORS, FONTS } from "../../src/theme";
+import { COLORS, FONTS, RADIUS, SHADOWS, SPACING, TYPOGRAPHY } from "../../src/theme";
 
 const { width: SCREEN_W } = Dimensions.get("window");
 const CARD_W = 160; // רוחב כרטיס בשורת קטגוריה (גלילה אופקית)
-const GRID_CARD_W = (SCREEN_W - 16 * 2 - 12) / 2; // 2 עמודות במסך "ראה הכל"
+const GRID_CARD_W = (SCREEN_W - SPACING.xl * 2 - SPACING.md) / 2; // 2 עמודות במסך "ראה הכל"
 
 // חישוב גיל מתאריך לידה (ISO string או Date)
 function computeAge(birthDate) {
@@ -169,7 +180,7 @@ export default function TripMatchesScreen() {
       });
       setTripsByUser(map);
     } catch (err) {
-      console.log("Failed loading trip matches:", err);
+      console.error("Failed loading trip matches:", err);
       setError("טעינת ההתאמות נכשלה");
     } finally {
       setLoading(false);
@@ -286,74 +297,80 @@ export default function TripMatchesScreen() {
     return e ? `${fmt(s)}–${fmt(e)}` : fmt(s);
   };
 
-  // ── כרטיס מועמד ──
+  // ── כרטיס מועמד ── שפה זהה לכרטיס ב-matchesForYou (שם מתחת לתמונה, תג ענבר,
+  // fallback brandLight+User), עם מטא ייחודי לטיול (יעד · תאריכים) שמשמר את זהות ה-Trip.
   const renderCard = (item, inGrid) => {
     const { user, trip, score } = item;
     const imageUri = buildImageUri(user.profileImage);
     const dates = formatDates(trip);
+    const nameLine = `${user.name}${user.age != null ? `, ${user.age}` : ""}`;
     return (
-      <TouchableOpacity
+      <View
         key={`${user.userID}-${trip?.tripID ?? "x"}`}
-        style={[
-          styles.card,
-          { width: inGrid ? GRID_CARD_W : CARD_W },
-          !inGrid && styles.cardFlipped,
-        ]}
-        activeOpacity={0.9}
-        onPress={() => openProfile(user, score)}
+        style={[{ width: inGrid ? GRID_CARD_W : CARD_W }, !inGrid && styles.cardFlipped]}
       >
-        <View style={styles.cardImageWrap}>
-          {imageUri ? (
-            <Image source={{ uri: imageUri }} style={styles.cardImage} />
-          ) : (
-            <View style={[styles.cardImage, styles.cardImageFallback]}>
-              <Ionicons name="person" size={44} color={COLORS.onBrand} />
-            </View>
-          )}
-          {/* באדג' ציון */}
-          <View style={styles.scoreBadge}>
-            <Ionicons name="sparkles" size={12} color={COLORS.amberDark} />
-            <Text style={styles.scoreBadgeText}>{score}%</Text>
-          </View>
-          {/* פס שם תחתון */}
-          <View style={styles.cardNameBand}>
-            <Text style={styles.cardName} numberOfLines={1}>
-              {user.name}{user.age != null ? `, ${user.age}` : ""}
-            </Text>
-          </View>
-        </View>
+        <Tappable
+          style={styles.card}
+          onPress={() => openProfile(user, score)}
+          accessibilityRole="button"
+          accessibilityLabel={`הצגת הפרופיל של ${nameLine}`}
+        >
+          <View style={styles.cardPhotoWrap}>
+            {imageUri ? (
+              <Image source={{ uri: imageUri }} style={styles.cardPhoto} />
+            ) : (
+              <View style={[styles.cardPhoto, styles.cardPhotoFallback]}>
+                <User size={40} color={COLORS.brand} strokeWidth={1.6} />
+              </View>
+            )}
 
-        {trip?.destination ? (
-          <View style={styles.cardMetaRow}>
-            <Ionicons name="airplane" size={13} color={COLORS.brand} />
-            <Text style={styles.cardMeta} numberOfLines={1}>
-              {trip.destination}{dates ? ` · ${dates}` : ""}
+            {/* תג ציון ההתאמה לטיול — ענבר (אות-ההתאמה של המערכת). */}
+            <View style={styles.scoreBadge}>
+              <Sparkles size={11} color={COLORS.amberDark} strokeWidth={2.4} />
+              <Text style={styles.scoreBadgeText}>{score}%</Text>
+            </View>
+          </View>
+
+          <View style={styles.cardBody}>
+            <Text style={styles.cardName} numberOfLines={1}>
+              {nameLine}
             </Text>
+
+            {/* מטא הטיול — יעד + תאריכים (סימן-מסע עדין), אחרת תחומי עניין. */}
+            {trip?.destination ? (
+              <View style={styles.cardMetaRow}>
+                <Plane size={12} color={COLORS.brand} strokeWidth={2} />
+                <Text style={styles.cardMeta} numberOfLines={1}>
+                  {trip.destination}{dates ? ` · ${dates}` : ""}
+                </Text>
+              </View>
+            ) : dates ? (
+              <View style={styles.cardMetaRow}>
+                <Calendar size={12} color={COLORS.brand} strokeWidth={2} />
+                <Text style={styles.cardMeta} numberOfLines={1}>{dates}</Text>
+              </View>
+            ) : (
+              <View style={styles.cardMetaRow}>
+                <Text style={styles.cardMetaMuted} numberOfLines={1}>
+                  {user.interests.slice(0, 2).join(" · ") || "אין עדיין טיול פעיל"}
+                </Text>
+              </View>
+            )}
           </View>
-        ) : dates ? (
-          <View style={styles.cardMetaRow}>
-            <Ionicons name="calendar-outline" size={13} color={COLORS.brand} />
-            <Text style={styles.cardMeta} numberOfLines={1}>{dates}</Text>
-          </View>
-        ) : (
-          <View style={styles.cardMetaRow}>
-            <Text style={styles.cardMetaMuted} numberOfLines={1}>
-              {user.interests.slice(0, 2).join(" · ") || "אין עדיין טיול פעיל"}
-            </Text>
-          </View>
-        )}
-      </TouchableOpacity>
+        </Tappable>
+      </View>
     );
   };
 
   if (loading) {
     return (
-      <SafeAreaView style={styles.container}>
+      <Screen>
         <View style={styles.center}>
           <ActivityIndicator size="large" color={COLORS.brand} />
-          <Text style={styles.placeholder}>טוען התאמות לטיול...</Text>
+          <Text style={styles.loadingText}>טוען התאמות לטיול...</Text>
         </View>
-      </SafeAreaView>
+        <BottomNav active="trips" />
+      </Screen>
     );
   }
 
@@ -361,70 +378,56 @@ export default function TripMatchesScreen() {
   const expandedCat = expanded ? categories.find((c) => c.key === expanded) : null;
   if (expandedCat) {
     return (
-      <SafeAreaView style={styles.container}>
-        <View style={styles.headerRow}>
-          <TouchableOpacity
-            onPress={() => setExpanded(null)}
-            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-            accessibilityRole="button"
-            accessibilityLabel="חזרה"
-          >
-            <Ionicons name="arrow-forward" size={26} color={COLORS.brand} />
-          </TouchableOpacity>
-          <Text style={styles.headerTitle} numberOfLines={1}>{expandedCat.title}</Text>
-          <View style={{ width: 26 }} />
-        </View>
-        <ScrollView contentContainerStyle={styles.gridContent}>
+      <Screen>
+        <ScreenHeader title={expandedCat.title} onBack={() => setExpanded(null)} />
+        <ScrollView
+          contentContainerStyle={styles.gridContent}
+          showsVerticalScrollIndicator={false}
+        >
           <View style={styles.grid}>
             {expandedCat.items.map((item) => renderCard(item, true))}
           </View>
         </ScrollView>
         <BottomNav active="trips" />
-      </SafeAreaView>
+      </Screen>
     );
   }
 
   return (
-    <SafeAreaView style={styles.container}>
-      <View style={styles.headerRow}>
-        <TouchableOpacity
-          onPress={() => router.back()}
-          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-          accessibilityRole="button"
-          accessibilityLabel="חזרה"
-        >
-          <Ionicons name="arrow-forward" size={26} color={COLORS.brand} />
-        </TouchableOpacity>
-        <Text style={styles.headerTitle}>התאמות לטיול</Text>
-        <View style={{ width: 26 }} />
-      </View>
+    <Screen>
+      <ScreenHeader title="התאמות לטיול" onBack={() => router.back()} />
 
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         {error ? (
-          <Text style={styles.placeholder}>{error}</Text>
+          <EmptyState
+            Icon={TriangleAlert}
+            title="טעינת ההתאמות נכשלה"
+            subtitle={error}
+            style={styles.empty}
+          />
         ) : !pref ? (
-          <Text style={styles.placeholder}>
-            לטיול הזה אין עדיין העדפות. ערכו את הטיול כדי להגדיר אותן.
-          </Text>
+          <EmptyState
+            Icon={SlidersHorizontal}
+            title="אין עדיין העדפות לטיול"
+            subtitle="הגדירו העדפות לטיול כדי שנמצא לכם שותפים שמתאימים לו."
+            style={styles.empty}
+          />
         ) : categories.length === 0 ? (
-          <Text style={styles.placeholder}>אין משתמשים להציג כרגע</Text>
+          <EmptyState
+            Icon={Users}
+            title="אין התאמות כרגע"
+            subtitle="עדיין לא מצאנו מטיילים שמתאימים לטיול הזה."
+            style={styles.empty}
+          />
         ) : (
           categories.map((cat) => (
             <View key={cat.key} style={styles.section}>
-              <View style={styles.sectionHeader}>
-                <View style={styles.sectionTitleRow}>
-                  <Text style={styles.sectionTitle}>{cat.title}</Text>
-                  <Ionicons name={cat.icon} size={18} color={COLORS.brand} />
-                </View>
-                {cat.items.length > 3 && (
-                  <TouchableOpacity
-                    onPress={() => setExpanded(cat.key)}
-                    hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-                  >
-                    <Text style={styles.seeAll}>ראה הכל ›</Text>
-                  </TouchableOpacity>
-                )}
-              </View>
+              <SectionLabel
+                title={cat.title}
+                actionLabel={cat.items.length > 3 ? "ראה הכל" : undefined}
+                onAction={cat.items.length > 3 ? () => setExpanded(cat.key) : undefined}
+                style={styles.sectionHeader}
+              />
 
               <ScrollView
                 horizontal
@@ -440,180 +443,122 @@ export default function TripMatchesScreen() {
       </ScrollView>
 
       <BottomNav active="trips" />
-    </SafeAreaView>
+    </Screen>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: COLORS.background,
-  },
   center: {
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
-    gap: 12,
+    gap: SPACING.md,
   },
-  headerRow: {
-    flexDirection: "row-reverse",
-    justifyContent: "space-between",
-    alignItems: "center",
-    paddingHorizontal: 20,
-    paddingTop: 20,
-    paddingBottom: 10,
-  },
-  headerTitle: {
-    fontSize: 20,
-    fontFamily: FONTS.bold,
-    color: COLORS.brand,
-    flex: 1,
-    textAlign: "center",
-  },
-  content: {
-    paddingTop: 6,
-    paddingBottom: 120,
-  },
-  placeholder: {
+  loadingText: {
+    ...TYPOGRAPHY.body,
     color: COLORS.textMuted,
     textAlign: "center",
-    marginTop: 40,
-    fontFamily: FONTS.regular,
-    paddingHorizontal: 20,
-    lineHeight: 22,
   },
 
-  // ── Section (category row) ──
-  section: {
-    marginTop: 18,
+  content: {
+    paddingTop: SPACING.xs,
+    paddingBottom: SPACING.xxxl,
   },
-  sectionHeader: {
-    flexDirection: "row-reverse",
-    alignItems: "center",
-    justifyContent: "space-between",
-    paddingHorizontal: 16,
-    marginBottom: 12,
-  },
-  // כותרת קטע: אייקון + טקסט (במקום אמוג'י).
-  sectionTitleRow: {
-    flexDirection: "row-reverse",
-    alignItems: "center",
-    gap: 6,
-    flex: 1,
-  },
-  sectionTitle: {
-    fontSize: 17,
-    fontFamily: FONTS.bold,
-    color: COLORS.text,
-    textAlign: "right",
-  },
-  seeAll: {
-    fontSize: 13,
-    fontFamily: FONTS.bold,
-    color: COLORS.brand,
-    marginLeft: 8,
-  },
-  // היפוך אופקי כדי שהשורה תתחיל מימין (RTL).
-  rowScroll: {
-    transform: [{ scaleX: -1 }],
-  },
-  cardFlipped: {
-    transform: [{ scaleX: -1 }],
-  },
+
+  // מצב-ריק — היסט עליון בתוך ה-ScrollView (EmptyState מטפל במרכוז ובריווח האופקי).
+  empty: { marginTop: SPACING.xxxl },
+
+  // ── מקטע קטגוריה (שורת רכבת) ──
+  section: { marginTop: SPACING.lg },
+  sectionHeader: { paddingHorizontal: SPACING.xl },
+
+  // היפוך אופקי כדי שהשורה תתחיל מימין (RTL); כל כרטיס מתהפך בחזרה ב-cardFlipped.
+  rowScroll: { transform: [{ scaleX: -1 }] },
+  cardFlipped: { transform: [{ scaleX: -1 }] },
   rowContent: {
-    paddingHorizontal: 16,
-    gap: 12,
     flexDirection: "row",
+    gap: SPACING.md,
+    paddingHorizontal: SPACING.xl,
+    paddingVertical: 2,
   },
 
-  // ── Grid (see-all) ──
+  // ── גריד ("ראה הכל") ──
   gridContent: {
-    paddingHorizontal: 16,
-    paddingTop: 10,
-    paddingBottom: 120,
+    paddingHorizontal: SPACING.xl,
+    paddingTop: SPACING.sm,
+    paddingBottom: SPACING.xxxl,
   },
   grid: {
     flexDirection: "row-reverse",
     flexWrap: "wrap",
     justifyContent: "flex-start",
-    gap: 12,
+    gap: SPACING.md,
   },
 
-  // ── Card ──
+  // ── כרטיס מטייל — שפה זהה לכרטיס ב-matchesForYou ──
   card: {
     backgroundColor: COLORS.surface,
-    borderRadius: 18,
+    borderRadius: RADIUS.xl,
+    borderWidth: 1,
+    borderColor: COLORS.hairline,
     overflow: "hidden",
-    marginBottom: 12,
-    shadowColor: COLORS.shadow,
-    shadowOpacity: 0.1,
-    shadowRadius: 10,
-    shadowOffset: { width: 0, height: 4 },
-    elevation: 4,
+    ...SHADOWS.sm,
   },
-  cardImageWrap: {
+  cardPhotoWrap: {
     width: "100%",
-    height: 180,
-    backgroundColor: COLORS.divider,
+    height: 160,
+    backgroundColor: COLORS.backgroundSunk,
   },
-  cardImage: {
-    width: "100%",
-    height: "100%",
-  },
-  cardImageFallback: {
-    backgroundColor: COLORS.brand,
+  cardPhoto: { width: "100%", height: "100%" },
+  cardPhotoFallback: {
+    backgroundColor: COLORS.brandLight,
     justifyContent: "center",
     alignItems: "center",
   },
+  // תג התאמה — ענבר (אות ה"התאמה" של המערכת), זהה לכרטיס ב-matchesForYou.
   scoreBadge: {
     position: "absolute",
-    top: 10,
-    right: 10,
+    top: SPACING.sm,
+    right: SPACING.sm,
     flexDirection: "row-reverse",
     alignItems: "center",
     gap: 3,
     backgroundColor: COLORS.amberLight,
     paddingVertical: 4,
     paddingHorizontal: 8,
-    borderRadius: 12,
+    borderRadius: RADIUS.pill,
   },
   scoreBadgeText: {
-    fontSize: 12,
     fontFamily: FONTS.bold,
+    fontSize: 12,
     color: COLORS.amberDark,
   },
-  cardNameBand: {
-    position: "absolute",
-    left: 0,
-    right: 0,
-    bottom: 0,
-    paddingHorizontal: 10,
-    paddingVertical: 8,
-    backgroundColor: "rgba(0,0,0,0.45)",
+  cardBody: {
+    paddingHorizontal: SPACING.md,
+    paddingTop: SPACING.sm + 2,
+    paddingBottom: SPACING.md,
   },
   cardName: {
-    color: "#FFFFFF",
-    fontSize: 15,
-    fontFamily: FONTS.bold,
+    ...TYPOGRAPHY.body,
+    fontFamily: FONTS.semibold,
+    color: COLORS.text,
     textAlign: "right",
   },
+  // מטא הטיול — יעד/תאריכים, סימן-מסע עדין (כמו שורת העיר ב-matchesForYou).
   cardMetaRow: {
     flexDirection: "row-reverse",
     alignItems: "center",
-    gap: 5,
-    paddingHorizontal: 10,
-    paddingVertical: 10,
+    gap: 4,
+    marginTop: 3,
   },
   cardMeta: {
-    fontSize: 12,
-    fontFamily: FONTS.regular,
+    ...TYPOGRAPHY.caption,
     color: COLORS.textSecondary,
     textAlign: "right",
     flex: 1,
   },
   cardMetaMuted: {
-    fontSize: 12,
-    fontFamily: FONTS.regular,
+    ...TYPOGRAPHY.caption,
     color: COLORS.textMuted,
     textAlign: "right",
     flex: 1,

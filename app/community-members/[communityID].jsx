@@ -1,21 +1,22 @@
-import { Ionicons } from "@expo/vector-icons";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
   FlatList,
-  Image,
   StyleSheet,
   Text,
-  TouchableOpacity,
   View,
 } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
+import { CloudOff, Users } from "lucide-react-native";
 
-import { buildImageUri } from "../src/utils/image";
 import { getCommunityMembers } from "../src/api/communityChatService";
 import { getUser } from "../src/auth/authStore";
-import { COLORS, FONTS } from "../src/theme";
+import { COLORS, FONTS, RADIUS, SPACING, TYPOGRAPHY } from "../src/theme";
+import Screen from "../../components/ui/Screen";
+import ScreenHeader from "../../components/ui/ScreenHeader";
+import Avatar from "../../components/ui/Avatar";
+import EmptyState from "../../components/ui/EmptyState";
+import SectionLabel from "../../components/ui/SectionLabel";
 
 function formatJoinedAt(iso) {
   if (!iso) return "";
@@ -24,45 +25,30 @@ function formatJoinedAt(iso) {
   return `${String(d.getDate()).padStart(2, "0")}/${String(d.getMonth() + 1).padStart(2, "0")}/${d.getFullYear()}`;
 }
 
-// צבעי אווטר פסטליים — צבע יציב לכל משתמש לפי שמו (מראה מודרני).
-const AVATAR_COLORS = ["#F5D9E0", "#D9E7F5", "#D6F0E6", "#F5EAD3", "#E7DCF5", "#F5DAD6", "#DCEFF0"];
-function avatarColor(name) {
-  const s = String(name || "");
-  let h = 0;
-  for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) % AVATAR_COLORS.length;
-  return AVATAR_COLORS[h];
-}
+// MemberRow — שורת משתתף (מקומית): אווטר + שם/תאריך-הצטרפות + צ'יפ "את/ה".
+// מקומי מותר כי יש avatar + joined date + chip (ListRow לא מתאים).
+function MemberRow({ member, isMe }) {
+  const fullName =
+    [member.firstName, member.lastName].filter(Boolean).join(" ").trim() ||
+    `משתמש #${member.userID}`;
+  const joined = formatJoinedAt(member.joinedAt);
 
-// אווטר עגול: תמונה, ואם אין — עיגול פסטלי עם ראשי-תיבות.
-function MemberAvatar({ uri, name }) {
-  const [failed, setFailed] = useState(false);
-  const showImg = uri && !failed;
-  if (showImg) {
-    return (
-      <View style={styles.avatar}>
-        <Image
-          source={{ uri }}
-          style={styles.avatarImg}
-          onError={() => setFailed(true)}
-          accessibilityLabel={name ? `תמונת הפרופיל של ${name}` : "תמונת פרופיל"}
-        />
-      </View>
-    );
-  }
-  const initials = (name || "")
-    .split(" ")
-    .map((s) => s[0])
-    .filter(Boolean)
-    .slice(0, 2)
-    .join("")
-    .toUpperCase();
   return (
-    <View style={[styles.avatar, { backgroundColor: avatarColor(name) }]}>
-      {initials ? (
-        <Text style={styles.avatarInitials}>{initials}</Text>
-      ) : (
-        <Ionicons name="person" size={22} color="rgba(0,0,0,0.4)" />
-      )}
+    <View style={[styles.row, isMe && styles.rowMe]}>
+      <Avatar uri={member.profileImage} name={fullName} size="md" />
+      <View style={styles.rowText}>
+        <View style={styles.nameRow}>
+          <Text style={styles.name} numberOfLines={1}>
+            {fullName}
+          </Text>
+          {isMe ? (
+            <View style={styles.youChip}>
+              <Text style={styles.youChipText}>את/ה</Text>
+            </View>
+          ) : null}
+        </View>
+        {joined ? <Text style={styles.joined}>הצטרפ/ה ב-{joined}</Text> : null}
+      </View>
     </View>
   );
 }
@@ -111,71 +97,29 @@ export default function CommunityMembersScreen() {
   }, [members, myId]);
 
   const renderMember = useCallback(
-    ({ item }) => {
-      const fullName =
-        [item.firstName, item.lastName].filter(Boolean).join(" ").trim() ||
-        `משתמש #${item.userID}`;
-      const isMe = item.userID === myId;
-      const joined = formatJoinedAt(item.joinedAt);
-      return (
-        <View style={[styles.row, isMe && styles.rowMe]}>
-          <MemberAvatar uri={buildImageUri(item.profileImage)} name={fullName} />
-          <View style={styles.rowText}>
-            <View style={styles.nameRow}>
-              <Text style={styles.name} numberOfLines={1}>
-                {fullName}
-              </Text>
-              {isMe ? (
-                <View style={styles.youChip}>
-                  <Text style={styles.youChipText}>את/ה</Text>
-                </View>
-              ) : null}
-            </View>
-            {joined ? <Text style={styles.joined}>הצטרפ/ה ב-{joined}</Text> : null}
-          </View>
-        </View>
-      );
-    },
+    ({ item }) => <MemberRow member={item} isMe={item.userID === myId} />,
     [myId],
   );
 
   return (
-    <SafeAreaView style={styles.container} edges={["top", "left", "right"]}>
-      {/* ── HEADER ── */}
-      <View style={styles.header}>
-        <TouchableOpacity
-          onPress={() => router.back()}
-          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-          accessibilityRole="button"
-          accessibilityLabel="חזרה"
-        >
-          <Ionicons name="arrow-forward" size={24} color={COLORS.brand} />
-        </TouchableOpacity>
-
-        <View style={styles.headerIcon}>
-          <Ionicons name="people" size={20} color={COLORS.onBrand} />
-        </View>
-
-        <View style={styles.headerText}>
-          <Text style={styles.headerName} numberOfLines={1}>
-            {communityName || "משתתפי הקהילה"}
-          </Text>
-          <Text style={styles.headerSub}>{members.length} משתתפים</Text>
-        </View>
-      </View>
+    <Screen>
+      <ScreenHeader
+        title={communityName || "משתתפי הקהילה"}
+        onBack={() => router.back()}
+      />
 
       {loading ? (
         <View style={styles.center}>
           <ActivityIndicator size="large" color={COLORS.brand} />
-          <Text style={styles.stateSub}>טוען משתתפים...</Text>
+          <Text style={styles.loadingText}>טוען משתתפים...</Text>
         </View>
       ) : loadError ? (
-        <View style={styles.stateBox}>
-          <View style={styles.stateIconCircle}>
-            <Ionicons name="cloud-offline-outline" size={40} color={COLORS.brand} />
-          </View>
-          <Text style={styles.stateTitle}>לא ניתן לטעון את המשתתפים כרגע</Text>
-          <Text style={styles.stateSub}>נסו שוב בעוד מספר דקות</Text>
+        <View style={styles.center}>
+          <EmptyState
+            Icon={CloudOff}
+            title="לא ניתן לטעון את המשתתפים כרגע"
+            subtitle="נסו שוב בעוד מספר דקות"
+          />
         </View>
       ) : (
         <FlatList
@@ -189,113 +133,68 @@ export default function CommunityMembersScreen() {
           }
           showsVerticalScrollIndicator={false}
           ItemSeparatorComponent={() => <View style={styles.separator} />}
+          ListHeaderComponent={
+            members.length > 0 ? (
+              <SectionLabel
+                title="משתתפים"
+                count={members.length}
+                style={styles.sectionLabel}
+              />
+            ) : null
+          }
           ListEmptyComponent={
-            <View style={styles.stateBox}>
-              <View style={styles.stateIconCircle}>
-                <Ionicons name="people-outline" size={40} color={COLORS.brand} />
-              </View>
-              <Text style={styles.stateTitle}>אין משתתפים בקהילה</Text>
-            </View>
+            <EmptyState Icon={Users} title="אין משתתפים בקהילה" />
           }
         />
       )}
-    </SafeAreaView>
+    </Screen>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: COLORS.background },
-  center: { flex: 1, justifyContent: "center", alignItems: "center", gap: 12 },
-
-  // ── Header ──
-  header: {
-    flexDirection: "row-reverse",
-    alignItems: "center",
-    paddingVertical: 10,
-    paddingHorizontal: 12,
-    gap: 10,
-    backgroundColor: COLORS.surface,
-    borderBottomWidth: 1,
-    borderBottomColor: COLORS.border,
-  },
-  headerIcon: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: COLORS.brand,
+  center: {
+    flex: 1,
     justifyContent: "center",
     alignItems: "center",
+    gap: SPACING.md,
   },
-  headerText: { flex: 1, alignItems: "flex-end" },
-  headerName: { fontSize: 16, fontFamily: FONTS.bold, color: COLORS.text },
-  headerSub: {
-    fontSize: 12,
-    fontFamily: FONTS.regular,
-    color: COLORS.textSecondary,
-    marginTop: 1,
+  loadingText: { ...TYPOGRAPHY.body, color: COLORS.textMuted, textAlign: "center" },
+
+  listContent: { paddingBottom: SPACING.xl },
+  emptyListContent: { flexGrow: 1, justifyContent: "center", alignItems: "center" },
+
+  sectionLabel: { paddingHorizontal: SPACING.xl, marginTop: SPACING.sm },
+
+  // קו-הפרדה מתחיל אחרי האווטר (רשימה native): גוטר + אווטר(52) + gap.
+  separator: {
+    height: 1,
+    backgroundColor: COLORS.hairline,
+    marginRight: SPACING.xl + 52 + SPACING.md,
   },
 
-  // ── List ──
-  listContent: { paddingVertical: 8 },
-  separator: {
-    height: StyleSheet.hairlineWidth,
-    backgroundColor: COLORS.border,
-    marginRight: 76, // מתחיל אחרי האווטר
-  },
+  // ── שורת משתתף ──
   row: {
     flexDirection: "row-reverse",
     alignItems: "center",
-    paddingVertical: 12,
-    paddingHorizontal: 20,
-    gap: 12,
+    gap: SPACING.md,
+    paddingVertical: SPACING.md,
+    paddingHorizontal: SPACING.xl,
   },
   rowMe: { backgroundColor: COLORS.brandLight },
-  avatar: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    overflow: "hidden",
-    backgroundColor: COLORS.divider,
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  avatarImg: { width: 48, height: 48, borderRadius: 24 },
-  avatarInitials: { fontSize: 17, fontFamily: FONTS.bold, color: "rgba(0,0,0,0.5)" },
-  rowText: { flex: 1, alignItems: "flex-end", gap: 2 },
-  nameRow: { flexDirection: "row-reverse", alignItems: "center", gap: 8 },
-  name: { fontFamily: FONTS.bold, fontSize: 15, color: COLORS.text, textAlign: "right" },
-  youChip: {
-    backgroundColor: COLORS.brand,
-    paddingHorizontal: 8,
-    paddingVertical: 2,
-    borderRadius: 10,
-  },
-  youChipText: { fontFamily: FONTS.bold, fontSize: 11, color: COLORS.onBrand },
-  joined: {
-    fontFamily: FONTS.regular,
-    fontSize: 12,
-    color: COLORS.textMuted,
+  rowText: { flex: 1, alignItems: "flex-end", gap: SPACING.xs / 2 },
+  nameRow: { flexDirection: "row-reverse", alignItems: "center", gap: SPACING.sm },
+  name: {
+    ...TYPOGRAPHY.body,
+    fontFamily: FONTS.semibold,
+    color: COLORS.text,
     textAlign: "right",
   },
-
-  // ── State boxes ──
-  emptyListContent: { flexGrow: 1, justifyContent: "center", alignItems: "center" },
-  stateBox: { flex: 1, alignItems: "center", justifyContent: "center", paddingHorizontal: 40 },
-  stateIconCircle: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
-    backgroundColor: COLORS.surface,
-    justifyContent: "center",
-    alignItems: "center",
-    marginBottom: 14,
+  youChip: {
+    backgroundColor: COLORS.brand,
+    paddingHorizontal: SPACING.sm,
+    paddingVertical: 2,
+    borderRadius: RADIUS.pill,
   },
-  stateTitle: { fontFamily: FONTS.bold, fontSize: 16, color: COLORS.text, textAlign: "center" },
-  stateSub: {
-    fontFamily: FONTS.regular,
-    fontSize: 13,
-    color: COLORS.textSecondary,
-    textAlign: "center",
-    marginTop: 6,
-  },
+  youChipText: { ...TYPOGRAPHY.tiny, fontFamily: FONTS.bold, color: COLORS.onBrand },
+  joined: { ...TYPOGRAPHY.caption, color: COLORS.textMuted, textAlign: "right" },
 });

@@ -253,11 +253,6 @@ const rankedUsers = usersWithScore.sort(
   const tripsArrays = await Promise.all(
   rankedUsers.map((u) => getUserTrips(u.userID).catch(() => []))
 );
-console.log(
-  "tripsArrays:",
-  JSON.stringify(tripsArrays, null, 2)
-);
-
 const destinationsFromTrips = [];
 
 rankedUsers.forEach((user, index) => {
@@ -285,12 +280,10 @@ for (const d of destinationsFromTrips) {
   }
 }
 
-console.log("uniqueDestinations (real trips):", uniqueDestinations);
-
 // מחבר את הגלגל ליעדים האמיתיים (עם הפרטנר האמיתי). בלי נתונים פיקטיביים.
 setDestinations(uniqueDestinations);
   } catch (err) {
-    console.log(err);
+    console.error(err);
   } finally {
     setLoadingDestinations(false);
   }
@@ -321,8 +314,6 @@ setDestinations(uniqueDestinations);
 
   // ── פונקציה ראשית: מסובבת את הגלגל ──
   const spinWheel = () => {
-    console.log("destinations:", destinations);
-  console.log("length:", destinations.length);
     // אם הגלגל כבר מסתובב — לא לעשות כלום (מניעת לחיצה כפולה)
     if (isSpinning || !destinations.length) return;
     setIsSpinning(true);

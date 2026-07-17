@@ -4,19 +4,15 @@ import { BASE_URL } from "./config";
 // השרת מחזיר : { interestID, interestName }
 export async function getAllInterests() {
   const url = `${BASE_URL}/Interest`;
-  console.log(`[interest] → GET ${url}`);
 
   let res;
   try {
     res = await fetch(url);
   } catch (networkErr) {
     console.error(`[interest] ✖ network error:`, networkErr);
-    throw new Error(
-      `לא ניתן להתחבר לשרת (${url}). פרטים: ${networkErr.message}`,
-    );
+    throw new Error("לא ניתן להתחבר כרגע. נסו שוב מאוחר יותר.");
   }
 
-  console.log(`[interest] ← ${res.status} ${res.statusText}`);
 
   const text = await res.text();
   if (!res.ok) {
@@ -35,7 +31,6 @@ export async function getAllInterests() {
 // השרת מחזיר מערך של אובייקטי Interest: [{ interestID, interestName }].
 export async function getUserInterests(userId) {
   const url = `${BASE_URL}/UserInterest/${userId}`;
-  console.log(`[interest] → GET ${url}`);
 
   let res;
   try {
@@ -46,7 +41,6 @@ export async function getUserInterests(userId) {
   }
 
   const text = await res.text();
-  console.log(`[interest] ← ${res.status}`, text?.slice?.(0, 80));
 
   if (!res.ok) {
     let msg = text;
@@ -59,7 +53,6 @@ export async function getUserInterests(userId) {
 // מסיר תחום עניין מהמשתמש (DELETE /api/UserInterest?userId=X&interestId=Y).
 export async function removeUserInterest(userId, interestId) {
   const url = `${BASE_URL}/UserInterest?userId=${userId}&interestId=${interestId}`;
-  console.log(`[interest] → DELETE ${url}`);
 
   let res;
   try {
@@ -70,7 +63,6 @@ export async function removeUserInterest(userId, interestId) {
   }
 
   const text = await res.text();
-  console.log(`[interest] ← ${res.status}`, text);
 
   if (!res.ok) {
     let msg = text;
@@ -84,7 +76,6 @@ export async function removeUserInterest(userId, interestId) {
 // (ב-controller אין [FromBody], ברירת המחדל היא [FromQuery]).
 export async function addUserInterest(userId, interestId) {
   const url = `${BASE_URL}/UserInterest?userId=${userId}&interestId=${interestId}`;
-  console.log(`[interest] → POST ${url}`);
 
   let res;
   try {
@@ -95,7 +86,6 @@ export async function addUserInterest(userId, interestId) {
     throw new Error(`לא ניתן להתחבר לשרת. פרטים: ${networkErr.message}`);
   }
 
-  console.log(`[interest] ← ${res.status} ${res.statusText}`);
 
   const text = await res.text();
   if (!res.ok) {

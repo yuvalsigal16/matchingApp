@@ -102,7 +102,7 @@ export default function TripDetails() {
           })(),
         ]);
       } catch (err) {
-        console.log(err);
+        console.error(err);
         showAlert("שגיאה", "טעינת הטיול נכשלה");
       } finally {
         setLoading(false);

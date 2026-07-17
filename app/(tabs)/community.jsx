@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
@@ -9,21 +9,23 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
 import { useFocusEffect, useRouter } from "expo-router";
-import { Ionicons } from "@expo/vector-icons";
 import { Check, Plus, Users } from "lucide-react-native";
-
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
 import { BASE_URL } from "../src/api/config";
 import { getToken, getUser } from "../src/auth/authStore";
-import { COLORS, FONTS } from "../src/theme";
+import { COLORS, FONTS, RADIUS, SPACING, TYPOGRAPHY } from "../src/theme";
 import {
   getCommunityChat,
   getCommunityMembers,
   getCommunityMessages,
 } from "../src/api/communityChatService";
+import Screen from "../../components/ui/Screen";
+import ScreenHeader from "../../components/ui/ScreenHeader";
+import Card from "../../components/ui/Card";
+import Avatar from "../../components/ui/Avatar";
+import EmptyState from "../../components/ui/EmptyState";
 import BottomNav from "../../components/BottomNav";
 
 // "נקרא לאחרונה" לכל קהילה — נשמר מקומית (communityID → timestamp במילישניות).
@@ -45,15 +47,6 @@ async function markCommunitySeen(communityID) {
     await AsyncStorage.setItem(COMMUNITY_LAST_SEEN_KEY, JSON.stringify(map));
   } catch {}
 }
-
-const ICON_COLORS = [
-  { bg: "#DCFCE7", icon: "#16A34A" },
-  { bg: "#DBEAFE", icon: "#2563EB" },
-  { bg: "#FCE7F3", icon: "#DB2777" },
-  { bg: "#FEF3C7", icon: "#D97706" },
-  { bg: "#EDE9FE", icon: "#7E76A6" },
-  { bg: "#FFE4E6", icon: "#E11D48" },
-];
 
 export default function CommunityScreen() {
   const router = useRouter();
@@ -203,47 +196,103 @@ export default function CommunityScreen() {
     }
   };
 
+  const renderCommunity = (c) => {
+    const isJoining = joining[c.communityID];
+    const isJoined = joinedIds.has(c.communityID);
+    const unread = isJoined ? unreadMap[c.communityID] || 0 : 0;
+
+    return (
+      <Card
+        key={c.communityID}
+        onPress={() => openCommunityChat(c)}
+        accessibilityLabel={`קהילת ${c.communityName}`}
+      >
+        <View style={styles.cardRow}>
+          {/* זהות הקהילה — מונוגרם דרך Avatar (ראשי-תיבות של השם) + תג unread בפינה. */}
+          <View>
+            <Avatar name={c.communityName} size="md" />
+            {unread > 0 ? (
+              <View style={styles.unreadBadge}>
+                <Text style={styles.unreadBadgeText}>
+                  {unread > 99 ? "99+" : unread}
+                </Text>
+              </View>
+            ) : null}
+          </View>
+
+          <View style={styles.cardText}>
+            <Text style={styles.cardName} numberOfLines={1}>
+              {c.communityName}
+            </Text>
+            <Text style={styles.cardMembers}>
+              {(c.membersCount || 0).toLocaleString()} חברים
+            </Text>
+          </View>
+
+          {/* חבר בקהילה → חיווי סטטי; אחרת → כפתור הצטרף. */}
+          {isJoined ? (
+            <View style={styles.memberChip}>
+              <Check size={14} color={COLORS.brand} strokeWidth={2.5} />
+              <Text style={styles.memberChipText}>חבר</Text>
+            </View>
+          ) : (
+            <TouchableOpacity
+              style={styles.joinBtn}
+              onPress={() => handleJoin(c.communityID)}
+              disabled={isJoining}
+              activeOpacity={0.8}
+              accessibilityRole="button"
+              accessibilityLabel={`הצטרפות לקהילת ${c.communityName}`}
+            >
+              {isJoining ? (
+                <ActivityIndicator size="small" color={COLORS.onBrand} />
+              ) : (
+                <Text style={styles.joinText}>הצטרף</Text>
+              )}
+            </TouchableOpacity>
+          )}
+        </View>
+      </Card>
+    );
+  };
+
   if (loading) {
     return (
-      <SafeAreaView style={styles.center}>
-        <ActivityIndicator size="large" color={COLORS.brand} />
-      </SafeAreaView>
+      <Screen>
+        <ScreenHeader title="קהילות" onBack={() => router.back()} />
+        <View style={styles.center}>
+          <ActivityIndicator size="large" color={COLORS.brand} />
+        </View>
+        <BottomNav active="discovery" />
+      </Screen>
     );
   }
 
   return (
-    <SafeAreaView style={styles.container}>
-      {/* Header */}
-      <View style={styles.headerRow}>
-        <TouchableOpacity
-          style={styles.backBtn}
-          onPress={() => router.back()}
-          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-          accessibilityRole="button"
-          accessibilityLabel="חזרה"
-        >
-          <Ionicons name="arrow-forward" size={26} color={COLORS.brand} />
-        </TouchableOpacity>
-        <Text style={styles.title}>קהילות</Text>
-        <View style={{ width: 36 }} />
-      </View>
+    <Screen>
+      <ScreenHeader
+        title="קהילות"
+        onBack={() => router.back()}
+        right={
+          <TouchableOpacity
+            onPress={() => router.push("/community-create")}
+            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+            accessibilityRole="button"
+            accessibilityLabel="יצירת קהילה"
+          >
+            <Plus size={24} color={COLORS.brand} strokeWidth={2.4} />
+          </TouchableOpacity>
+        }
+      />
 
-      <Text style={styles.subtitle}>בחר קהילה להצטרף אליה</Text>
-
-      {/* כפתור הוספה מעל הרשימה */}
-      <View style={styles.addRow}>
-        <TouchableOpacity
-          style={styles.addBtn}
-          onPress={() => router.push("/community-create")}
-          accessibilityRole="button"
-          accessibilityLabel="יצירת קהילה חדשה"
-        >
-          <Plus size={20} color={COLORS.onBrand} strokeWidth={2.5} />
-        </TouchableOpacity>
-      </View>
+      {communities.length > 0 ? (
+        <Text style={styles.lead}>גלו קהילות מטיילים והצטרפו לשיחה</Text>
+      ) : null}
 
       <ScrollView
-        contentContainerStyle={styles.list}
+        contentContainerStyle={
+          communities.length === 0 ? styles.emptyListContent : styles.list
+        }
         showsVerticalScrollIndicator={false}
         refreshControl={
           <RefreshControl
@@ -255,179 +304,76 @@ export default function CommunityScreen() {
         }
       >
         {communities.length === 0 ? (
-          <View style={styles.emptyBox}>
-            <Users size={40} color={COLORS.textMuted} strokeWidth={1.5} />
-            <Text style={styles.emptyText}>אין קהילות עדיין</Text>
-          </View>
+          <EmptyState
+            Icon={Users}
+            title="אין קהילות עדיין"
+            subtitle="קהילות הן דרך למצוא שותפים לטיול סביב יעד או תחום עניין. פתחו את הראשונה."
+            actionLabel="צרו קהילה ראשונה"
+            onAction={() => router.push("/community-create")}
+          />
         ) : (
-          communities.map((c, index) => {
-            const color = ICON_COLORS[index % ICON_COLORS.length];
-            const isJoining = joining[c.communityID];
-            const isJoined = joinedIds.has(c.communityID);
-            const unread = isJoined ? unreadMap[c.communityID] || 0 : 0;
-
-            return (
-              <TouchableOpacity
-                key={c.communityID}
-                style={styles.card}
-                activeOpacity={0.85}
-                onPress={() => openCommunityChat(c)}
-              >
-                {/* חבר בקהילה → חיווי סטטי (לא כפתור). אחרת → כפתור הצטרף. */}
-                {isJoined ? (
-                  <View style={styles.memberChip}>
-                    <Check size={14} color={COLORS.brand} strokeWidth={2.5} />
-                    <Text style={styles.memberChipText}>חבר</Text>
-                  </View>
-                ) : (
-                  <TouchableOpacity
-                    style={styles.joinBtn}
-                    onPress={() => handleJoin(c.communityID)}
-                    disabled={isJoining}
-                    activeOpacity={0.8}
-                  >
-                    {isJoining ? (
-                      <ActivityIndicator size="small" color={COLORS.onBrand} />
-                    ) : (
-                      <Text style={styles.joinText}>הצטרף</Text>
-                    )}
-                  </TouchableOpacity>
-                )}
-
-                {/* פרטי קהילה */}
-                <View style={styles.cardText}>
-                  <Text style={styles.cardName}>{c.communityName}</Text>
-                  <Text style={styles.cardMembers}>
-                    {(c.membersCount || 0).toLocaleString()} חברים
-                  </Text>
-                </View>
-
-                {/* אייקון + תג הודעות שלא נקראו */}
-                <View>
-                  <View style={[styles.iconBox, { backgroundColor: color.bg }]}>
-                    <Users size={22} color={color.icon} strokeWidth={2} />
-                  </View>
-                  {unread > 0 ? (
-                    <View style={styles.unreadBadge}>
-                      <Text style={styles.unreadBadgeText}>
-                        {unread > 99 ? "99+" : unread}
-                      </Text>
-                    </View>
-                  ) : null}
-                </View>
-              </TouchableOpacity>
-            );
-          })
+          communities.map(renderCommunity)
         )}
       </ScrollView>
 
       <BottomNav active="discovery" />
-    </SafeAreaView>
+    </Screen>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: COLORS.background },
-  center: {
-    flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-    backgroundColor: COLORS.background,
-  },
+  center: { flex: 1, justifyContent: "center", alignItems: "center" },
 
-  headerRow: {
-    flexDirection: "row-reverse",
-    justifyContent: "space-between",
-    alignItems: "center",
-    paddingHorizontal: 20,
-    paddingTop: 16,
-    paddingBottom: 8,
-  },
-
-  backBtn: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: COLORS.surface,
-    justifyContent: "center",
-    alignItems: "center",
-    shadowColor: COLORS.shadow,
-    shadowOpacity: 0.08,
-    shadowRadius: 4,
-    elevation: 2,
-  },
-
-  addBtn: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: COLORS.brand,
-    justifyContent: "center",
-    alignItems: "center",
-    shadowColor: COLORS.shadow,
-    shadowOpacity: 0.15,
-    shadowRadius: 4,
-    elevation: 3,
-  },
-
-  addRow: {
-    paddingHorizontal: 20,
-    paddingTop: 0,
-    paddingBottom: 6,
-    alignItems: "flex-start",
-  },
-
-  title: {
-    fontSize: 20,
-    fontFamily: FONTS.extraBold,
-    color: COLORS.text,
-  },
-
-  subtitle: {
-    fontSize: 14,
-    fontFamily: FONTS.regular,
-    color: COLORS.textMuted,
-    textAlign: "center",
-    marginTop: 4,
-    marginBottom: 2,
+  lead: {
+    ...TYPOGRAPHY.body,
+    color: COLORS.textSecondary,
+    textAlign: "right",
+    paddingHorizontal: SPACING.xl,
+    marginTop: SPACING.xs,
+    marginBottom: SPACING.md,
   },
 
   list: {
-    paddingHorizontal: 20,
-    paddingBottom: 100,
-    gap: 10,
+    paddingHorizontal: SPACING.xl,
+    paddingTop: SPACING.xs,
+    paddingBottom: SPACING.xxl,
+    gap: SPACING.md,
   },
-
-  card: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    backgroundColor: COLORS.surface,
-    padding: 16,
-    borderRadius: 18,
-    shadowColor: COLORS.shadow,
-    shadowOpacity: 0.05,
-    shadowRadius: 6,
-    elevation: 2,
-  },
-
-  iconBox: {
-    width: 52,
-    height: 52,
-    borderRadius: 16,
+  emptyListContent: {
+    flexGrow: 1,
     justifyContent: "center",
     alignItems: "center",
+    paddingHorizontal: SPACING.xl,
   },
 
-  // תג הודעות שלא נקראו — עיגול קטן בפינת אייקון הקהילה (כמו וואטסאפ)
+  cardRow: {
+    flexDirection: "row-reverse",
+    alignItems: "center",
+    gap: SPACING.md,
+  },
+
+  cardText: { flex: 1, alignItems: "flex-end" },
+  cardName: {
+    ...TYPOGRAPHY.h3,
+    color: COLORS.text,
+    textAlign: "right",
+    marginBottom: 2,
+  },
+  cardMembers: {
+    ...TYPOGRAPHY.caption,
+    color: COLORS.textMuted,
+    textAlign: "right",
+  },
+
+  // תג הודעות שלא נקראו — בפינת האווטר (כמו וואטסאפ).
   unreadBadge: {
     position: "absolute",
-    top: -5,
-    right: -5,
+    top: -4,
+    right: -4,
     minWidth: 20,
     height: 20,
-    borderRadius: 10,
-    paddingHorizontal: 5,
+    borderRadius: RADIUS.pill,
+    paddingHorizontal: SPACING.xs + 1,
     backgroundColor: COLORS.brand,
     justifyContent: "center",
     alignItems: "center",
@@ -435,79 +381,42 @@ const styles = StyleSheet.create({
     borderColor: COLORS.surface,
   },
   unreadBadgeText: {
-    fontSize: 11,
+    ...TYPOGRAPHY.tiny,
     fontFamily: FONTS.bold,
     color: COLORS.onBrand,
   },
 
-  cardText: {
-    flex: 1,
-    alignItems: "flex-end",
-    paddingHorizontal: 14,
-  },
-
-  cardName: {
-    fontSize: 16,
-    fontFamily: FONTS.bold,
-    color: COLORS.text,
-    textAlign: "right",
-    marginBottom: 4,
-  },
-
-  cardMembers: {
-    fontSize: 13,
-    fontFamily: FONTS.regular,
-    color: COLORS.textMuted,
-    textAlign: "right",
-  },
-
+  // כפתור "הצטרף" — pill קומפקטי בתוך השורה (Button md גבוה מדי לכאן).
   joinBtn: {
     backgroundColor: COLORS.brand,
-    paddingHorizontal: 18,
-    paddingVertical: 9,
-    borderRadius: 20,
+    paddingHorizontal: SPACING.lg,
+    paddingVertical: SPACING.sm,
+    borderRadius: RADIUS.pill,
     minWidth: 72,
     alignItems: "center",
     justifyContent: "center",
   },
-
-  joinBtnDone: {
-    backgroundColor: COLORS.textSecondary,
-  },
-
   joinText: {
-    color: COLORS.onBrand,
-    fontSize: 14,
+    ...TYPOGRAPHY.caption,
     fontFamily: FONTS.bold,
+    color: COLORS.onBrand,
   },
 
-  // חיווי "חבר" — לא כפתור, רק אינדיקציה שכבר הצטרפת
+  // חיווי "חבר" — לא כפתור, רק אינדיקציה שכבר הצטרפת.
   memberChip: {
     flexDirection: "row-reverse",
     alignItems: "center",
-    gap: 4,
-    paddingHorizontal: 14,
-    paddingVertical: 9,
-    borderRadius: 20,
+    gap: SPACING.xs,
+    paddingHorizontal: SPACING.lg,
+    paddingVertical: SPACING.sm,
+    borderRadius: RADIUS.pill,
     minWidth: 72,
     justifyContent: "center",
     backgroundColor: COLORS.brandLight,
   },
   memberChipText: {
-    color: COLORS.brand,
-    fontSize: 14,
+    ...TYPOGRAPHY.caption,
     fontFamily: FONTS.bold,
-  },
-
-  emptyBox: {
-    marginTop: 80,
-    alignItems: "center",
-    gap: 12,
-  },
-
-  emptyText: {
-    fontSize: 16,
-    color: COLORS.textMuted,
-    fontFamily: FONTS.regular,
+    color: COLORS.brand,
   },
 });

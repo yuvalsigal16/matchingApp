@@ -1,16 +1,10 @@
-import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
-import React from "react";
-import {
-  ScrollView,
-  StyleSheet,
-  Text,
-  TouchableOpacity,
-  View,
-} from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
+import { ScrollView, StyleSheet, Text, View } from "react-native";
 
-import { COLORS, FONTS } from "./src/theme";
+import { COLORS, SPACING, TYPOGRAPHY } from "./src/theme";
+import Screen from "../components/ui/Screen";
+import ScreenHeader from "../components/ui/ScreenHeader";
+import Card from "../components/ui/Card";
 
 // מסך מדיניות פרטיות - טקסט סטטי מקורי בעברית.
 const LAST_UPDATED = "יוני 2026";
@@ -97,22 +91,18 @@ export default function PrivacyPolicyScreen() {
   const router = useRouter();
 
   return (
-    <SafeAreaView style={styles.container}>
-      <View style={styles.headerRow}>
-        <TouchableOpacity onPress={() => router.back()}>
-          <Ionicons name="arrow-forward" size={26} color={COLORS.brand} />
-        </TouchableOpacity>
-        <Text style={styles.header}>מדיניות פרטיות</Text>
-        <View style={{ width: 26 }} />
-      </View>
+    <Screen>
+      <ScreenHeader title="מדיניות פרטיות" onBack={() => router.back()} />
 
-      <ScrollView contentContainerStyle={styles.content}>
+      <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         <Text style={styles.lastUpdated}>עדכון אחרון: {LAST_UPDATED}</Text>
 
-        <Text style={styles.intro}>
-          הפרטיות שלך חשובה לנו. מדיניות זו מתארת כיצד צמד חמד אוסף, משתמש,
-          ומגן על המידע האישי של המשתמשים באפליקציה.
-        </Text>
+        <Card style={styles.introCard}>
+          <Text style={styles.intro}>
+            הפרטיות שלך חשובה לנו. מדיניות זו מתארת כיצד צמד חמד אוסף, משתמש,
+            ומגן על המידע האישי של המשתמשים באפליקציה.
+          </Text>
+        </Card>
 
         {SECTIONS.map((section, index) => (
           <View key={index} style={styles.section}>
@@ -121,71 +111,31 @@ export default function PrivacyPolicyScreen() {
           </View>
         ))}
       </ScrollView>
-    </SafeAreaView>
+    </Screen>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: COLORS.background },
-
-  headerRow: {
-    flexDirection: "row-reverse",
-    justifyContent: "space-between",
-    alignItems: "center",
-    paddingHorizontal: 20,
-    paddingTop: 20,
-    paddingBottom: 10,
-  },
-
-  header: {
-    fontSize: 20,
-    fontFamily: FONTS.bold,
-    color: COLORS.brand,
-  },
-
   content: {
-    paddingHorizontal: 22,
-    paddingBottom: 40,
+    paddingHorizontal: SPACING.xl,
+    paddingTop: SPACING.xs,
+    paddingBottom: SPACING.xxxl,
   },
-
   lastUpdated: {
-    fontSize: 12,
+    ...TYPOGRAPHY.caption,
     color: COLORS.textMuted,
-    fontFamily: FONTS.regular,
     textAlign: "right",
-    marginTop: 4,
-    marginBottom: 12,
+    marginTop: SPACING.xs,
+    marginBottom: SPACING.md,
   },
-
-  intro: {
-    fontSize: 14,
-    color: COLORS.text,
-    fontFamily: FONTS.regular,
-    textAlign: "right",
-    lineHeight: 22,
-    backgroundColor: COLORS.surface,
-    padding: 14,
-    borderRadius: 12,
-    marginBottom: 18,
-  },
-
-  section: {
-    marginBottom: 18,
-  },
-
+  introCard: { marginBottom: SPACING.lg },
+  intro: { ...TYPOGRAPHY.body, color: COLORS.text, textAlign: "right" },
+  section: { marginBottom: SPACING.lg },
   sectionTitle: {
-    fontSize: 15,
-    fontFamily: FONTS.bold,
-    color: COLORS.brand,
-    textAlign: "right",
-    marginBottom: 6,
-  },
-
-  sectionBody: {
-    fontSize: 14,
+    ...TYPOGRAPHY.bodyBold,
     color: COLORS.text,
-    fontFamily: FONTS.regular,
     textAlign: "right",
-    lineHeight: 22,
+    marginBottom: SPACING.xs + 2,
   },
+  sectionBody: { ...TYPOGRAPHY.body, color: COLORS.text, textAlign: "right" },
 });

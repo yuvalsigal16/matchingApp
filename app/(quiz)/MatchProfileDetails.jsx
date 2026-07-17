@@ -3,7 +3,6 @@ import React, { useEffect, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
-  Image,
   Platform,
   ScrollView,
   StyleSheet,
@@ -11,11 +10,11 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import {
   Ban,
   ChevronRight,
+  CloudOff,
   Flame,
   Gem,
   MapPin,
@@ -24,7 +23,6 @@ import {
   Zap,
 } from "lucide-react-native";
 import { BASE_URL } from "../src/api/config";
-import { buildImageUri } from "../src/utils/image";
 import { getToken, getUser } from "../src/auth/authStore";
 import { sendChatRequest } from "../src/api/notificationService";
 import { blockUser } from "../src/api/blockService";
@@ -36,9 +34,13 @@ import { computeIntroMatchScore } from "../src/matching/introQuestionnaireScore"
 import { computeTripPreferenceScore } from "../src/matching/tripPreferenceScore";
 import { MATCH_CONTEXT, matchContextLabel } from "../src/matching/matchContext";
 import { getTripScoringInputs } from "../src/api/tripService";
+import Screen from "../../components/ui/Screen";
+import Avatar from "../../components/ui/Avatar";
+import Card from "../../components/ui/Card";
 import MatchReasons from "../../components/ui/MatchReasons";
 import Button from "../../components/ui/Button";
-import { COLORS, FONTS } from "../src/theme";
+import EmptyState from "../../components/ui/EmptyState";
+import { COLORS, FONTS, RADIUS, SHADOWS, SPACING, TYPOGRAPHY } from "../src/theme";
 
 const GENDER_DB_TO_HE = { Male: "זכר", Female: "נקבה", Other: "אחר" };
 
@@ -81,6 +83,7 @@ export default function MatchProfile() {
   const [tripInputs, setTripInputs] = useState(null); // קלטי ניקוד הטיול (לכניסה מצ'אט-טיול)
   const [trips, setTrips] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState(false); // כשל בטעינת פרטי הפרופיל
   const [sending, setSending] = useState(false);
   const [blocking, setBlocking] = useState(false);
 
@@ -135,6 +138,7 @@ export default function MatchProfile() {
         }
 
         if (profileRes.status === "fulfilled") setProfile(profileRes.value || null);
+        else setLoadError(true); // שליפת הפרופיל נכשלה — מציגים מצב-שגיאה ברור
         if (questRes.status === "fulfilled") setQuestionnaire(questRes.value || null);
         if (interestsRes.status === "fulfilled") {
           setFetchedInterests(
@@ -166,7 +170,8 @@ export default function MatchProfile() {
           );
         }
       } catch (err) {
-        console.log("MatchProfileDetails load error:", err);
+        console.error("MatchProfileDetails load error:", err);
+        setLoadError(true);
       } finally {
         setLoading(false);
       }
@@ -268,11 +273,43 @@ export default function MatchProfile() {
     }
   };
 
+  // כפתור חזרה צף מעל ההירו — משמש גם בטעינה וגם בתוכן.
+  const backButton = (
+    <TouchableOpacity
+      style={styles.backBtn}
+      onPress={() => router.back()}
+      hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+      accessibilityRole="button"
+      accessibilityLabel="חזרה"
+    >
+      <ChevronRight size={22} color={COLORS.brand} strokeWidth={2.2} />
+    </TouchableOpacity>
+  );
+
   if (loading) {
     return (
-      <SafeAreaView style={styles.center}>
-        <ActivityIndicator size="large" color={COLORS.brand} />
-      </SafeAreaView>
+      <Screen>
+        {backButton}
+        <View style={styles.center}>
+          <ActivityIndicator size="large" color={COLORS.brand} />
+        </View>
+      </Screen>
+    );
+  }
+
+  // מצב-שגיאה מפורש: שליפת הפרופיל נכשלה. חזרה עדיין זמינה (backButton).
+  if (loadError) {
+    return (
+      <Screen>
+        {backButton}
+        <View style={styles.center}>
+          <EmptyState
+            Icon={CloudOff}
+            title="לא ניתן לטעון את הפרופיל"
+            subtitle="אירעה תקלה בטעינת הפרטים. נסו שוב מאוחר יותר."
+          />
+        </View>
+      </Screen>
     );
   }
 
@@ -286,11 +323,6 @@ export default function MatchProfile() {
   const firstName = user.firstName || matchUser.name?.split(" ")[0] || "";
   const lastName =
     user.lastName || matchUser.name?.split(" ").slice(1).join(" ") || "";
-  const initials =
-    `${firstName[0] || ""}${lastName[0] || ""}`.toUpperCase() || "?";
-  const imageUri = buildImageUri(
-    user.profileImage || user.ProfileImage || matchUser.profileImage,
-  );
   const age = calcAge(user.birthDate) || matchUser.age;
   // תחומי עניין — מ-matchUser אם הגיע עשיר, אחרת מהשליפה של המסך.
   const interests =
@@ -364,31 +396,21 @@ export default function MatchProfile() {
   ].filter(Boolean);
 
   return (
-    <SafeAreaView style={styles.container}>
-      {/* כפתור חזרה */}
-      <TouchableOpacity
-        style={styles.backBtn}
-        onPress={() => router.back()}
-        hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-        accessibilityRole="button"
-        accessibilityLabel="חזרה"
-      >
-        <ChevronRight size={22} color={COLORS.brand} />
-      </TouchableOpacity>
+    <Screen>
+      {backButton}
 
       <ScrollView
         contentContainerStyle={styles.content}
         showsVerticalScrollIndicator={false}
       >
         {/* ── הירו ── */}
-        <View style={styles.heroSection}>
-          {imageUri ? (
-            <Image source={{ uri: imageUri }} style={styles.avatar} />
-          ) : (
-            <View style={styles.avatarPlaceholder}>
-              <Text style={styles.avatarInitials}>{initials}</Text>
-            </View>
-          )}
+        <View style={styles.hero}>
+          <Avatar
+            uri={user.profileImage || user.ProfileImage || matchUser.profileImage}
+            name={`${firstName} ${lastName}`.trim()}
+            size="xl"
+            style={styles.heroAvatar}
+          />
 
           <Text style={styles.name}>
             {firstName} {lastName}
@@ -404,7 +426,7 @@ export default function MatchProfile() {
 
           {user.city ? (
             <View style={styles.cityRow}>
-              <MapPin size={14} color={COLORS.textMuted} />
+              <MapPin size={14} color={COLORS.textMuted} strokeWidth={2} />
               <Text style={styles.cityText}>{user.city}</Text>
             </View>
           ) : null}
@@ -420,15 +442,15 @@ export default function MatchProfile() {
 
         {/* ── למה אולי תתחברו — הסבר אנושי לסיבת ההמלצה, מיד אחרי אחוז ההתאמה ── */}
         {reasons.length > 0 && (
-          <View style={styles.section}>
+          <Card style={styles.section}>
             <Text style={styles.sectionTitle}>למה אולי תתחברו</Text>
             <MatchReasons reasons={reasons} size="md" />
-          </View>
+          </Card>
         )}
 
         {/* ── טיולים פעילים ── */}
         {trips.length > 0 && (
-          <View style={styles.section}>
+          <Card style={styles.section}>
             <Text style={styles.sectionTitle}>טיולים מתוכננים</Text>
             {trips.map((t, i) => (
               <View key={i} style={styles.tripCard}>
@@ -445,12 +467,12 @@ export default function MatchProfile() {
                 )}
               </View>
             ))}
-          </View>
+          </Card>
         )}
 
         {/* ── אורח חיים ── */}
         {lifestyleTags.length > 0 && (
-          <View style={styles.section}>
+          <Card style={styles.section}>
             <Text style={styles.sectionTitle}>אורח חיים</Text>
             <View style={styles.tagsRow}>
               {lifestyleTags.map((tag, i) => (
@@ -460,12 +482,12 @@ export default function MatchProfile() {
                 </View>
               ))}
             </View>
-          </View>
+          </Card>
         )}
 
         {/* ── תחומי עניין ── */}
         {interests.length > 0 && (
-          <View style={styles.section}>
+          <Card style={styles.section}>
             <Text style={styles.sectionTitle}>תחומי עניין</Text>
             <View style={styles.tagsRow}>
               {interests.map((interest, i) => (
@@ -474,7 +496,7 @@ export default function MatchProfile() {
                 </View>
               ))}
             </View>
-          </View>
+          </Card>
         )}
 
         {/* ── פעולות ── */}
@@ -505,154 +527,113 @@ export default function MatchProfile() {
           />
         </View>
       </ScrollView>
-    </SafeAreaView>
+    </Screen>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: COLORS.background },
-  center: { flex: 1, justifyContent: "center", alignItems: "center", backgroundColor: COLORS.background },
+  center: { flex: 1, justifyContent: "center", alignItems: "center" },
 
+  // כפתור חזרה צף — בתוך גוף ה-Screen (מעל ה-safe-area), בלי היסט קשיח.
+  // פינה עגולה, משטח לבן, צל עדין מהטוקנים.
   backBtn: {
     position: "absolute",
-    top: 54,
-    right: 20,
+    top: SPACING.lg,
+    right: SPACING.xl,
     zIndex: 10,
-    width: 36,
-    height: 36,
-    borderRadius: 18,
+    width: 40,
+    height: 40,
+    borderRadius: RADIUS.pill,
     backgroundColor: COLORS.surface,
     justifyContent: "center",
     alignItems: "center",
-    shadowColor: COLORS.shadow,
-    shadowOpacity: 0.08,
-    shadowRadius: 4,
-    elevation: 3,
+    ...SHADOWS.sm,
   },
 
-  content: { paddingBottom: 40 },
+  content: { paddingBottom: SPACING.xxxl },
 
-  heroSection: {
+  // ── הירו ── באנר פרופיל במלוא הרוחב, פינות תחתונות מעוגלות.
+  hero: {
     alignItems: "center",
-    paddingTop: 30,
-    paddingBottom: 28,
-    paddingHorizontal: 24,
+    paddingTop: SPACING.xxl + 2,
+    paddingBottom: SPACING.xxl,
+    paddingHorizontal: SPACING.xxl,
     backgroundColor: COLORS.surface,
-    marginBottom: 16,
-    borderBottomLeftRadius: 28,
-    borderBottomRightRadius: 28,
-    shadowColor: COLORS.shadow,
-    shadowOpacity: 0.06,
-    shadowRadius: 8,
-    elevation: 3,
+    marginBottom: SPACING.lg,
+    borderBottomLeftRadius: RADIUS.xl + 8,
+    borderBottomRightRadius: RADIUS.xl + 8,
+    ...SHADOWS.md,
   },
-
-  avatar: {
-    width: 96,
-    height: 96,
-    borderRadius: 48,
-    marginBottom: 14,
+  // טבעת brandLight עדינה סביב האווטר (נשמרת מהמראה הקיים דרך prop ה-style).
+  heroAvatar: {
+    marginBottom: SPACING.md + 2,
     borderWidth: 3,
     borderColor: COLORS.brandLight,
   },
-
-  avatarPlaceholder: {
-    width: 96,
-    height: 96,
-    borderRadius: 48,
-    backgroundColor: COLORS.brand,
-    justifyContent: "center",
-    alignItems: "center",
-    marginBottom: 14,
-  },
-
-  avatarInitials: {
-    fontSize: 34,
-    fontFamily: FONTS.bold,
-    color: COLORS.onBrand,
-  },
-
   name: {
-    fontSize: 22,
-    fontFamily: FONTS.extraBold || FONTS.bold,
+    ...TYPOGRAPHY.h2,
+    fontFamily: FONTS.extraBold,
     color: COLORS.text,
-    marginBottom: 4,
+    marginBottom: SPACING.xs / 2,
   },
-
   ageLine: {
-    fontSize: 15,
-    fontFamily: FONTS.regular,
+    ...TYPOGRAPHY.body,
     color: COLORS.textSecondary,
-    marginBottom: 6,
+    marginBottom: SPACING.xs / 2,
   },
-
   cityRow: {
-    flexDirection: "row",
+    flexDirection: "row-reverse",
     alignItems: "center",
     gap: 4,
     marginTop: 2,
   },
-
   cityText: {
-    fontSize: 14,
-    fontFamily: FONTS.regular,
+    ...TYPOGRAPHY.caption,
     color: COLORS.textMuted,
   },
-
+  // תג אחוז ההתאמה — ענבר (אות-ההתאמה של המערכת).
   matchBox: {
     backgroundColor: COLORS.amberLight,
-    borderRadius: 20,
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    marginTop: 12,
+    borderRadius: RADIUS.pill,
+    paddingHorizontal: SPACING.lg,
+    paddingVertical: SPACING.sm,
+    marginTop: SPACING.md,
   },
-
   matchText: {
-    fontSize: 15,
-    fontFamily: FONTS.bold,
+    ...TYPOGRAPHY.bodyBold,
     color: COLORS.amberDark,
   },
 
+  // ── מקטע תוכן — Card משותף; כאן רק גוטר ומרווח תחתון. ──
   section: {
-    backgroundColor: COLORS.surface,
-    marginHorizontal: 16,
-    marginBottom: 12,
-    borderRadius: 18,
-    padding: 18,
-    shadowColor: COLORS.shadow,
-    shadowOpacity: 0.04,
-    shadowRadius: 6,
-    elevation: 2,
+    marginHorizontal: SPACING.xl,
+    marginBottom: SPACING.md,
   },
-
+  // כותרת מקטע — היררכיית TYPOGRAPHY, בצבע טקסט (brand שמור לפעולות/אותות).
   sectionTitle: {
-    fontSize: 15,
-    fontFamily: FONTS.bold,
-    color: COLORS.brand,
+    ...TYPOGRAPHY.h3,
+    color: COLORS.text,
     textAlign: "right",
-    marginBottom: 12,
+    marginBottom: SPACING.md,
   },
 
+  // כרטיס טיול פנימי — גוון-מותג רך, סימן-מסע בקצה ימין (RTL).
   tripCard: {
     backgroundColor: COLORS.brandLight,
-    borderRadius: 12,
-    padding: 12,
-    marginBottom: 8,
+    borderRadius: RADIUS.md,
+    padding: SPACING.md,
+    marginBottom: SPACING.sm,
     borderRightWidth: 3,
     borderRightColor: COLORS.brand,
     alignItems: "flex-end",
   },
-
   tripDest: {
-    fontSize: 16,
-    fontFamily: FONTS.bold,
+    ...TYPOGRAPHY.bodyBold,
     color: COLORS.brand,
     textAlign: "right",
   },
-
   tripDates: {
-    fontSize: 13,
-    fontFamily: FONTS.regular,
+    ...TYPOGRAPHY.caption,
     color: COLORS.textMuted,
     marginTop: 3,
     textAlign: "right",
@@ -661,48 +642,48 @@ const styles = StyleSheet.create({
   tagsRow: {
     flexDirection: "row-reverse",
     flexWrap: "wrap",
-    gap: 8,
+    gap: SPACING.sm,
   },
 
+  // תג אורח-חיים — ממולא (אות תאימות חזק): brandLight + אייקון + טקסט מותג.
   tag: {
     flexDirection: "row-reverse",
     alignItems: "center",
     gap: 6,
     backgroundColor: COLORS.brandLight,
-    borderRadius: 20,
-    paddingHorizontal: 12,
-    paddingVertical: 6,
+    borderRadius: RADIUS.pill,
+    paddingHorizontal: SPACING.md,
+    paddingVertical: SPACING.xs + 2,
   },
-
   tagText: {
-    fontSize: 13,
-    fontFamily: FONTS.regular,
+    ...TYPOGRAPHY.caption,
     color: COLORS.brand,
   },
 
+  // תג תחום-עניין — קווי/עדין (מידע משלים): משטח + מסגרת-שיער, בלי אייקון.
   interestTag: {
-    backgroundColor: "#F3EFFF",
-    borderRadius: 20,
-    paddingHorizontal: 12,
-    paddingVertical: 6,
+    backgroundColor: COLORS.surface,
+    borderWidth: 1,
+    borderColor: COLORS.hairline,
+    borderRadius: RADIUS.pill,
+    paddingHorizontal: SPACING.md,
+    paddingVertical: SPACING.xs + 2,
   },
-
   interestText: {
-    fontSize: 13,
-    fontFamily: FONTS.regular,
-    color: "#7E76A6",
+    ...TYPOGRAPHY.caption,
+    color: COLORS.brand,
   },
 
   // פוטר הפעולות — כפתורים מלאי-רוחב, מוערמים, בהיררכיה ברורה (ראשי → משני → הרסני).
   footer: {
-    marginHorizontal: 16,
-    marginTop: 8,
-    marginBottom: 24,
-    gap: 12,
+    marginHorizontal: SPACING.xl,
+    marginTop: SPACING.sm,
+    marginBottom: SPACING.xxl,
+    gap: SPACING.md,
   },
   footerDivider: {
     height: 1,
     backgroundColor: COLORS.hairline,
-    marginTop: 4,
+    marginTop: SPACING.xs,
   },
 });

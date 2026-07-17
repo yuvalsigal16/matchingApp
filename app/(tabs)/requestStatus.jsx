@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
@@ -8,14 +8,53 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
-import { Ionicons } from "@expo/vector-icons";
+import { Check, Circle, Clock, Send, X } from "lucide-react-native";
 
-import { COLORS, FONTS } from "../src/theme";
+import { COLORS, FONTS, RADIUS, SPACING, TYPOGRAPHY } from "../src/theme";
 import { getUser } from "../src/auth/authStore";
 import { cancelRequest, getPendingRequests } from "../src/api/notificationService";
+import Screen from "../../components/ui/Screen";
+import ScreenHeader from "../../components/ui/ScreenHeader";
+import EmptyState from "../../components/ui/EmptyState";
 import BottomNav from "../../components/BottomNav";
+
+// RequestRow — שורת בקשה (מקומית למסך זה): מראה וריווח זהים ל-NotificationRow —
+// עיגול-אייקון בגוון-הסטטוס + שם הנמען + תווית סטטוס, וכפתור "בטל" לבקשה בהמתנה.
+function RequestRow({ req, status, onCancel }) {
+  const Icon = status.Icon;
+  const name =
+    [req.toFirstName, req.toLastName].filter(Boolean).join(" ").trim() ||
+    `משתמש #${req.toUserID}`;
+
+  return (
+    <View style={styles.row}>
+      <View style={[styles.icon, { backgroundColor: status.bg }]}>
+        <Icon size={20} color={status.color} strokeWidth={2} />
+      </View>
+
+      <View style={styles.text}>
+        <Text style={styles.title} numberOfLines={1}>
+          {name}
+        </Text>
+        <Text style={styles.subtitle} numberOfLines={1}>
+          {status.label}
+        </Text>
+      </View>
+
+      {req.status === "Pending" ? (
+        <TouchableOpacity
+          style={styles.cancelBtn}
+          onPress={onCancel}
+          accessibilityRole="button"
+          accessibilityLabel={`ביטול הבקשה ל-${name}`}
+        >
+          <Text style={styles.cancelText}>בטל</Text>
+        </TouchableOpacity>
+      ) : null}
+    </View>
+  );
+}
 
 // מסך הצגת סטטוס הבקשות שהמשתמש שלח
 export default function RequestStatusScreen() {
@@ -67,78 +106,63 @@ export default function RequestStatusScreen() {
     ]);
   };
 
-  // החזרת אייקון וצבע לפי סטטוס הבקשה
+  // החזרת אייקון, גוון סמנטי ותווית לפי סטטוס הבקשה (lucide בלבד; Pending = brand).
   const renderStatus = (status) => {
     if (status === "Pending") {
-      return { icon: "time-outline", color: COLORS.amber, label: "ממתין" };
+      return { Icon: Clock, color: COLORS.brand, bg: COLORS.brandLight, label: "ממתין" };
     }
     if (status === "Approved") {
-      return { icon: "checkmark-circle-outline", color: COLORS.success, label: "אושר" };
+      return { Icon: Check, color: COLORS.success, bg: COLORS.successLight, label: "אושר" };
     }
     if (status === "Rejected") {
-      return { icon: "close-circle-outline", color: COLORS.danger, label: "נדחה" };
+      return { Icon: X, color: COLORS.danger, bg: COLORS.dangerLight, label: "נדחה" };
     }
-    return { icon: "ellipse-outline", color: COLORS.textMuted, label: status || "—" };
+    return { Icon: Circle, color: COLORS.textMuted, bg: COLORS.divider, label: status || "—" };
   };
 
   if (loading) {
     return (
-      <SafeAreaView style={styles.center}>
-        <ActivityIndicator size="large" color={COLORS.brand} />
-      </SafeAreaView>
+      <Screen>
+        <ScreenHeader title="סטטוס בקשות" onBack={() => router.back()} />
+        <View style={styles.center}>
+          <ActivityIndicator size="large" color={COLORS.brand} />
+        </View>
+        <BottomNav active="notifications" />
+      </Screen>
     );
   }
 
   return (
-    <SafeAreaView style={styles.container}>
-      {/* Header עם חץ חזרה */}
-      <View style={styles.headerRow}>
-        <TouchableOpacity
-          onPress={() => router.back()}
-          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-          accessibilityRole="button"
-          accessibilityLabel="חזרה"
-        >
-          <Ionicons name="arrow-forward" size={26} color={COLORS.brand} />
-        </TouchableOpacity>
-        <Text style={styles.header}>סטטוס בקשות</Text>
-        <View style={{ width: 26 }} />
-      </View>
+    <Screen>
+      <ScreenHeader title="סטטוס בקשות" onBack={() => router.back()} />
 
-      <ScrollView contentContainerStyle={styles.content}>
+      <ScrollView
+        contentContainerStyle={
+          requests.length === 0 ? styles.emptyContent : styles.content
+        }
+        showsVerticalScrollIndicator={false}
+      >
         {requests.length === 0 ? (
-          <View style={styles.emptyBox}>
-            <Ionicons name="paper-plane-outline" size={40} color={COLORS.textMuted} />
-            <Text style={styles.emptyText}>אין בקשות פעילות</Text>
-          </View>
+          <EmptyState
+            Icon={Send}
+            title="אין בקשות פעילות"
+            subtitle="הבקשות ששלחת יופיעו כאן עם הסטטוס שלהן."
+            actionLabel="מצאו עם מי לצאת לדרך"
+            onAction={() => router.push("/matchesForYou")}
+          />
         ) : (
-          requests.map((req) => {
+          requests.map((req, i) => {
             const s = renderStatus(req.status);
             return (
-              <View key={req.requestID} style={styles.card}>
-                {/* אייקון סטטוס */}
-                <Ionicons name={s.icon} size={26} color={s.color} />
-
-                {/* פרטי בקשה */}
-                <View style={styles.cardText}>
-                  <Text style={styles.title}>
-                    {[req.toFirstName, req.toLastName]
-                      .filter(Boolean)
-                      .join(" ")
-                      .trim() || `משתמש #${req.toUserID}`}
-                  </Text>
-                  <Text style={styles.subtitle}>סטטוס: {s.label}</Text>
-                </View>
-
-                {/* כפתור ביטול - רק לבקשות בהמתנה */}
-                {req.status === "Pending" && (
-                  <TouchableOpacity
-                    style={styles.cancelBtn}
-                    onPress={() => handleCancel(req.requestID)}
-                  >
-                    <Text style={styles.cancelText}>בטל</Text>
-                  </TouchableOpacity>
-                )}
+              <View key={req.requestID}>
+                <RequestRow
+                  req={req}
+                  status={s}
+                  onCancel={() => handleCancel(req.requestID)}
+                />
+                {i < requests.length - 1 ? (
+                  <View style={styles.separator} />
+                ) : null}
               </View>
             );
           })
@@ -146,95 +170,68 @@ export default function RequestStatusScreen() {
       </ScrollView>
 
       <BottomNav active="notifications" />
-    </SafeAreaView>
+    </Screen>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: COLORS.background },
-  center: {
-    flex: 1,
+  center: { flex: 1, justifyContent: "center", alignItems: "center" },
+
+  content: { paddingTop: SPACING.sm, paddingBottom: SPACING.xxl },
+  emptyContent: {
+    flexGrow: 1,
     justifyContent: "center",
     alignItems: "center",
-    backgroundColor: COLORS.background,
+    paddingHorizontal: SPACING.xl,
   },
 
-  headerRow: {
-    flexDirection: "row-reverse",
-    justifyContent: "space-between",
-    alignItems: "center",
-    paddingHorizontal: 20,
-    paddingTop: 20,
-    paddingBottom: 10,
-  },
-
-  header: {
-    fontSize: 20,
-    fontFamily: FONTS.bold,
-    color: COLORS.brand,
-  },
-
-  content: {
-    paddingHorizontal: 20,
-    paddingBottom: 40,
-  },
-
-  card: {
+  // שורת בקשה — ריווח/מבנה זהים ל-NotificationRow (שפה עקבית).
+  row: {
     flexDirection: "row-reverse",
     alignItems: "center",
-    backgroundColor: COLORS.surface,
-    padding: 14,
-    borderRadius: 16,
-    marginBottom: 10,
-    shadowColor: COLORS.shadow,
-    shadowOpacity: 0.05,
-    shadowRadius: 6,
-    elevation: 2,
+    gap: SPACING.md,
+    paddingVertical: SPACING.md,
+    paddingHorizontal: SPACING.xl,
   },
-
-  cardText: {
-    flex: 1,
-    marginHorizontal: 12,
-    alignItems: "flex-end",
+  icon: {
+    width: 40,
+    height: 40,
+    borderRadius: RADIUS.pill,
+    justifyContent: "center",
+    alignItems: "center",
   },
-
+  text: { flex: 1, alignItems: "flex-end", gap: SPACING.xs / 2 },
   title: {
-    fontSize: 15,
-    fontFamily: FONTS.bold,
-    color: COLORS.brand,
+    ...TYPOGRAPHY.body,
+    fontFamily: FONTS.semibold,
+    color: COLORS.text,
+    textAlign: "right",
   },
-
   subtitle: {
-    fontSize: 13,
-    fontFamily: FONTS.regular,
+    ...TYPOGRAPHY.caption,
     color: COLORS.textSecondary,
-    marginTop: 4,
+    textAlign: "right",
   },
 
+  // כפתור ביטול — pill מקומי מטוקן (danger), עקבי בצורתו עם ה-pill-ים באפליקציה.
   cancelBtn: {
     backgroundColor: COLORS.dangerLight,
-    paddingHorizontal: 14,
-    paddingVertical: 8,
-    borderRadius: 12,
+    paddingHorizontal: SPACING.md,
+    paddingVertical: SPACING.sm,
+    borderRadius: RADIUS.pill,
     borderWidth: 1,
     borderColor: COLORS.dangerBorder,
   },
-
   cancelText: {
-    color: COLORS.danger,
+    ...TYPOGRAPHY.caption,
     fontFamily: FONTS.bold,
-    fontSize: 13,
+    color: COLORS.danger,
   },
 
-  emptyBox: {
-    marginTop: 80,
-    alignItems: "center",
-  },
-
-  emptyText: {
-    marginTop: 10,
-    fontSize: 16,
-    color: COLORS.textMuted,
-    fontFamily: FONTS.regular,
+  // מפריד עדין, מוזח אל מעבר לעיגול-האייקון (זהה ל-notifications).
+  separator: {
+    height: 1,
+    backgroundColor: COLORS.hairline,
+    marginRight: SPACING.xl + 40 + SPACING.md,
   },
 });
