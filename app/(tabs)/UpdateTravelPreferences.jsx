@@ -1,5 +1,5 @@
 import { Slider } from "@miblanchard/react-native-slider";
-import { useRouter } from "expo-router";
+import { useLocalSearchParams, useRouter } from "expo-router";
 import {
   Cigarette,
   Gem,
@@ -48,6 +48,9 @@ const AGE_MAX = 60;
 
 export default function UpdateTravelPreferencesScreen() {
   const router = useRouter();
+  // initialTripId (אופציונלי) — כניסה מהקשר של טיול ספציפי (למשל CTA ב-TripMatches)
+  // נוחתת ישר על הטיול הזה במקום על הראשון ברשימה. בלי הפרמטר — התנהגות ללא שינוי.
+  const { initialTripId } = useLocalSearchParams();
   const userId = getUser()?.userID;
 
   const [loading, setLoading] = useState(true);
@@ -84,7 +87,10 @@ export default function UpdateTravelPreferencesScreen() {
         setTrips(tripsList);
         setAllInterests(ints || []);
         if (tripsList.length > 0) {
-          setSelectedTripId(tripsList[0].tripID);
+          // אם הגענו עם טיול ספציפי והוא קיים ברשימה — בוחרים אותו; אחרת הראשון.
+          const wanted = Number(initialTripId);
+          const found = wanted && tripsList.find((t) => t.tripID === wanted);
+          setSelectedTripId(found ? found.tripID : tripsList[0].tripID);
         } else {
           setLoading(false);
         }
@@ -93,7 +99,8 @@ export default function UpdateTravelPreferencesScreen() {
         setLoading(false);
       }
     })();
-  }, [userId]);
+    // initialTripId מגיע מפרמטרי הניווט ויציב לאורך חיי המסך — הוספתו בטוחה.
+  }, [userId, initialTripId]);
 
   // בכל החלפת טיול — טוען את ההעדפות וה-interests שלו
   useEffect(() => {

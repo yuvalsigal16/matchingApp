@@ -243,7 +243,7 @@ export default function TripPlanner() {
             />
             {generating ? (
               <Text style={styles.itineraryHint}>
-                מרכיבים את המסלול שלכם... זה יכול לקחת עד דקה
+                מרכיבים מסלול שלם במיוחד בשבילכם... בטיול ארוך זה יכול לקחת עד שתי דקות
               </Text>
             ) : null}
             {genError ? <Text style={styles.itineraryError}>{genError}</Text> : null}

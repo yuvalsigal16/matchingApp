@@ -71,10 +71,11 @@ namespace MatchingAppServer
             // שירות שליחת מייל (Brevo דרך HttpClient) — לאיפוס סיסמה
             builder.Services.AddHttpClient<IEmailService, BrevoEmailService>();
 
-            // "המסלול שלכם" — הצעת מסלול מותאמת (Claude). Typed HttpClient באותו דפוס כמו Brevo,
-            // עם timeout נדיב כי יצירת מסלול אורכת עשרות שניות. MemoryCache: הצעות + חלון צינון.
+            // "המסלול שלכם" — הצעת מסלול מותאמת (Claude). Typed HttpClient באותו דפוס כמו Brevo.
+            // 180 שניות: מסלול מלא של 8+ ימים נמדד ב-~100 שניות בפועל (90 היה הורג אותו
+            // רגע לפני הסיום), ונשארים מתחת לתקרת ה-230 שניות של Azure App Service.
             builder.Services.AddMemoryCache();
-            builder.Services.AddHttpClient<AiItineraryService>(c => c.Timeout = TimeSpan.FromSeconds(90));
+            builder.Services.AddHttpClient<AiItineraryService>(c => c.Timeout = TimeSpan.FromSeconds(180));
 
             // העשרת מקומות (Google Places) — Typed Client נפרד: timeout קצר משל Claude.
             builder.Services.AddHttpClient<PlaceEnrichmentService>(c => c.Timeout = TimeSpan.FromSeconds(8));
