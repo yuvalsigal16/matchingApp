@@ -6,8 +6,9 @@ import { fetchWithTimeout } from "./fetchWithTimeout";
 // regenerate=true מבקש הצעה שונה (עוקף את ה-cache בשרת, כפוף לצינון של 30 שניות).
 // מחזיר: { summary, match_reason, planning_notes, days: [{ day, title, activities: [{ time, title, description }] }] }
 //
-// timeout נדיב (95 שניות): הרכבת מסלול אורכת עשרות שניות, וצריך גם מרווח מעל
-// ה-timeout של השרת (90 שניות) כדי שהודעת השגיאה תגיע מהשרת ולא מ-Abort מקומי.
+// timeout נדיב (190 שניות): מסלול מלא של 8+ ימים נמדד ב-~100 שניות מול Claude,
+// וה-timeout כאן חייב להיות מעל זה של השרת (180 שניות) כדי שהודעת השגיאה תגיע
+// מהשרת ולא מ-Abort מקומי.
 export async function generateItinerary(tripId, { regenerate = false } = {}) {
   const url = `${BASE_URL}/Trip/${tripId}/ai-itinerary${regenerate ? "?regenerate=true" : ""}`;
 
@@ -20,7 +21,7 @@ export async function generateItinerary(tripId, { regenerate = false } = {}) {
         method: "POST",
         headers: token ? { Authorization: `Bearer ${token}` } : {},
       },
-      95000,
+      190000,
     );
   } catch (networkErr) {
     console.error("[itinerary] ✖ network error:", networkErr);

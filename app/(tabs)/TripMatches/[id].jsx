@@ -1,5 +1,5 @@
-import { useLocalSearchParams, useRouter } from "expo-router";
-import { useEffect, useMemo, useState } from "react";
+import { useFocusEffect, useLocalSearchParams, useRouter } from "expo-router";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Dimensions,
@@ -25,6 +25,8 @@ import ScreenHeader from "../../../components/ui/ScreenHeader";
 import SectionLabel from "../../../components/ui/SectionLabel";
 import EmptyState from "../../../components/ui/EmptyState";
 import Tappable from "../../../components/ui/Tappable";
+import MatchReasons from "../../../components/ui/MatchReasons";
+import { getTripMatchReasons } from "../../src/utils/tripMatchReasons";
 import { BASE_URL } from "../../src/api/config";
 import { buildImageUri } from "../../src/utils/image";
 import { getAllUsers } from "../../src/api/userService";
@@ -113,6 +115,25 @@ export default function TripMatchesScreen() {
     if (tripId) loadData();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tripId]);
+
+  // חזרה מ"הגדרת/עדכון העדפות" (router.back): המסך נשאר ב-stack וה-useEffect הרגיל
+  // לא רץ שוב. נטענים מחדש רק בפוקוס-חוזר אמיתי, ורק כשיש סיבה (אין העדפות או אין
+  // התאמות) — לא בכל חזרה למסך. ה-state נקרא דרך ref כדי שה-deps יישארו יציבים
+  // (deps משתנים ב-useFocusEffect מריצים את ה-callback גם בלי blur — סכנת לולאה).
+  // ה-ref מתעדכן אחרי חישוב categories (בהמשך הקומפוננטה).
+  const focusStateRef = useRef({});
+  const firstFocusDone = useRef(false);
+  useFocusEffect(
+    useCallback(() => {
+      if (!firstFocusDone.current) {
+        firstFocusDone.current = true; // הפוקוס הראשוני — הטעינה כבר רצה ב-useEffect
+        return;
+      }
+      const s = focusStateRef.current;
+      if (!s.loading && tripId && (s.noPref || s.noMatches)) loadData();
+      // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [tripId])
+  );
 
   const enrichServerUser = (u) => ({
     ...u,
@@ -203,6 +224,20 @@ export default function TripMatchesScreen() {
     return result;
   }, [users, pref, prefInterests, priorityFactors]);
 
+  // "סיבות התאמה" בהקשר הטיול — למה כל מועמד מתאים למה שביקשתם (userID → reasons).
+  // מחושב מהדאטה שכבר טעון (pref/prefInterests/priorityFactors) — אפס קריאות נוספות.
+  // שכבת הסבר בלבד: לא משנה את הניקוד ולא את הקיבוץ לקטגוריות.
+  const reasonsByUser = useMemo(() => {
+    const map = {};
+    if (!pref) return map;
+    users.forEach((user) => {
+      map[user.userID] = getTripMatchReasons(user, pref, prefInterests, priorityFactors, {
+        limit: 2,
+      });
+    });
+    return map;
+  }, [users, pref, prefInterests, priorityFactors]);
+
   // קיבוץ לקטגוריות (שורות בסגנון נטפליקס).
   const categories = useMemo(() => {
     if (users.length === 0) return [];
@@ -258,7 +293,11 @@ export default function TripMatchesScreen() {
       cats.push({ key: "dates", icon: "calendar", title: "טסים בתאריכים שלך", items });
     }
 
-    // התאמה אישית גבוהה — לפי הציון בלבד (גם למי שעדיין אין לו טיול פעיל).
+    // "הכי מתאימים למה שביקשת" — לפי ציון התאמת ההעדפות המלא (כל 8 הגורמים +
+    // מכפילי ה-Top-3), גם למי שעדיין אין לו טיול פעיל. "מה שביקשת" מקיף
+    // אינטואיטיבית את *כל* הבקשות (גם עישון/גיל/מגדר — לא רק תחומי עניין).
+    // לשון יחיד ("ביקשת") לפי הנחיית בעלת המוצר — עקבי עם "הטיול שלך"/"בתאריכים
+    // שלך" שבקטגוריות השכנות, וניטרלי מגדרית בכתיב (זהה לזכר/נקבה).
     const personality = users
       .map((user) => {
         const best = (tripsByUser[user.userID] || [])[0] || null;
@@ -266,11 +305,14 @@ export default function TripMatchesScreen() {
       })
       .filter((c) => c.user.name && c.score > 0)
       .sort((a, b) => b.score - a.score);
-    cats.push({ key: "personality", icon: "sparkles", title: "התאמה אישית גבוהה", items: personality });
+    cats.push({ key: "personality", icon: "sparkles", title: "הכי מתאימים למה שביקשת", items: personality });
 
     // משאירים רק קטגוריות לא ריקות.
     return cats.filter((c) => c.items.length > 0);
   }, [users, tripsByUser, scoreByUser, myTrip]);
+
+  // עדכון ה-snapshot לרענון-בפוקוס (מוצהר למעלה; כאן כי categories מחושב רק עכשיו).
+  focusStateRef.current = { loading, noPref: !pref, noMatches: categories.length === 0 };
 
   const openProfile = (user, score) => {
     logInteraction(user.userID, "View"); // מתעד צפייה למנוע ההתנהגותי
@@ -304,6 +346,10 @@ export default function TripMatchesScreen() {
     const imageUri = buildImageUri(user.profileImage);
     const dates = formatDates(trip);
     const nameLine = `${user.name}${user.age != null ? `, ${user.age}` : ""}`;
+    // סיבות ההתאמה לטיול — שורה אחת בכרטיסי הרצועות הצרים, עד 2 בגריד "הצגת הכל"
+    // (אותה מדיניות צפיפות כמו matchesForYou: הגריד עשיר, הרצועה קומפקטית).
+    const allReasons = reasonsByUser[user.userID] || [];
+    const reasons = inGrid ? allReasons : allReasons.slice(0, 1);
     return (
       <View
         key={`${user.userID}-${trip?.tripID ?? "x"}`}
@@ -336,7 +382,9 @@ export default function TripMatchesScreen() {
               {nameLine}
             </Text>
 
-            {/* מטא הטיול — יעד + תאריכים (סימן-מסע עדין), אחרת תחומי עניין. */}
+            {/* מטא הטיול — יעד + תאריכים בלבד (זהות ה-Trip של הכרטיס).
+                שורת תחומי-העניין הישנה הוסרה: סיבות ההתאמה שמתחת כבר מכסות
+                את זה טוב יותר, והכפילות רק העמיסה. */}
             {trip?.destination ? (
               <View style={styles.cardMetaRow}>
                 <Plane size={12} color={COLORS.brand} strokeWidth={2} />
@@ -349,12 +397,11 @@ export default function TripMatchesScreen() {
                 <Calendar size={12} color={COLORS.brand} strokeWidth={2} />
                 <Text style={styles.cardMeta} numberOfLines={1}>{dates}</Text>
               </View>
-            ) : (
-              <View style={styles.cardMetaRow}>
-                <Text style={styles.cardMetaMuted} numberOfLines={1}>
-                  {user.interests.slice(0, 2).join(" · ") || "אין עדיין טיול פעיל"}
-                </Text>
-              </View>
+            ) : null}
+
+            {/* למה המועמד מתאים לטיול הזה — הרכיב המשותף של סיבות ההתאמה. */}
+            {reasons.length > 0 && (
+              <MatchReasons reasons={reasons} style={styles.cardReasons} />
             )}
           </View>
         </Tappable>
@@ -408,15 +455,31 @@ export default function TripMatchesScreen() {
         ) : !pref ? (
           <EmptyState
             Icon={SlidersHorizontal}
-            title="אין עדיין העדפות לטיול"
-            subtitle="הגדירו העדפות לטיול כדי שנמצא לכם שותפים שמתאימים לו."
+            title="עוד לא סיפרתם לנו איך אתם אוהבים לטייל"
+            subtitle="כמה שאלות קצרות יעזרו לנו למצוא לכם שותפים שמתאימים לסגנון הטיול שלכם."
+            actionLabel="הגדרת העדפות טיול"
+            onAction={() =>
+              router.push({
+                pathname: "/UpdateTravelPreferences",
+                params: { initialTripId: String(tripId) },
+              })
+            }
             style={styles.empty}
           />
         ) : categories.length === 0 ? (
+          /* מצב שונה מ"אין העדפות": כאן ההעדפות קיימות אבל אין מועמדים —
+             ההצעה היא להרחיב את ההעדפות או לחזור מאוחר יותר, לא למלא מחדש. */
           <EmptyState
             Icon={Users}
-            title="אין התאמות כרגע"
-            subtitle="עדיין לא מצאנו מטיילים שמתאימים לטיול הזה."
+            title="אין התאמות לטיול הזה כרגע"
+            subtitle="נסו להרחיב קצת את ההעדפות — או חזרו מאוחר יותר, מטיילים חדשים מצטרפים כל הזמן."
+            actionLabel="עדכון העדפות הטיול"
+            onAction={() =>
+              router.push({
+                pathname: "/UpdateTravelPreferences",
+                params: { initialTripId: String(tripId) },
+              })
+            }
             style={styles.empty}
           />
         ) : (
@@ -557,10 +620,6 @@ const styles = StyleSheet.create({
     textAlign: "right",
     flex: 1,
   },
-  cardMetaMuted: {
-    ...TYPOGRAPHY.caption,
-    color: COLORS.textMuted,
-    textAlign: "right",
-    flex: 1,
-  },
+  // מרווח עליון לסיבות ההתאמה (הרכיב המשותף MatchReasons מטפל בשאר) — כמו matchesForYou.
+  cardReasons: { marginTop: SPACING.sm },
 });
