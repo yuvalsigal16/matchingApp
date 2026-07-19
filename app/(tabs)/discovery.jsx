@@ -32,7 +32,7 @@ export default function DiscoveryScreen() {
     <Screen>
       <ScreenHeader title="גילוי וקהילה" onBack={() => router.back()} />
 
-      <Text style={styles.lead}>התחבר/י לאנשים עם אהבה לטיולים</Text>
+      <Text style={styles.lead}>התחברו לאנשים עם אהבה לטיולים</Text>
 
       <ScrollView
         contentContainerStyle={styles.list}

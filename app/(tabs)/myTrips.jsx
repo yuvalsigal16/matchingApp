@@ -1,7 +1,7 @@
 import { useRouter } from "expo-router";
 import { useCallback, useEffect, useState } from "react";
 import { useFocusEffect } from "@react-navigation/native";
-import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { ChevronLeft, MapPin, Plus } from "lucide-react-native";
 
 import BottomNav from "../../components/BottomNav";
@@ -11,7 +11,7 @@ import Screen from "../../components/ui/Screen";
 import ScreenHeader from "../../components/ui/ScreenHeader";
 import { BASE_URL } from "../src/api/config";
 import { getToken, getUser } from "../src/auth/authStore";
-import { COLORS, FONTS, RADIUS, SHADOWS, SPACING, TYPOGRAPHY } from "../src/theme";
+import { COLORS, FONTS, RADIUS, SPACING, TYPOGRAPHY } from "../src/theme";
 
 export default function MyTripsScreen() {
   const router = useRouter();
@@ -59,7 +59,7 @@ export default function MyTripsScreen() {
     }, [])
   );
 
-  // ניווט ליצירת מסע חדש — משותף ל-FAB ול-CTA של מצב-הריק (אותו יעד בדיוק).
+  // ניווט ליצירת מסע חדש — משותף לפלוס שבכותרת ול-CTA של מצב-הריק (אותו יעד בדיוק).
   const goNewTrip = () =>
     router.push({ pathname: "/PreferencesQuiz", params: { mode: "newTrip" } });
 
@@ -165,7 +165,21 @@ export default function MyTripsScreen() {
 
   return (
     <Screen>
-      <ScreenHeader title="הטיולים שלי" onBack={() => router.back()} />
+      {/* פלוס בכותרת — אותה שפה כמו יצירת קהילה במסך הקהילות */}
+      <ScreenHeader
+        title="הטיולים שלי"
+        onBack={() => router.back()}
+        right={
+          <TouchableOpacity
+            onPress={goNewTrip}
+            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+            accessibilityRole="button"
+            accessibilityLabel="תכנון מסע חדש"
+          >
+            <Plus size={24} color={COLORS.brand} strokeWidth={2.4} />
+          </TouchableOpacity>
+        }
+      />
 
       <ScrollView
         style={styles.scroll}
@@ -186,16 +200,6 @@ export default function MyTripsScreen() {
         )}
       </ScrollView>
 
-      {/* כפתור צף — תכנון מסע חדש */}
-      <Pressable
-        style={({ pressed }) => [styles.fab, pressed && styles.fabPressed]}
-        onPress={goNewTrip}
-        accessibilityRole="button"
-        accessibilityLabel="תכנון מסע חדש"
-      >
-        <Plus size={28} color={COLORS.onBrand} strokeWidth={2.4} />
-      </Pressable>
-
       <BottomNav active="trips" />
     </Screen>
   );
@@ -206,8 +210,7 @@ const styles = StyleSheet.create({
   content: {
     paddingHorizontal: SPACING.xl,
     paddingTop: SPACING.sm,
-    // אוויר מתחת לכרטיס האחרון כדי שה-FAB וה-BottomNav לא יסתירו אותו.
-    paddingBottom: 170,
+    paddingBottom: SPACING.xxxl,
   },
 
   // ── כרטיס מסע ──
@@ -283,19 +286,4 @@ const styles = StyleSheet.create({
     alignSelf: "flex-end",
     marginTop: SPACING.md,
   },
-
-  // ── FAB ──
-  fab: {
-    position: "absolute",
-    bottom: 90,
-    alignSelf: "center",
-    backgroundColor: COLORS.brand,
-    width: 60,
-    height: 60,
-    borderRadius: 30,
-    justifyContent: "center",
-    alignItems: "center",
-    ...SHADOWS.lg,
-  },
-  fabPressed: { opacity: 0.92, transform: [{ scale: 0.97 }] },
 });

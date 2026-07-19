@@ -56,7 +56,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   title: {
-    fontFamily: FONTS.extraBold,
+    fontFamily: FONTS.bold,
     fontSize: 24,
     color: COLORS.text,
     textAlign: "center",

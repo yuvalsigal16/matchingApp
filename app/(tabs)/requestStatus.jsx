@@ -49,7 +49,7 @@ function RequestRow({ req, status, onCancel }) {
           accessibilityRole="button"
           accessibilityLabel={`ביטול הבקשה ל-${name}`}
         >
-          <Text style={styles.cancelText}>בטל</Text>
+          <Text style={styles.cancelText}>ביטול</Text>
         </TouchableOpacity>
       ) : null}
     </View>
@@ -91,7 +91,7 @@ export default function RequestStatusScreen() {
     Alert.alert("ביטול בקשה", "האם לבטל את הבקשה?", [
       { text: "לא", style: "cancel" },
       {
-        text: "כן, בטל",
+        text: "כן, לבטל",
         style: "destructive",
         onPress: async () => {
           const ok = await cancelRequest(requestId);

@@ -224,9 +224,9 @@ export default function TripDetails() {
         ]
       : []),
     ...(!isPast && trip.status !== "Inactive"
-      ? [{ label: "השבת טיול", onPress: handleDeactivate }]
+      ? [{ label: "השבתת טיול", onPress: handleDeactivate }]
       : []),
-    { label: "מחק טיול", destructive: true, onPress: handleDeleteTrip },
+    { label: "מחיקת טיול", destructive: true, onPress: handleDeleteTrip },
   ];
 
   /* ========================= UI ========================= */

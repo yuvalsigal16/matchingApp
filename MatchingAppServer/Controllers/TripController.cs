@@ -1,5 +1,7 @@
 ﻿using Microsoft.AspNetCore.Mvc;
 using MatchingAppServer.BL;
+using MatchingAppServer.Models;
+using MatchingAppServer.Services;
 using Microsoft.AspNetCore.Authorization;
 using System.Text.Json;
 using System.Security.Claims;
@@ -14,11 +16,13 @@ namespace MatchingAppServer.Controllers
     {
         private readonly Trip bl = new Trip();
         private readonly IConfiguration _config;
+        private readonly AiItineraryService _aiItinerary;
         private static readonly HttpClient _http = new HttpClient();
 
-        public TripController(IConfiguration config)
+        public TripController(IConfiguration config, AiItineraryService aiItinerary)
         {
             _config = config;
+            _aiItinerary = aiItinerary;
         }
 
         // שולף את UserID של המשתמש המחובר מה-JWT.
@@ -199,6 +203,66 @@ namespace MatchingAppServer.Controllers
             {
                 // לא מחזירים 500 גנרי בלי הסבר — מקל על איתור התקלה בעתיד.
                 return StatusCode(500, $"Failed to parse Claude response: {ex.Message}");
+            }
+        }
+
+        // "המסלול שלכם" — הצעת מסלול מותאמת לשני המטיילים.
+        // regenerate=true עוקף את ה-cache ומבקש וריאציה שונה (כפוף לצינון של 30 שניות).
+        // ללקוח חוזרות הודעות משתמש בלבד — פרטים טכניים נשארים בלוג השרת (בתוך השירות).
+        [Authorize]
+        [HttpPost("{tripId}/ai-itinerary")]
+        public async Task<IActionResult> GenerateItinerary(int tripId, [FromQuery] bool regenerate = false)
+        {
+            Trip trip;
+            int me;
+            MatchDetails tripMatch;
+            try
+            {
+                trip = bl.GetTripById(tripId);
+                if (trip == null)
+                    return NotFound();
+
+                me = GetCurrentUserId();
+
+                // הרשאה: בעל הטיול, או צד בהתאמה שמשויכת לטיול הזה.
+                tripMatch = new MatchDetails().GetUserMatches(me)
+                    .FirstOrDefault(m => m.TripID == tripId);
+                if (trip.CreatedByUserID != me && tripMatch == null)
+                    return Forbid();
+
+                if (string.IsNullOrWhiteSpace(trip.Destination))
+                    return BadRequest(new { message = "לטיול אין יעד — הוסיפו יעד ונסו שוב." });
+            }
+            catch (Exception)
+            {
+                return StatusCode(500, new { message = "לא הצלחנו לטעון את פרטי הטיול. נסו שוב." });
+            }
+
+            // המטיילים: בעל הטיול + הפרטנר מההתאמה (אם קיימת). הנוסחה נכונה גם כשהמבקש
+            // הוא הפרטנר — תמיד נבחר "מי שאינו בעל הטיול" כצד השני.
+            int userA = trip.CreatedByUserID;
+            int? userB = tripMatch == null
+                ? (int?)null
+                : (tripMatch.User1ID == userA ? tripMatch.User2ID : tripMatch.User1ID);
+
+            try
+            {
+                // RequestAborted: משתמש שסגר את המסך מבטל גם את Claude וגם את Google.
+                var result = await _aiItinerary.GenerateAsync(trip, userA, userB, regenerate, HttpContext.RequestAborted);
+                return Ok(result);
+            }
+            catch (AiItineraryCooldownException)
+            {
+                return StatusCode(429, new { message = "יצרתם הצעה ממש עכשיו — אפשר לבקש חדשה בעוד חצי דקה." });
+            }
+            catch (OperationCanceledException) when (HttpContext.RequestAborted.IsCancellationRequested)
+            {
+                // הלקוח התנתק — אף אחד לא מחכה לתשובה (499: client closed request).
+                return StatusCode(499);
+            }
+            catch (Exception)
+            {
+                return StatusCode(502, new { message = "לא הצלחנו להרכיב מסלול כרגע. נסו שוב בעוד רגע." });
             }
         }
     }

@@ -17,7 +17,22 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useLocalSearchParams, useRouter } from "expo-router";
-import { Ionicons } from "@expo/vector-icons";
+import {
+  ArrowUpDown,
+  Camera,
+  Check,
+  CircleX,
+  Clock,
+  CloudOff,
+  Image as ImageIcon,
+  Plane,
+  Plus,
+  Search,
+  SlidersHorizontal,
+  Sparkles,
+  Star,
+  X,
+} from "lucide-react-native";
 import * as ImagePicker from "expo-image-picker";
 
 import { getUser } from "../src/auth/authStore";
@@ -31,8 +46,11 @@ import { buildImageUri } from "../src/utils/image";
 import { getUserInterests } from "../src/api/interestService";
 import { getAllUsers } from "../src/api/userService";
 import { getUserTrips } from "../src/api/tripService";
-import { COLORS, FONTS } from "../src/theme";
+import { COLORS, FONTS, SPACING, TYPOGRAPHY } from "../src/theme";
 import BottomNav from "../../components/BottomNav";
+import Card from "../../components/ui/Card";
+import EmptyState from "../../components/ui/EmptyState";
+import ScreenHeader from "../../components/ui/ScreenHeader";
 
 // קטגוריות קבועות לבחירה ולסינון.
 const CATEGORIES = ["אוכל", "לינה", "אטרקציות", "בילוי", "קניות", "כללי"];
@@ -46,12 +64,12 @@ const DEFAULT_FILTERS = {
   interestsOnly: false,
 };
 
-// אפשרויות מיון.
+// אפשרויות מיון. Icon = רכיב lucide; filled מציין כוכב מלא (דירוג גבוה).
 const SORT_OPTIONS = [
-  { key: "newest", label: "החדשות ביותר", icon: "time-outline" },
-  { key: "highest", label: "דירוג גבוה לנמוך", icon: "star" },
-  { key: "lowest", label: "דירוג נמוך לגבוה", icon: "star-outline" },
-  { key: "personalized", label: "מותאם עבורי", icon: "sparkles" },
+  { key: "newest", label: "החדשות ביותר", Icon: Clock },
+  { key: "highest", label: "דירוג גבוה לנמוך", Icon: Star, filled: true },
+  { key: "lowest", label: "דירוג נמוך לגבוה", Icon: Star },
+  { key: "personalized", label: "מותאם עבורי", Icon: Sparkles },
 ];
 
 const hasImage = (r) => !!buildImageUri(r.mediaUrl);
@@ -133,16 +151,18 @@ function sortRecs(list, sortBy) {
 }
 
 // שורת כוכבים אחידה (אייקונים) — לתצוגה בלבד, תואמת לכוכבים שבטופס היצירה.
+// כוכב מלא = fill בענבר; ריק = קו-מתאר בלבד (אותו רכיב Star של lucide).
 function Stars({ value = 0, size = 15 }) {
   const v = Math.max(0, Math.min(5, value || 0));
   return (
     <View style={styles.starsRowInline}>
       {[1, 2, 3, 4, 5].map((s) => (
-        <Ionicons
+        <Star
           key={s}
-          name={s <= v ? "star" : "star-outline"}
           size={size}
           color={COLORS.amber}
+          fill={s <= v ? COLORS.amber : "none"}
+          strokeWidth={2}
         />
       ))}
     </View>
@@ -436,26 +456,25 @@ export default function RecommendationsScreen() {
 
   return (
     <SafeAreaView style={styles.container}>
-      {/* Header */}
-      <View style={styles.headerRow}>
-        <TouchableOpacity
-          onPress={() => router.back()}
-          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-          accessibilityRole="button"
-          accessibilityLabel="חזרה"
-        >
-          <Ionicons name="arrow-forward" size={26} color={COLORS.brand} />
-        </TouchableOpacity>
-        <View style={styles.headerCenter}>
-          <Text style={styles.header} numberOfLines={1}>
-            {isTripScoped ? tripName || "המלצות ליעד" : "כל ההמלצות"}
-          </Text>
-          <Text style={styles.headerSub}>
-            {isTripScoped ? "מה שכולם ממליצים על היעד" : "גלו מקומות מטיולים שונים"}
-          </Text>
-        </View>
-        <View style={{ width: 26 }} />
-      </View>
+      {/* Header אחיד — פלוס בכותרת באותה שפה כמו יצירת קהילה ותכנון טיול */}
+      <ScreenHeader
+        title={isTripScoped ? tripName || "המלצות ליעד" : "כל ההמלצות"}
+        onBack={() => router.back()}
+        right={
+          <TouchableOpacity
+            onPress={openModal}
+            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+            accessibilityRole="button"
+            accessibilityLabel="הוספת המלצה חדשה"
+          >
+            <Plus size={24} color={COLORS.brand} strokeWidth={2.4} />
+          </TouchableOpacity>
+        }
+      />
+      {/* שורת הקשר מתחת לכותרת — משמרת את תת-הכותרת (דפוס ה-lead של TripPlanner) */}
+      <Text style={styles.lead}>
+        {isTripScoped ? "מה שכולם ממליצים על היעד" : "גלו מקומות מטיולים שונים"}
+      </Text>
 
       {/* ── סרגל סינון (צד לקוח בלבד) — מוצג רק כשיש המלצות ── */}
       {recommendations.length > 0 && (
@@ -463,7 +482,7 @@ export default function RecommendationsScreen() {
           {/* חיפוש חופשי */}
           <View style={styles.searchRow}>
             <View style={styles.searchBox}>
-              <Ionicons name="search" size={18} color={COLORS.textMuted} />
+              <Search size={18} color={COLORS.textMuted} strokeWidth={2} />
               <TextInput
                 style={styles.searchInput}
                 placeholder="חיפוש שם מקום או יעד"
@@ -474,7 +493,7 @@ export default function RecommendationsScreen() {
               />
               {query ? (
                 <Pressable onPress={() => setQuery("")} hitSlop={8}>
-                  <Ionicons name="close-circle" size={18} color={COLORS.textMuted} />
+                  <CircleX size={18} color={COLORS.textMuted} strokeWidth={2} />
                 </Pressable>
               ) : null}
             </View>
@@ -483,7 +502,7 @@ export default function RecommendationsScreen() {
           {/* כפתורי סינון + מיון */}
           <View style={styles.controlsRow}>
             <TouchableOpacity style={styles.controlBtn} onPress={openFilterSheet} activeOpacity={0.85}>
-              <Ionicons name="options-outline" size={18} color={COLORS.brand} />
+              <SlidersHorizontal size={18} color={COLORS.brand} strokeWidth={2} />
               <Text style={styles.controlText}>סינון</Text>
               {activeChips.length > 0 ? (
                 <View style={styles.controlBadge}>
@@ -497,7 +516,7 @@ export default function RecommendationsScreen() {
               onPress={() => setSortSheetVisible(true)}
               activeOpacity={0.85}
             >
-              <Ionicons name="swap-vertical-outline" size={18} color={COLORS.brand} />
+              <ArrowUpDown size={18} color={COLORS.brand} strokeWidth={2} />
               <Text style={styles.controlText} numberOfLines={1}>
                 {currentSortLabel}
               </Text>
@@ -514,7 +533,7 @@ export default function RecommendationsScreen() {
               {activeChips.map((c) => (
                 <Pressable key={c.key} style={styles.activeChip} onPress={() => removeFilter(c.key)}>
                   <Text style={styles.activeChipText}>{c.label}</Text>
-                  <Ionicons name="close" size={13} color={COLORS.brand} />
+                  <X size={13} color={COLORS.brand} strokeWidth={2.2} />
                 </Pressable>
               ))}
             </ScrollView>
@@ -537,52 +556,43 @@ export default function RecommendationsScreen() {
         }
       >
         {loadError && recommendations.length === 0 ? (
-          <View style={styles.emptyBox}>
-            <Ionicons name="cloud-offline-outline" size={40} color={COLORS.textMuted} />
-            <Text style={styles.emptyTitle}>לא ניתן לטעון המלצות כרגע</Text>
-            <Text style={styles.emptyText}>בדקו את החיבור ונסו שוב</Text>
-            <TouchableOpacity
-              style={styles.retryBtn}
-              onPress={() => loadRecommendations()}
-              accessibilityRole="button"
-              accessibilityLabel="ניסיון טעינה מחדש"
-            >
-              <Ionicons name="refresh" size={16} color={COLORS.onBrand} />
-              <Text style={styles.retryBtnText}>נסו שוב</Text>
-            </TouchableOpacity>
-          </View>
+          <EmptyState
+            Icon={CloudOff}
+            title="לא ניתן לטעון המלצות כרגע"
+            subtitle="בדקו את החיבור ונסו שוב"
+            actionLabel="נסו שוב"
+            onAction={() => loadRecommendations()}
+            style={styles.empty}
+          />
         ) : recommendations.length === 0 ? (
-          <View style={styles.emptyBox}>
-            <Ionicons name="star-outline" size={40} color={COLORS.textMuted} />
-            <Text style={styles.emptyTitle}>
-              {isTripScoped ? "עדיין אין המלצות על היעד הזה" : "עדיין אין המלצות"}
-            </Text>
-            <Text style={styles.emptyText}>
-              שתפו מקום שאהבתם — לחצו על ה־＋ למטה כדי להוסיף את ההמלצה הראשונה
-            </Text>
-          </View>
+          <EmptyState
+            Icon={Star}
+            title={isTripScoped ? "עדיין אין המלצות על היעד הזה" : "עדיין אין המלצות"}
+            subtitle="שתפו מקום שאהבתם — ההמלצה הראשונה יכולה להיות שלכם"
+            actionLabel="הוספת המלצה ראשונה"
+            onAction={openModal}
+            style={styles.empty}
+          />
         ) : visibleRecommendations.length === 0 ? (
-          <View style={styles.emptyBox}>
-            <Ionicons name="search-outline" size={40} color={COLORS.textMuted} />
-            <Text style={styles.emptyTitle}>אין תוצאות מתאימות</Text>
-            <Text style={styles.emptyText}>נסו לשנות את החיפוש או הסינון</Text>
-          </View>
+          <EmptyState
+            Icon={Search}
+            title="אין תוצאות מתאימות"
+            subtitle="נסו לשנות את החיפוש או הסינון"
+            style={styles.empty}
+          />
         ) : (
           visibleRecommendations.map((rec) => {
             const author = rec.isAnonymous
               ? "אנונימי"
               : nameMap[rec.userID] || "";
             return (
-              <View key={rec.recommendationID} style={styles.card}>
+              <Card key={rec.recommendationID} style={styles.card}>
                 <RecImage uri={rec.mediaUrl} onPress={() => setZoomUri(rec.mediaUrl)} />
                 <View style={styles.cardBody}>
-                  <View style={styles.iconBox}>
-                    <Ionicons name="location-outline" size={22} color={COLORS.brand} />
-                  </View>
                   <View style={styles.cardText}>
                     {rec.personalized ? (
                       <View style={styles.personalBadge}>
-                        <Ionicons name="sparkles" size={11} color={COLORS.brand} />
+                        <Sparkles size={11} color={COLORS.brand} strokeWidth={2.2} />
                         <Text style={styles.personalBadgeText}>מותאם עבורך</Text>
                       </View>
                     ) : null}
@@ -606,7 +616,7 @@ export default function RecommendationsScreen() {
                     <Stars value={rec.rating} />
                   </View>
                 </View>
-              </View>
+              </Card>
             );
           })
         )}
@@ -626,7 +636,7 @@ export default function RecommendationsScreen() {
             <View style={styles.sheetHeader}>
               <Text style={styles.sheetTitle}>סינון</Text>
               <Pressable onPress={() => setFilterSheetVisible(false)} hitSlop={8}>
-                <Ionicons name="close" size={22} color={COLORS.textSecondary} />
+                <X size={22} color={COLORS.textSecondary} strokeWidth={2} />
               </Pressable>
             </View>
 
@@ -679,10 +689,11 @@ export default function RecommendationsScreen() {
                     key={s}
                     onPress={() => setDraftFilters((p) => ({ ...p, minRating: p.minRating === s ? 0 : s }))}
                   >
-                    <Ionicons
-                      name={draftFilters.minRating >= s ? "star" : "star-outline"}
+                    <Star
                       size={30}
                       color={COLORS.amber}
+                      fill={draftFilters.minRating >= s ? COLORS.amber : "none"}
+                      strokeWidth={2}
                     />
                   </Pressable>
                 ))}
@@ -696,10 +707,10 @@ export default function RecommendationsScreen() {
                 style={styles.toggleRow}
                 onPress={() => setDraftFilters((p) => ({ ...p, imagesOnly: !p.imagesOnly }))}
               >
-                <Ionicons name="image-outline" size={20} color={COLORS.brand} />
+                <ImageIcon size={20} color={COLORS.brand} strokeWidth={2} />
                 <Text style={styles.toggleLabel}>עם תמונה בלבד</Text>
                 <View style={[styles.toggleBox, draftFilters.imagesOnly && styles.toggleBoxOn]}>
-                  {draftFilters.imagesOnly ? <Ionicons name="checkmark" size={15} color={COLORS.onBrand} /> : null}
+                  {draftFilters.imagesOnly ? <Check size={15} color={COLORS.onBrand} strokeWidth={2.6} /> : null}
                 </View>
               </Pressable>
 
@@ -707,10 +718,10 @@ export default function RecommendationsScreen() {
                 style={styles.toggleRow}
                 onPress={() => setDraftFilters((p) => ({ ...p, interestsOnly: !p.interestsOnly }))}
               >
-                <Ionicons name="sparkles-outline" size={20} color={COLORS.brand} />
+                <Sparkles size={20} color={COLORS.brand} strokeWidth={2} />
                 <Text style={styles.toggleLabel}>מתאים לתחומי העניין שלי</Text>
                 <View style={[styles.toggleBox, draftFilters.interestsOnly && styles.toggleBoxOn]}>
-                  {draftFilters.interestsOnly ? <Ionicons name="checkmark" size={15} color={COLORS.onBrand} /> : null}
+                  {draftFilters.interestsOnly ? <Check size={15} color={COLORS.onBrand} strokeWidth={2.6} /> : null}
                 </View>
               </Pressable>
             </ScrollView>
@@ -740,34 +751,33 @@ export default function RecommendationsScreen() {
           <View style={styles.sheet}>
             <View style={styles.sheetHandle} />
             <Text style={[styles.sheetTitle, { marginBottom: 8 }]}>מיון לפי</Text>
-            {SORT_OPTIONS.map((o) => (
-              <Pressable
-                key={o.key}
-                style={styles.sortRow}
-                onPress={() => {
-                  setSortBy(o.key);
-                  setSortSheetVisible(false);
-                }}
-              >
-                <Ionicons name={o.icon} size={20} color={sortBy === o.key ? COLORS.brand : COLORS.textSecondary} />
-                <Text style={[styles.sortRowText, sortBy === o.key && styles.sortRowTextActive]}>
-                  {o.label}
-                </Text>
-                {sortBy === o.key ? (
-                  <Ionicons name="checkmark" size={20} color={COLORS.brand} />
-                ) : (
-                  <View style={{ width: 20 }} />
-                )}
-              </Pressable>
-            ))}
+            {SORT_OPTIONS.map((o) => {
+              const active = sortBy === o.key;
+              const tone = active ? COLORS.brand : COLORS.textSecondary;
+              return (
+                <Pressable
+                  key={o.key}
+                  style={styles.sortRow}
+                  onPress={() => {
+                    setSortBy(o.key);
+                    setSortSheetVisible(false);
+                  }}
+                >
+                  <o.Icon size={20} color={tone} fill={o.filled ? tone : "none"} strokeWidth={2} />
+                  <Text style={[styles.sortRowText, active && styles.sortRowTextActive]}>
+                    {o.label}
+                  </Text>
+                  {active ? (
+                    <Check size={20} color={COLORS.brand} strokeWidth={2.4} />
+                  ) : (
+                    <View style={{ width: 20 }} />
+                  )}
+                </Pressable>
+              );
+            })}
           </View>
         </View>
       </Modal>
-
-      {/* כפתור פלוס */}
-      <TouchableOpacity style={styles.fab} onPress={openModal}>
-        <Ionicons name="add" size={28} color={COLORS.onBrand} />
-      </TouchableOpacity>
 
       {/* Modal יצירת המלצה */}
       <Modal
@@ -785,7 +795,7 @@ export default function RecommendationsScreen() {
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>המלצה חדשה</Text>
               <Pressable onPress={() => setModalVisible(false)}>
-                <Ionicons name="close" size={24} color={COLORS.brand} />
+                <X size={24} color={COLORS.brand} strokeWidth={2} />
               </Pressable>
             </View>
 
@@ -794,7 +804,7 @@ export default function RecommendationsScreen() {
               <Text style={styles.label}>שייכות לטיול (אופציונלי)</Text>
               {isTripScoped ? (
                 <View style={styles.lockedTrip}>
-                  <Ionicons name="airplane" size={14} color={COLORS.brand} />
+                  <Plane size={14} color={COLORS.brand} strokeWidth={2} />
                   <Text style={styles.lockedTripText}>{tripName || "הטיול הנוכחי"}</Text>
                 </View>
               ) : (
@@ -874,12 +884,12 @@ export default function RecommendationsScreen() {
                     accessibilityRole="button"
                     accessibilityLabel="הסרת תמונה"
                   >
-                    <Ionicons name="close" size={18} color={COLORS.onBrand} />
+                    <X size={18} color={COLORS.onBrand} strokeWidth={2.2} />
                   </TouchableOpacity>
                 </View>
               ) : (
                 <TouchableOpacity style={styles.imagePickBtn} onPress={chooseImage} activeOpacity={0.85}>
-                  <Ionicons name="camera-outline" size={20} color={COLORS.brand} />
+                  <Camera size={20} color={COLORS.brand} strokeWidth={2} />
                   <Text style={styles.imagePickText}>הוספת תמונה</Text>
                 </TouchableOpacity>
               )}
@@ -889,10 +899,11 @@ export default function RecommendationsScreen() {
               <View style={styles.starsRow}>
                 {[1, 2, 3, 4, 5].map((s) => (
                   <Pressable key={s} onPress={() => setRating(s)}>
-                    <Ionicons
-                      name={s <= rating ? "star" : "star-outline"}
+                    <Star
                       size={32}
                       color={COLORS.amber}
+                      fill={s <= rating ? COLORS.amber : "none"}
+                      strokeWidth={2}
                     />
                   </Pressable>
                 ))}
@@ -907,7 +918,7 @@ export default function RecommendationsScreen() {
                 {submitting ? (
                   <ActivityIndicator color={COLORS.onBrand} />
                 ) : (
-                  <Text style={styles.submitBtnText}>הוסיפי המלצה</Text>
+                  <Text style={styles.submitBtnText}>הוספת המלצה</Text>
                 )}
               </Pressable>
             </ScrollView>
@@ -929,7 +940,7 @@ export default function RecommendationsScreen() {
             accessibilityRole="button"
             accessibilityLabel="סגירה"
           >
-            <Ionicons name="close" size={30} color="#FFF" />
+            <X size={30} color={COLORS.onBrand} strokeWidth={2.2} />
           </TouchableOpacity>
           {zoomUri ? (
             <Image
@@ -950,35 +961,19 @@ const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: COLORS.background },
   center: { flex: 1, justifyContent: "center", alignItems: "center", backgroundColor: COLORS.background },
 
-  headerRow: {
-    flexDirection: "row-reverse",
-    justifyContent: "space-between",
-    alignItems: "center",
-    paddingHorizontal: 20,
-    paddingTop: 20,
-    paddingBottom: 10,
-  },
-  headerCenter: { flex: 1, alignItems: "center" },
-  header: { fontSize: 20, fontFamily: FONTS.bold, color: COLORS.brand },
-  headerSub: {
-    fontSize: 12,
-    fontFamily: FONTS.regular,
-    color: COLORS.textMuted,
-    marginTop: 1,
+  // שורת ההקשר מתחת ל-ScreenHeader (דפוס ה-lead של TripPlanner)
+  lead: {
+    ...TYPOGRAPHY.body,
+    color: COLORS.textSecondary,
+    textAlign: "right",
+    paddingHorizontal: SPACING.xl,
+    marginBottom: SPACING.md,
   },
 
-  content: { paddingHorizontal: 20, paddingBottom: 120 },
+  content: { paddingHorizontal: SPACING.xl, paddingBottom: 120 },
 
-  card: {
-    backgroundColor: COLORS.surface,
-    padding: 14,
-    borderRadius: 16,
-    marginBottom: 10,
-    shadowColor: COLORS.shadow,
-    shadowOpacity: 0.05,
-    shadowRadius: 6,
-    elevation: 2,
-  },
+  // המשטח/צל/רדיוס מגיעים מ-Card — כאן רק הריווח בין כרטיסים.
+  card: { marginBottom: SPACING.md },
   cardBody: {
     flexDirection: "row-reverse",
     alignItems: "flex-start",
@@ -1025,16 +1020,16 @@ const styles = StyleSheet.create({
     marginBottom: 4,
   },
   personalBadgeText: {
-    fontSize: 11,
+    ...TYPOGRAPHY.tiny,
     fontFamily: FONTS.bold,
     color: COLORS.brand,
   },
 
   // ── סרגל סינון ──
   filterBar: {
-    paddingHorizontal: 20,
-    paddingBottom: 8,
-    gap: 8,
+    paddingHorizontal: SPACING.xl,
+    paddingBottom: SPACING.sm,
+    gap: SPACING.sm,
   },
   searchRow: {
     flexDirection: "row-reverse",
@@ -1055,8 +1050,7 @@ const styles = StyleSheet.create({
   searchInput: {
     flex: 1,
     paddingVertical: 10,
-    fontSize: 14,
-    fontFamily: FONTS.regular,
+    ...TYPOGRAPHY.body,
     color: COLORS.text,
   },
   controlsRow: {
@@ -1077,7 +1071,7 @@ const styles = StyleSheet.create({
     paddingVertical: 11,
     paddingHorizontal: 10,
   },
-  controlText: { fontSize: 14, fontFamily: FONTS.bold, color: COLORS.brand },
+  controlText: { ...TYPOGRAPHY.caption, fontFamily: FONTS.bold, color: COLORS.brand },
   controlBadge: {
     minWidth: 18,
     height: 18,
@@ -1087,7 +1081,7 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
   },
-  controlBadgeText: { fontSize: 11, fontFamily: FONTS.bold, color: COLORS.onBrand },
+  controlBadgeText: { ...TYPOGRAPHY.tiny, fontFamily: FONTS.bold, color: COLORS.onBrand },
 
   activeChipsRow: { marginTop: 8 },
   activeChip: {
@@ -1100,71 +1094,33 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     marginLeft: 8,
   },
-  activeChipText: { fontSize: 12, fontFamily: FONTS.bold, color: COLORS.brand },
+  activeChipText: { ...TYPOGRAPHY.caption, fontFamily: FONTS.bold, color: COLORS.brand },
   resultCount: {
-    fontSize: 12,
-    fontFamily: FONTS.regular,
+    ...TYPOGRAPHY.caption,
     color: COLORS.textMuted,
     textAlign: "right",
     marginTop: 8,
   },
 
-  iconBox: {
-    width: 48, height: 48, borderRadius: 24,
-    backgroundColor: COLORS.brandLight,
-    justifyContent: "center", alignItems: "center",
-  },
-  cardText: { flex: 1, marginHorizontal: 12, alignItems: "flex-end" },
-  title: { fontSize: 16, fontFamily: FONTS.bold, color: COLORS.brand },
+  cardText: { flex: 1, alignItems: "flex-end" },
+  title: { ...TYPOGRAPHY.h3, color: COLORS.text },
+  // תג קטגוריה בגוון-מותג — הענבר שמור לכוכבי הדירוג (מבטא אחד לכל היותר לצד הטיל).
   categoryBadge: {
     alignSelf: "flex-end",
-    backgroundColor: COLORS.coralLight,
+    backgroundColor: COLORS.brandLight,
     paddingHorizontal: 10,
     paddingVertical: 3,
     borderRadius: 10,
     marginTop: 4,
   },
-  categoryBadgeText: { fontSize: 11, fontFamily: FONTS.bold, color: COLORS.coral },
-  author: { fontSize: 12, fontFamily: FONTS.regular, color: COLORS.textMuted, marginTop: 2 },
-  tripName: { fontSize: 12, fontFamily: FONTS.regular, color: COLORS.primary, marginTop: 2 },
-  subtitle: { fontSize: 13, fontFamily: FONTS.regular, color: COLORS.textSecondary, marginTop: 4, textAlign: "right" },
+  categoryBadgeText: { ...TYPOGRAPHY.tiny, fontFamily: FONTS.bold, color: COLORS.brand },
+  author: { ...TYPOGRAPHY.caption, color: COLORS.textMuted, marginTop: 2 },
+  tripName: { ...TYPOGRAPHY.caption, color: COLORS.primary, marginTop: 2 },
+  subtitle: { ...TYPOGRAPHY.caption, color: COLORS.textSecondary, marginTop: 4, textAlign: "right" },
   starsRowInline: { flexDirection: "row-reverse", gap: 2, marginTop: 6, alignSelf: "flex-end" },
 
-  emptyBox: { marginTop: 80, alignItems: "center", paddingHorizontal: 32 },
-  emptyTitle: { marginTop: 12, fontSize: 17, color: COLORS.brand, fontFamily: FONTS.bold },
-  emptyText: {
-    marginTop: 6,
-    fontSize: 14,
-    color: COLORS.textMuted,
-    fontFamily: FONTS.regular,
-    textAlign: "center",
-    lineHeight: 20,
-  },
-  retryBtn: {
-    flexDirection: "row-reverse",
-    alignItems: "center",
-    gap: 6,
-    marginTop: 16,
-    backgroundColor: COLORS.brand,
-    paddingHorizontal: 20,
-    paddingVertical: 10,
-    borderRadius: 20,
-  },
-  retryBtnText: {
-    color: COLORS.onBrand,
-    fontSize: 14,
-    fontFamily: FONTS.bold,
-  },
-
-  fab: {
-    position: "absolute",
-    bottom: 90,
-    alignSelf: "center",
-    backgroundColor: COLORS.brand,
-    width: 60, height: 60, borderRadius: 30,
-    justifyContent: "center", alignItems: "center",
-    elevation: 5,
-  },
+  // ── מצב ריק (EmptyState) ──
+  empty: { marginTop: SPACING.xxxl + SPACING.xl },
 
   // ── Modal ──
   modalOverlay: {
@@ -1187,17 +1143,17 @@ const styles = StyleSheet.create({
     alignItems: "center",
     marginBottom: 20,
   },
-  modalTitle: { fontSize: 18, fontFamily: FONTS.bold, color: COLORS.brand },
+  modalTitle: { ...TYPOGRAPHY.h3, color: COLORS.text },
 
   label: {
-    fontSize: 14,
+    ...TYPOGRAPHY.caption,
     fontFamily: FONTS.bold,
     color: COLORS.brand,
     textAlign: "right",
     marginBottom: 8,
     marginTop: 14,
   },
-  noTrips: { fontSize: 13, color: COLORS.textMuted, fontFamily: FONTS.regular, textAlign: "right" },
+  noTrips: { ...TYPOGRAPHY.caption, color: COLORS.textMuted, textAlign: "right" },
 
   lockedTrip: {
     flexDirection: "row-reverse",
@@ -1209,7 +1165,7 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
     borderRadius: 20,
   },
-  lockedTripText: { fontSize: 13, fontFamily: FONTS.bold, color: COLORS.brand },
+  lockedTripText: { ...TYPOGRAPHY.caption, fontFamily: FONTS.bold, color: COLORS.brand },
 
   tripPicker: { marginBottom: 4 },
   tripChip: {
@@ -1222,7 +1178,7 @@ const styles = StyleSheet.create({
     borderColor: COLORS.border,
   },
   tripChipActive: { backgroundColor: COLORS.brand, borderColor: COLORS.brand },
-  tripChipText: { fontSize: 13, fontFamily: FONTS.regular, color: COLORS.textSecondary },
+  tripChipText: { ...TYPOGRAPHY.caption, color: COLORS.textSecondary },
   tripChipTextActive: { color: COLORS.onBrand },
 
   input: {
@@ -1230,8 +1186,7 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     paddingHorizontal: 14,
     paddingVertical: 12,
-    fontSize: 14,
-    fontFamily: FONTS.regular,
+    ...TYPOGRAPHY.body,
     color: COLORS.text,
     borderWidth: 1,
     borderColor: COLORS.border,
@@ -1249,7 +1204,7 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     paddingVertical: 14,
   },
-  imagePickText: { fontSize: 14, fontFamily: FONTS.bold, color: COLORS.brand },
+  imagePickText: { ...TYPOGRAPHY.caption, fontFamily: FONTS.bold, color: COLORS.brand },
   imagePreviewWrap: { position: "relative" },
   imagePreview: { width: "100%", height: 160, borderRadius: 12, backgroundColor: COLORS.background },
   imageRemoveBtn: {
@@ -1278,7 +1233,7 @@ const styles = StyleSheet.create({
     marginTop: 24,
   },
   submitBtnDisabled: { opacity: 0.6 },
-  submitBtnText: { color: COLORS.onBrand, fontSize: 16, fontFamily: FONTS.bold },
+  submitBtnText: { ...TYPOGRAPHY.button, color: COLORS.onBrand },
 
   // ── Bottom sheets (סינון / מיון) ──
   sheetOverlay: {
@@ -1309,10 +1264,10 @@ const styles = StyleSheet.create({
     alignItems: "center",
     marginBottom: 6,
   },
-  sheetTitle: { fontSize: 18, fontFamily: FONTS.bold, color: COLORS.brand, textAlign: "right" },
+  sheetTitle: { ...TYPOGRAPHY.h3, color: COLORS.text, textAlign: "right" },
   sheetBody: { maxHeight: 420 },
   sheetLabel: {
-    fontSize: 14,
+    ...TYPOGRAPHY.caption,
     fontFamily: FONTS.bold,
     color: COLORS.text,
     textAlign: "right",
@@ -1333,14 +1288,14 @@ const styles = StyleSheet.create({
     borderColor: COLORS.border,
   },
   filterChipActive: { backgroundColor: COLORS.brand, borderColor: COLORS.brand },
-  filterChipText: { fontSize: 13, fontFamily: FONTS.regular, color: COLORS.textSecondary },
+  filterChipText: { ...TYPOGRAPHY.caption, color: COLORS.textSecondary },
   filterChipTextActive: { color: COLORS.onBrand, fontFamily: FONTS.bold },
   minRatingRow: {
     flexDirection: "row-reverse",
     alignItems: "center",
     gap: 6,
   },
-  minRatingHint: { fontSize: 13, fontFamily: FONTS.bold, color: COLORS.textSecondary, marginRight: 8 },
+  minRatingHint: { ...TYPOGRAPHY.caption, fontFamily: FONTS.bold, color: COLORS.textSecondary, marginRight: 8 },
   toggleRow: {
     flexDirection: "row-reverse",
     alignItems: "center",
@@ -1349,7 +1304,7 @@ const styles = StyleSheet.create({
     borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: COLORS.border,
   },
-  toggleLabel: { flex: 1, fontSize: 14, fontFamily: FONTS.regular, color: COLORS.text, textAlign: "right" },
+  toggleLabel: { flex: 1, ...TYPOGRAPHY.body, color: COLORS.text, textAlign: "right" },
   toggleBox: {
     width: 26,
     height: 26,
@@ -1375,7 +1330,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-  clearBtnText: { fontSize: 15, fontFamily: FONTS.bold, color: COLORS.textSecondary },
+  clearBtnText: { ...TYPOGRAPHY.bodyBold, color: COLORS.textSecondary },
   applyBtn: {
     flex: 1,
     paddingVertical: 15,
@@ -1384,7 +1339,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-  applyBtnText: { fontSize: 15, fontFamily: FONTS.bold, color: COLORS.onBrand },
+  applyBtnText: { ...TYPOGRAPHY.bodyBold, color: COLORS.onBrand },
   sortRow: {
     flexDirection: "row-reverse",
     alignItems: "center",
@@ -1393,6 +1348,6 @@ const styles = StyleSheet.create({
     borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: COLORS.border,
   },
-  sortRowText: { flex: 1, fontSize: 15, fontFamily: FONTS.regular, color: COLORS.text, textAlign: "right" },
+  sortRowText: { flex: 1, ...TYPOGRAPHY.body, color: COLORS.text, textAlign: "right" },
   sortRowTextActive: { fontFamily: FONTS.bold, color: COLORS.brand },
 });

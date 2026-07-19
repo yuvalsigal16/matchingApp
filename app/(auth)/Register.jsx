@@ -125,7 +125,7 @@ export default function RegisterScreen() {
       {apiError ? <Text style={styles.apiError}>{apiError}</Text> : null}
 
       <Button
-        label="הירשם"
+        label="הרשמה"
         onPress={handleRegister}
         loading={isLoading}
         style={styles.submit}
@@ -138,7 +138,7 @@ export default function RegisterScreen() {
           accessibilityRole="button"
           accessibilityLabel="מעבר להתחברות"
         >
-          <Text style={styles.footerLink}>התחבר</Text>
+          <Text style={styles.footerLink}>להתחברות</Text>
         </Pressable>
         <Text style={styles.footerText}>כבר יש לכם חשבון? </Text>
       </View>

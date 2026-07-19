@@ -129,7 +129,7 @@ export default function ChangePasswordScreen() {
           {error ? <Text style={styles.errorText}>{error}</Text> : null}
 
           <Button
-            label="עדכן סיסמה"
+            label="עדכון סיסמה"
             onPress={handleSubmit}
             loading={submitting}
             size="lg"

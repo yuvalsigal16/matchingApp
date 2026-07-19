@@ -1,14 +1,20 @@
-import { Ionicons } from "@expo/vector-icons";
+import {
+  Camera,
+  Compass,
+  Earth,
+  Luggage,
+  Map,
+  Plane,
+  Sailboat,
+  Umbrella,
+} from "lucide-react-native";
 import { Dimensions, StyleSheet, View } from "react-native";
 
 import { COLORS } from "../app/src/theme";
 
 // רקע צ'אט דמוי-וואטסאפ: דגם עדין של אייקוני טיולים. משותף לצ'אט האישי והקהילתי
-// כדי שהמראה יהיה זהה בשניהם.
-const DOODLES = [
-  "airplane-outline", "earth-outline", "boat-outline", "bag-handle-outline",
-  "map-outline", "compass-outline", "camera-outline", "umbrella-outline",
-];
+// כדי שהמראה יהיה זהה בשניהם. lucide בלבד — אותה משפחת אייקונים כמו כל האפליקציה.
+const DOODLES = [Plane, Earth, Sailboat, Luggage, Map, Compass, Camera, Umbrella];
 const { width: SCREEN_W, height: SCREEN_H } = Dimensions.get("window");
 const DOODLE_GAP = 78;
 
@@ -18,13 +24,13 @@ export default function ChatBackground() {
   const icons = [];
   for (let r = 0; r < rows; r++) {
     for (let c = 0; c < cols; c++) {
-      const idx = (r * cols + c) % DOODLES.length;
+      const Doodle = DOODLES[(r * cols + c) % DOODLES.length];
       icons.push(
-        <Ionicons
+        <Doodle
           key={`${r}-${c}`}
-          name={DOODLES[idx]}
           size={26}
           color={COLORS.brand}
+          strokeWidth={2}
           style={{
             position: "absolute",
             top: r * DOODLE_GAP + 12,

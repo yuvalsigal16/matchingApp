@@ -114,7 +114,7 @@ export default function LoginScreen() {
       {apiError ? <Text style={styles.apiError}>{apiError}</Text> : null}
 
       <Button
-        label="התחבר"
+        label="התחברות"
         onPress={handleLogin}
         loading={isLoading}
         style={styles.submit}
@@ -127,7 +127,7 @@ export default function LoginScreen() {
           accessibilityRole="button"
           accessibilityLabel="מעבר להרשמה"
         >
-          <Text style={styles.footerLink}>הירשם</Text>
+          <Text style={styles.footerLink}>להרשמה</Text>
         </Pressable>
         <Text style={styles.footerText}>אין לכם חשבון? </Text>
       </View>

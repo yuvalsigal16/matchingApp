@@ -186,11 +186,11 @@ export default function CommunityScreen() {
         if (/already/i.test(msg)) {
           setJoinedIds((prev) => new Set(prev).add(communityId));
         } else {
-          Alert.alert("שגיאה", msg || "לא הצלחנו להצטרף לקהילה. נסה שוב.");
+          Alert.alert("שגיאה", msg || "לא הצלחנו להצטרף לקהילה. נסו שוב.");
         }
       }
     } catch {
-      Alert.alert("שגיאה", "בעיית תקשורת. נסה שוב.");
+      Alert.alert("שגיאה", "בעיית תקשורת. נסו שוב.");
     } finally {
       setJoining((prev) => ({ ...prev, [communityId]: false }));
     }

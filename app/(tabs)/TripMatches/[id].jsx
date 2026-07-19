@@ -424,7 +424,7 @@ export default function TripMatchesScreen() {
             <View key={cat.key} style={styles.section}>
               <SectionLabel
                 title={cat.title}
-                actionLabel={cat.items.length > 3 ? "ראה הכל" : undefined}
+                actionLabel={cat.items.length > 3 ? "הצגת הכל" : undefined}
                 onAction={cat.items.length > 3 ? () => setExpanded(cat.key) : undefined}
                 style={styles.sectionHeader}
               />

@@ -69,17 +69,20 @@ const styles = StyleSheet.create({
   },
   // לוגו גדול ופשוט — רגע-מותג. (הצבע המקורי, בלי tint.)
   logo: { width: 248, height: 248, marginBottom: 18 },
+  // לבן-רך עם נגיעת טיל (brandLight) — רך יותר מלבן טהור על רקע המותג.
   wordmark: {
     fontFamily: FONTS.extraBold,
     fontSize: 40,
-    color: "#EAF1F1",
+    color: COLORS.brandLight,
     letterSpacing: 1,
     textAlign: "center",
   },
+  // onBrand בשקיפות 80% — במקום rgba ידני, מאותה סיבה: צבעים רק מהפלטה.
   tagline: {
     fontFamily: FONTS.regular,
     fontSize: 15,
-    color: "rgba(255,255,255,0.8)",
+    color: COLORS.onBrand,
+    opacity: 0.8,
     textAlign: "center",
     marginTop: 8,
   },

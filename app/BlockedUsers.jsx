@@ -1,3 +1,4 @@
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useFocusEffect, useRouter } from "expo-router";
 import { useCallback, useState } from "react";
 import {
@@ -57,7 +58,7 @@ function BlockedRow({ user, unblocking, onUnblock }) {
         {unblocking ? (
           <ActivityIndicator size="small" color={COLORS.brand} />
         ) : (
-          <Text style={styles.unblockText}>בטל חסימה</Text>
+          <Text style={styles.unblockText}>ביטול חסימה</Text>
         )}
       </TouchableOpacity>
     </View>
@@ -99,7 +100,7 @@ export default function BlockedUsersScreen() {
       [
         { text: "ביטול", style: "cancel" },
         {
-          text: "בטל חסימה",
+          text: "אישור",
           onPress: () => performUnblock(user.blockedUserID),
         },
       ],
@@ -113,6 +114,23 @@ export default function BlockedUsersScreen() {
       await unblockUser(blockedUserId);
       // הסרה אופטימית מהרשימה - בלי לחכות לקריאה נוספת לשרת.
       setUsers((prev) => prev.filter((u) => u.blockedUserID !== blockedUserId));
+
+      // עקביות חסימה: מסלול "חסימה מפרופיל" מוסיף את המשתמש ל-dismissed_matches
+      // המקומי (הסתרה מיידית מההתאמות). בלי הניקוי כאן, משתמש שבוטלה חסימתו
+      // יישאר מוסתר מההתאמות במכשיר הזה לצמיתות. best-effort — כשל כאן לא
+      // מפריע לביטול החסימה עצמו (שכבר הצליח בשרת).
+      try {
+        const raw = await AsyncStorage.getItem("dismissed_matches");
+        if (raw) {
+          const ids = JSON.parse(raw);
+          if (Array.isArray(ids)) {
+            const next = ids.filter((id) => String(id) !== String(blockedUserId));
+            if (next.length !== ids.length) {
+              await AsyncStorage.setItem("dismissed_matches", JSON.stringify(next));
+            }
+          }
+        }
+      } catch {}
     } catch (err) {
       Alert.alert("שגיאה", err.message || "ביטול החסימה נכשל");
     } finally {

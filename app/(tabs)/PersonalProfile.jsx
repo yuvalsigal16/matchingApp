@@ -209,7 +209,7 @@ export default function ProfileScreen() {
       [
         { text: "ביטול", style: "cancel" },
         {
-          text: "התנתק",
+          text: "כן, להתנתק",
           style: "destructive",
           onPress: async () => {
             // קודם ניקוי ה-Push Token בשרת (כשל לא חוסם logout), ואז ניקוי מקומי.

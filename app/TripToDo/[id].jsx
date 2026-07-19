@@ -176,7 +176,7 @@ export default function TripToDoScreen() {
     Alert.alert("מחיקת משימה", `למחוק את "${task.taskText}"?`, [
       { text: "ביטול", style: "cancel" },
       {
-        text: "מחק",
+        text: "כן, למחוק",
         style: "destructive",
         onPress: async () => {
           const prev = tasks;

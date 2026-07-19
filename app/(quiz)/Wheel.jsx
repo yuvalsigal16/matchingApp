@@ -181,7 +181,7 @@ const saveTripToDB = async () => {
     setTimeout(() => router.replace("/Home"), 1500);
   } catch (err) {
     // תיקון: משוב ברור למשתמש במקום כשל שקט.
-    Alert.alert("שמירת הטיול נכשלה", err?.message || "אירעה שגיאה. נסי שוב.");
+    Alert.alert("שמירת הטיול נכשלה", err?.message || "אירעה שגיאה. נסו שוב.");
     setSaving(false);
   }
 };
@@ -561,7 +561,7 @@ setResult({
           onPress={spinWheel}
           disabled={isSpinning}
           accessibilityRole="button"
-          accessibilityLabel="סובב את הגלגל"
+          accessibilityLabel="סיבוב הגלגל"
         >
           <RotateCw
             size={18}
@@ -573,8 +573,8 @@ setResult({
             {isSpinning
               ? "מסתובב..."
               : result
-                ? "החליקי שוב לסיבוב נוסף"
-                : "החליקי את הגלגל כדי לסובב"}
+                ? "החליקו שוב לסיבוב נוסף"
+                : "החליקו את הגלגל כדי לסובב"}
           </Text>
         </Pressable>
 

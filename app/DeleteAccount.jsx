@@ -43,7 +43,7 @@ export default function DeleteAccountScreen() {
       [
         { text: "ביטול", style: "cancel" },
         {
-          text: "מחק את החשבון",
+          text: "מחיקת החשבון",
           style: "destructive",
           onPress: performDelete,
         },
@@ -106,14 +106,14 @@ export default function DeleteAccountScreen() {
           disabled={deleting}
           activeOpacity={0.85}
           accessibilityRole="button"
-          accessibilityLabel="מחק את החשבון לצמיתות"
+          accessibilityLabel="מחיקת החשבון לצמיתות"
         >
           {deleting ? (
             <ActivityIndicator color={COLORS.onBrand} />
           ) : (
             <>
               <Trash2 size={20} color={COLORS.onBrand} strokeWidth={2} />
-              <Text style={styles.deleteBtnText}>מחק את החשבון לצמיתות</Text>
+              <Text style={styles.deleteBtnText}>מחיקת החשבון לצמיתות</Text>
             </>
           )}
         </TouchableOpacity>

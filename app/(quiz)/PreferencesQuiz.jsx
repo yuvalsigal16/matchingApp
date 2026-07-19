@@ -1,5 +1,4 @@
 // ── ייבואים ──
-import { Ionicons } from "@expo/vector-icons"; // אייקונים מוכרים (V/X וכו')
 import { Slider } from "@miblanchard/react-native-slider";
 import DateTimePicker from "@react-native-community/datetimepicker";
 import { useLocalSearchParams, useRouter } from "expo-router";
@@ -7,6 +6,7 @@ import LottieView from "lottie-react-native"; // אנימציית פתיחה
 // אייקונים מותאמים אישית — Plane/Home לתאריכים, Calendar למועדים
 import {
   Calendar,
+  Check,
   Cigarette,
   Compass,
   Gem,
@@ -141,7 +141,7 @@ const QUESTIONS = [
     id: "intro", // מסך פתיחה (לא שאלה אמיתית)
     type: "intro",
     title: "שאלון העדפות טיול",
-    subtitle: "כל מסע מתחיל בחלום — בואי נגשים אותו יחד",
+    subtitle: "כל מסע מתחיל בחלום — בואו נגשים אותו יחד",
   },
   {
     id: "tripName", // שם הטיול — שדה טקסט חופשי
@@ -164,7 +164,7 @@ const QUESTIONS = [
   {
     id: "gender", // העדפת מגדר לפרטנר
     type: "single-select",
-    title: "איזה סוג של פרטנר/ית תרצי?",
+    title: "איזה סוג של פרטנר/ית תרצו?",
     options: ["גבר", "אישה", "הכל"],
   },
   {
@@ -176,7 +176,7 @@ const QUESTIONS = [
     id: "lifestyle", // 5 העדפות לאורח חיים של הפרטנר — כולן אופציונליות
     type: "lifestyle",
     title: "אורח החיים שאני מחפש/ת",
-    subtitle: "הכל אופציונלי — בחרי 'אין העדפה' אם זה לא חשוב לך",
+    subtitle: "הכל אופציונלי — בחרו 'אין העדפה' אם זה לא חשוב לכם",
   },
   {
     id: "interests", // תחומי עניין — נטענים מהשרת
@@ -187,7 +187,7 @@ const QUESTIONS = [
     id: "priorities", // דירוג חשיבות הגורמים — אופציונלי
     type: "priorities",
     title: "מה הכי חשוב לך בהתאמה?",
-    subtitle: `בחרי עד ${MAX_PRIORITIES} לפי הסדר — האלגוריתם ייתן להם משקל גבוה יותר`,
+    subtitle: `בחרו עד ${MAX_PRIORITIES} לפי הסדר — האלגוריתם ייתן להם משקל גבוה יותר`,
   },
 ];
 
@@ -797,7 +797,7 @@ export default function PreferencesQuizScreen() {
             }}
           >
             <View style={[styles.checkbox, data.oneWay && styles.checkboxChecked]}>
-              {data.oneWay && <Ionicons name="checkmark" size={16} color={COLORS.onBrand} />}
+              {data.oneWay && <Check size={16} color={COLORS.onBrand} strokeWidth={2.6} />}
             </View>
             <Text style={styles.checkboxLabel}>כרטיס לכיוון אחד (ללא תאריך חזרה)</Text>
           </Pressable>
@@ -825,7 +825,7 @@ export default function PreferencesQuizScreen() {
             onPress={handleRecommendToggle}
           >
             <View style={[styles.checkbox, data.recommendPeriod && styles.checkboxChecked]}>
-              {data.recommendPeriod && <Ionicons name="checkmark" size={16} color={COLORS.onBrand} />}
+              {data.recommendPeriod && <Check size={16} color={COLORS.onBrand} strokeWidth={2.6} />}
             </View>
             <Text style={styles.checkboxLabel}>תמליצי לי על תקופה טובה לטיסה</Text>
           </Pressable>
@@ -864,7 +864,7 @@ export default function PreferencesQuizScreen() {
           }}
         >
           <View style={[styles.checkbox, data.oneWay && styles.checkboxChecked]}>
-            {data.oneWay && <Ionicons name="checkmark" size={16} color={COLORS.onBrand} />}
+            {data.oneWay && <Check size={16} color={COLORS.onBrand} strokeWidth={2.6} />}
           </View>
           <Text style={styles.checkboxLabel}>כרטיס לכיוון אחד (ללא תאריך חזרה)</Text>
         </Pressable>
@@ -922,7 +922,7 @@ export default function PreferencesQuizScreen() {
           onPress={handleRecommendToggle}
         >
           <View style={[styles.checkbox, data.recommendPeriod && styles.checkboxChecked]}>
-            {data.recommendPeriod && <Ionicons name="checkmark" size={16} color={COLORS.onBrand} />}
+            {data.recommendPeriod && <Check size={16} color={COLORS.onBrand} strokeWidth={2.6} />}
           </View>
           <Text style={styles.checkboxLabel}>תמליצי לי על תקופה טובה לטיסה</Text>
         </Pressable>
@@ -1303,7 +1303,7 @@ const styles = StyleSheet.create({
   },
   introTitle: {
     fontSize: 24,
-    fontFamily: FONTS.extraBold,
+    fontFamily: FONTS.bold,
     color: COLORS.text,
     textAlign: "center",
     letterSpacing: 0.2,
