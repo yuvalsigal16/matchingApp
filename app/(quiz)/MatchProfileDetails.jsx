@@ -3,6 +3,7 @@ import React, { useEffect, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
+  Linking,
   Platform,
   ScrollView,
   StyleSheet,
@@ -10,6 +11,8 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
+// Ionicons — חריג מאושר יחיד: לוגו-מותגים (lucide בגרסתנו הסיר אייקוני מותגים).
+import { Ionicons } from "@expo/vector-icons";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import {
   Ban,
@@ -40,9 +43,27 @@ import Card from "../../components/ui/Card";
 import MatchReasons from "../../components/ui/MatchReasons";
 import Button from "../../components/ui/Button";
 import EmptyState from "../../components/ui/EmptyState";
-import { COLORS, FONTS, RADIUS, SHADOWS, SPACING, TYPOGRAPHY } from "../src/theme";
+import { COLORS, RADIUS, SHADOWS, SPACING, TYPOGRAPHY } from "../src/theme";
 
 const GENDER_DB_TO_HE = { Male: "זכר", Female: "נקבה", Other: "אחר" };
+
+// ── רשתות חברתיות: סניטציה ובניית קישור ──
+// מנקה @ מוביל ורווחים; אינסטגרם — שם-משתמש ללא רווחים; פייסבוק — אם הוזן שם
+// עם רווחים נופלים לחיפוש בפייסבוק (שם ≠ username), אחרת קישור ישיר.
+const cleanHandle = (raw) => String(raw || "").trim().replace(/^@+/, "");
+
+const instagramUrl = (raw) => {
+  const h = cleanHandle(raw).replace(/\s+/g, "");
+  return h ? `https://instagram.com/${encodeURIComponent(h)}` : null;
+};
+
+const facebookUrl = (raw) => {
+  const h = cleanHandle(raw);
+  if (!h) return null;
+  return /\s/.test(h)
+    ? `https://www.facebook.com/search/top?q=${encodeURIComponent(h)}`
+    : `https://www.facebook.com/${encodeURIComponent(h)}`;
+};
 
 // "בן"/"בת" לפי מגדר — נקבה→בת, זכר→בן, אחר/לא ידוע→בן/בת.
 const ageWordByGender = (gender) =>
@@ -221,7 +242,7 @@ export default function MatchProfile() {
     } else {
       Alert.alert("הסרה", "האם להסיר משתמש זה מהצעות ההתאמה?", [
         { text: "ביטול", style: "cancel" },
-        { text: "הסר", style: "destructive", onPress: doRemove },
+        { text: "כן, להסיר", style: "destructive", onPress: doRemove },
       ]);
     }
   };
@@ -242,13 +263,13 @@ export default function MatchProfile() {
       } catch {}
       if (Platform.OS === "web") {
         window.alert(
-          "המשתמש נחסם בהצלחה.\nהוא לא יוכל לשלוח לך הודעות או להופיע בהתאמות שלך.",
+          "המשתמש נחסם בהצלחה.\nההודעות וההתאמות ביניכם נחסמו.",
         );
         router.back();
       } else {
         Alert.alert(
           "המשתמש נחסם בהצלחה",
-          "הוא לא יוכל לשלוח לך הודעות או להופיע בהתאמות שלך.",
+          "ההודעות וההתאמות ביניכם נחסמו.",
           [{ text: "אישור", onPress: () => router.back() }],
         );
       }
@@ -262,13 +283,13 @@ export default function MatchProfile() {
 
   const handleBlock = () => {
     const name = matchUser.name || "המשתמש הזה";
-    const msg = `האם לחסום את ${name}?\nלא תוכל/י לשלוח לו הודעות או לראות אותו בהתאמות.`;
+    const msg = `האם לחסום את ${name}?\nההודעות וההתאמות ביניכם ייחסמו.`;
     if (Platform.OS === "web") {
       if (window.confirm(msg)) performBlock();
     } else {
       Alert.alert("חסימת משתמש", msg, [
         { text: "ביטול", style: "cancel" },
-        { text: "חסום", style: "destructive", onPress: performBlock },
+        { text: "כן, לחסום", style: "destructive", onPress: performBlock },
       ]);
     }
   };
@@ -330,6 +351,19 @@ export default function MatchProfile() {
       ? matchUser.interests
       : fetchedInterests;
 
+  // רשתות חברתיות — מוצגות רק בכניסה מצ'אט (matched="1"), כלומר אחרי התאמה
+  // מאושרת. הנתון מגיע מהשאלון שהמסך כבר שולף (SocialNetworks כ-JSON).
+  let social = null;
+  try {
+    const rawSocial = user.socialNetworks ?? user.SocialNetworks;
+    if (rawSocial) social = typeof rawSocial === "string" ? JSON.parse(rawSocial) : rawSocial;
+  } catch {
+    // JSON פגום — פשוט לא מציגים את המקטע
+  }
+  const igLink = social ? instagramUrl(social.instagram) : null;
+  const fbLink = social ? facebookUrl(social.facebook) : null;
+  const showSocial = params.matched === "1" && (igLink || fbLink);
+
   // "למה אולי תתחברו" — עד 3 סיבות אנושיות, מאותו מנוע כמו בכרטיס. במסך יש יותר מקום,
   // לכן limit=3. אם אין נתוני משתמש מחובר (me) — הרשימה ריקה והמקטע פשוט לא מוצג.
   const reasons = meData
@@ -366,23 +400,37 @@ export default function MatchProfile() {
           : null;
   }
 
+  // הטיה לפי מגדר הפרופיל (כמו בשורת הגיל): זכר/נקבה מוטים, לא-ידוע → לוכסן.
+  const byGender = (male, female, dual) =>
+    user.gender === "Female" ? female : user.gender === "Male" ? male : dual;
+
   // רמות 1–5 → תיאור מילולי קצר (לפי הניסוח בשאלון ההעדפות).
   const spontaneityWord = (v) =>
-    v <= 2 ? "מתכנן/ת מראש" : v === 3 ? "מאוזן/ת" : "הרפתקן/ית";
+    v <= 2
+      ? byGender("מתכנן מראש", "מתכננת מראש", "מתכנן/ת מראש")
+      : v === 3
+        ? byGender("מאוזן", "מאוזנת", "מאוזן/ת")
+        : byGender("הרפתקן", "הרפתקנית", "הרפתקן/ית");
   const lifestyleWord = (v) =>
     v <= 2 ? "פשוט וחסכוני" : v === 3 ? "מאוזן" : "יוקרתי ומפנק";
 
   const lifestyleTags = [
     user.isSmoker != null && {
-      label: user.isSmoker ? "מעשן/ת" : "לא מעשן/ת",
+      label: user.isSmoker
+        ? byGender("מעשן", "מעשנת", "מעשן/ת")
+        : byGender("לא מעשן", "לא מעשנת", "לא מעשן/ת"),
       Icon: Flame,
     },
     user.keepsKosher != null && {
-      label: user.keepsKosher ? "שומר/ת כשרות" : "לא שומר/ת כשרות",
+      label: user.keepsKosher
+        ? byGender("שומר כשרות", "שומרת כשרות", "שומר/ת כשרות")
+        : byGender("לא שומר כשרות", "לא שומרת כשרות", "לא שומר/ת כשרות"),
       Icon: Utensils,
     },
     user.keepsShabbat != null && {
-      label: user.keepsShabbat ? "שומר/ת שבת" : "לא שומר/ת שבת",
+      label: user.keepsShabbat
+        ? byGender("שומר שבת", "שומרת שבת", "שומר/ת שבת")
+        : byGender("לא שומר שבת", "לא שומרת שבת", "לא שומר/ת שבת"),
       Icon: Moon,
     },
     user.spontaneityLevel != null && {
@@ -499,6 +547,41 @@ export default function MatchProfile() {
           </Card>
         )}
 
+        {/* ── רשתות חברתיות — רק אחרי התאמה (כניסה מצ'אט) ── */}
+        {showSocial && (
+          <Card style={styles.section}>
+            <Text style={styles.sectionTitle}>רשתות חברתיות</Text>
+            {igLink ? (
+              <TouchableOpacity
+                style={styles.socialRow}
+                onPress={() => Linking.openURL(igLink)}
+                activeOpacity={0.7}
+                accessibilityRole="link"
+                accessibilityLabel={`אינסטגרם של ${firstName}`}
+              >
+                <Ionicons name="logo-instagram" size={20} color={COLORS.brand} />
+                <Text style={styles.socialText} numberOfLines={1}>
+                  @{cleanHandle(social.instagram).replace(/\s+/g, "")}
+                </Text>
+              </TouchableOpacity>
+            ) : null}
+            {fbLink ? (
+              <TouchableOpacity
+                style={styles.socialRow}
+                onPress={() => Linking.openURL(fbLink)}
+                activeOpacity={0.7}
+                accessibilityRole="link"
+                accessibilityLabel={`פייסבוק של ${firstName}`}
+              >
+                <Ionicons name="logo-facebook" size={20} color={COLORS.brand} />
+                <Text style={styles.socialText} numberOfLines={1}>
+                  {cleanHandle(social.facebook)}
+                </Text>
+              </TouchableOpacity>
+            ) : null}
+          </Card>
+        )}
+
         {/* ── פעולות ── */}
         <View style={styles.footer}>
           <Button
@@ -509,7 +592,7 @@ export default function MatchProfile() {
             onPress={handleSendRequest}
           />
           <Button
-            label="הסר מההצעות"
+            label="הסרה מההצעות"
             variant="secondary"
             size="lg"
             onPress={handleRemove}
@@ -517,13 +600,13 @@ export default function MatchProfile() {
           {/* פעולה הרסנית — מופרדת בקו-שיער, נמוכה יותר, בגוון danger */}
           <View style={styles.footerDivider} />
           <Button
-            label="חסום משתמש"
+            label="חסימת משתמש"
             variant="danger"
             size="md"
             loading={blocking}
             Icon={Ban}
             onPress={handleBlock}
-            accessibilityLabel="חסום משתמש"
+            accessibilityLabel="חסימת משתמש"
           />
         </View>
       </ScrollView>
@@ -570,9 +653,9 @@ const styles = StyleSheet.create({
     borderWidth: 3,
     borderColor: COLORS.brandLight,
   },
+  // h2 כמות-שהוא (bold) — extraBold שמור ללוגו בלבד (החלטת 2026-07-19).
   name: {
     ...TYPOGRAPHY.h2,
-    fontFamily: FONTS.extraBold,
     color: COLORS.text,
     marginBottom: SPACING.xs / 2,
   },
@@ -658,6 +741,20 @@ const styles = StyleSheet.create({
   tagText: {
     ...TYPOGRAPHY.caption,
     color: COLORS.brand,
+  },
+
+  // שורת רשת-חברתית — אייקון-מותג + הנדל כקישור (brand = פעולה/קישור).
+  socialRow: {
+    flexDirection: "row-reverse",
+    alignItems: "center",
+    gap: SPACING.sm,
+    paddingVertical: SPACING.sm,
+  },
+  socialText: {
+    ...TYPOGRAPHY.body,
+    color: COLORS.brand,
+    textAlign: "right",
+    flexShrink: 1,
   },
 
   // תג תחום-עניין — קווי/עדין (מידע משלים): משטח + מסגרת-שיער, בלי אייקון.

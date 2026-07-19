@@ -1,8 +1,8 @@
 import React, { useEffect, useRef } from "react";
 import { Animated, StyleSheet, Text, View } from "react-native";
-import { Ionicons } from "@expo/vector-icons";
+import { CircleCheck } from "lucide-react-native";
 
-import { COLORS, FONTS } from "../app/src/theme";
+import { COLORS, FONTS, RADIUS, SHADOWS, SPACING, TYPOGRAPHY } from "../app/src/theme";
 
 // Snackbar קליל למשוב הצלחה ("האירוע נוסף" / "המשימה נוספה").
 // מופיע בעדינות, נשאר ~1.8 שניות ונעלם. משתמש ב-Animated המובנה (בלי ספריות חדשות).
@@ -32,7 +32,7 @@ export default function Snackbar({ text, onHide, bottom = 40 }) {
       style={[styles.wrap, { bottom, opacity: anim, transform: [{ translateY }] }]}
     >
       <View style={styles.snackbar}>
-        <Ionicons name="checkmark-circle" size={18} color={COLORS.onBrand} />
+        <CircleCheck size={18} color={COLORS.onBrand} strokeWidth={2.2} />
         <Text style={styles.text}>{text}</Text>
       </View>
     </Animated.View>
@@ -49,20 +49,16 @@ const styles = StyleSheet.create({
   snackbar: {
     flexDirection: "row-reverse",
     alignItems: "center",
-    gap: 8,
+    gap: SPACING.sm,
     backgroundColor: COLORS.brand,
-    borderRadius: 24,
+    borderRadius: RADIUS.pill,
     paddingHorizontal: 18,
     paddingVertical: 11,
-    shadowColor: COLORS.shadow,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.2,
-    shadowRadius: 8,
-    elevation: 5,
+    ...SHADOWS.lg,
   },
   text: {
-    color: COLORS.onBrand,
+    ...TYPOGRAPHY.caption,
     fontFamily: FONTS.bold,
-    fontSize: 14,
+    color: COLORS.onBrand,
   },
 });

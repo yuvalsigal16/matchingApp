@@ -150,7 +150,7 @@ const styles = StyleSheet.create({
   contentWrapper: { flex: 1, width: "100%" },
   title: {
     fontSize: 24,
-    fontFamily: FONTS.extraBold,
+    fontFamily: FONTS.bold,
     marginTop: SPACING.lg,
     marginBottom: 6,
     textAlign: "right",

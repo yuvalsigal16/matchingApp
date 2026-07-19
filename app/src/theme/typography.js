@@ -9,10 +9,12 @@ import { FONTS } from "./fonts";
 
 export const TYPOGRAPHY = {
   // כותרת ראשית של מסך / לוגו.
+  // הוקטן מ-extraBold 28 ל-bold 24 (החלטת בעלת המוצר): הכותרות הרגישו
+  // גדולות וכבדות מדי. שינוי כאן מתגלגל לכל המסכים דרך ScreenHeader.
   h1: {
-    fontFamily: FONTS.extraBold,
-    fontSize: 28,
-    lineHeight: 36,
+    fontFamily: FONTS.bold,
+    fontSize: 24,
+    lineHeight: 32,
   },
   // כותרת מסך רגילה (בכותרת העליונה).
   h2: {

@@ -275,7 +275,7 @@ export default function UpdateTravelPreferencesScreen() {
           <EmptyState
             Icon={Plane}
             title="אין לך עדיין טיולים"
-            subtitle="צרי טיול חדש כדי שתוכלי להגדיר ולעדכן עבורו את העדפות הפרטנר/ית."
+            subtitle="צרו טיול חדש כדי שתוכלו להגדיר ולעדכן עבורו את העדפות הפרטנר/ית."
           />
         </View>
       </Screen>
@@ -293,7 +293,7 @@ export default function UpdateTravelPreferencesScreen() {
         {/* ── בחירת טיול ── */}
         {trips.length > 1 && (
           <>
-            <Text style={styles.section}>בחרי טיול לעדכון</Text>
+            <Text style={styles.section}>בחרו טיול לעדכון</Text>
             <ScrollView
               horizontal
               showsHorizontalScrollIndicator={false}
@@ -379,7 +379,7 @@ export default function UpdateTravelPreferencesScreen() {
             {/* ── אורח חיים מועדף לפרטנר/ית ── */}
             <Text style={styles.section}>אורח החיים שאני מחפש/ת</Text>
             <Text style={styles.lifestyleIntro}>
-              {'הכל אופציונלי — בחרי "אין העדפה" אם זה לא חשוב לך'}
+              {'הכל אופציונלי — בחרו "אין העדפה" אם זה לא חשוב לכם'}
             </Text>
 
             {renderLifestyleCard(

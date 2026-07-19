@@ -125,7 +125,7 @@ export default function Home() {
       sub: journeyPartner.tripName
         ? `${journeyPartner.tripName} מחכה לכם — יש עוד מה לסדר.`
         : "כל התכנון שלכם במקום אחד.",
-      cta: "המשך לתכנון",
+      cta: "המשיכו לתכנון",
       stage: 2, // מד-ההתקדמות: מציאה(0) → שיחה(1) → תכנון(2) → יציאה(3)
       onPress: () =>
         router.push({ pathname: "/chat/[matchId]", params: { matchId: journeyPartner.matchID } }),
@@ -266,7 +266,7 @@ export default function Home() {
             <SectionLabel
               title="המסעות שלי"
               count={trips.length || undefined}
-              actionLabel={trips.length > 0 ? "הוסף" : undefined}
+              actionLabel={trips.length > 0 ? "הוספה" : undefined}
               onAction={trips.length > 0 ? () => router.push("/myTrips") : undefined}
             />
             {trips.length > 0 ? (

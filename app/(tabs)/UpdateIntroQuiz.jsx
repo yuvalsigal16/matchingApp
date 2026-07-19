@@ -255,7 +255,7 @@ export default function UpdateIntroQuizScreen() {
         <Pressable style={styles.dateBtn} onPress={() => setDatePickerOpen(true)}>
           <Calendar size={20} color={COLORS.textMuted} strokeWidth={2} />
           <Text style={[styles.dateText, !birthDate && styles.placeholder]}>
-            {birthDate ? formatDate(birthDate) : "בחר/י תאריך"}
+            {birthDate ? formatDate(birthDate) : "בחרו תאריך"}
           </Text>
         </Pressable>
         {datePickerOpen && (

@@ -71,7 +71,7 @@ export default function CommunityCreateScreen() {
         });
       }, 600);
     } catch {
-      setError("לא ניתן ליצור קהילה כרגע, נסה שוב מאוחר יותר");
+      setError("לא ניתן ליצור קהילה כרגע, נסו שוב מאוחר יותר");
       setSubmitting(false); // הפעלה מחדש של הכפתור
     }
   }, [name, description, submitting, created, router]);

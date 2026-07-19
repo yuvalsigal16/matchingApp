@@ -111,6 +111,7 @@ export default function ChatScreen() {
   const chatIdRef = useRef(null); // chatID זמין ל-polling בלי תלות ב-state אסינכרוני
   const fetchingRef = useRef(false); // מונע חפיפת בקשות polling
   const mountedRef = useRef(true); // מונע setState אחרי יציאה מהמסך
+  const blockingRef = useRef(false); // מונע שליחת חסימה כפולה (הקבלה ל-blocking שבפרופיל)
 
   // גובה המקלדת — shared value שמתחיל ב-0 בכל כניסה למסך (מונע "תקיעה" למעלה).
   const kb = useSharedValue(0);
@@ -241,37 +242,43 @@ export default function ChatScreen() {
           profileImage: matchData?.otherUserImage,
         }),
         matchContext: JSON.stringify(matchContext),
+        // כניסה מצ'אט = יש התאמה מאושרת — מתיר לפרופיל להציג רשתות חברתיות.
+        matched: "1",
       },
     });
   };
 
   const performBlock = async () => {
+    if (blockingRef.current) return; // חסימה כבר בתהליך — מתעלמים מלחיצה כפולה
+    blockingRef.current = true;
     try {
       await blockUser(otherUserId);
       Alert.alert(
         "המשתמש נחסם בהצלחה",
-        "הוא לא יוכל לשלוח לך הודעות או להופיע בהתאמות שלך.",
+        "ההודעות וההתאמות ביניכם נחסמו.",
         [{ text: "אישור", onPress: () => router.back() }],
       );
     } catch (err) {
       Alert.alert("שגיאה", err.message || "חסימת המשתמש נכשלה");
+    } finally {
+      blockingRef.current = false;
     }
   };
 
   const confirmBlock = () => {
     Alert.alert(
       "חסימת משתמש",
-      `האם לחסום את ${otherName}?\nלא תוכל/י לשלוח לו הודעות או לראות אותו בהתאמות.`,
+      `האם לחסום את ${otherName}?\nההודעות וההתאמות ביניכם ייחסמו.`,
       [
         { text: "ביטול", style: "cancel" },
-        { text: "חסום", style: "destructive", onPress: performBlock },
+        { text: "כן, לחסום", style: "destructive", onPress: performBlock },
       ],
     );
   };
 
   const menuItems = [
-    { label: "הצג פרופיל", onPress: goToOtherProfile },
-    { label: "חסום משתמש", destructive: true, onPress: confirmBlock },
+    { label: "הצגת פרופיל", onPress: goToOtherProfile },
+    { label: "חסימת משתמש", destructive: true, onPress: confirmBlock },
   ];
 
   // ── "יוצאים לדרך יחד" — המעבר מ"מצאנו שותף" ל"מתחילים לתכנן" ──
@@ -446,10 +453,10 @@ export default function ChatScreen() {
                 onPress={openPlanner}
                 activeOpacity={0.9}
                 accessibilityRole="button"
-                accessibilityLabel="פתח את מתכנן הטיול"
+                accessibilityLabel="פתיחת מתכנן הטיול"
               >
                 <Calendar size={16} color={COLORS.onBrand} strokeWidth={2} />
-                <Text style={styles.journeyBannerBtnText}>פתח את מתכנן הטיול</Text>
+                <Text style={styles.journeyBannerBtnText}>פתיחת מתכנן הטיול</Text>
               </TouchableOpacity>
             ) : null}
           </View>

@@ -1,4 +1,13 @@
-import { Ionicons } from "@expo/vector-icons";
+import {
+  ArrowDown,
+  ChevronRight,
+  CircleUserRound,
+  CloudOff,
+  EllipsisVertical,
+  MessagesSquare,
+  Send,
+  Users,
+} from "lucide-react-native";
 import { useFocusEffect } from "@react-navigation/native";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -62,7 +71,7 @@ function MessageAvatar({ uri, name }) {
           accessibilityLabel={name ? `תמונת הפרופיל של ${name}` : "תמונת פרופיל"}
         />
       ) : (
-        <Ionicons name="person-circle" size={32} color={COLORS.textMuted} />
+        <CircleUserRound size={32} color={COLORS.textMuted} strokeWidth={2} />
       )}
     </View>
   );
@@ -360,7 +369,7 @@ export default function CommunityChatScreen() {
   const performLeave = async () => {
     try {
       await leaveCommunity(communityID, myId);
-      Alert.alert("עזבת את הקהילה", "לא תקבל/י יותר הודעות מהקבוצה.", [
+      Alert.alert("עזבת את הקהילה", "לא תקבלו יותר הודעות מהקבוצה.", [
         { text: "אישור", onPress: () => router.back() },
       ]);
     } catch {
@@ -371,17 +380,17 @@ export default function CommunityChatScreen() {
   const confirmLeave = () => {
     Alert.alert(
       "עזיבת הקהילה",
-      `לעזוב את "${name || "הקהילה"}"?\nלא תראה/י יותר את הצ'אט הקבוצתי.`,
+      `לעזוב את "${name || "הקהילה"}"?\nלא תראו יותר את הצ'אט הקבוצתי.`,
       [
         { text: "ביטול", style: "cancel" },
-        { text: "עזוב", style: "destructive", onPress: performLeave },
+        { text: "כן, לעזוב", style: "destructive", onPress: performLeave },
       ],
     );
   };
 
   const menuItems = [
     { label: "צפייה במשתתפים", onPress: goToMembers },
-    { label: "צא מהקבוצה", destructive: true, onPress: confirmLeave },
+    { label: "יציאה מהקבוצה", destructive: true, onPress: confirmLeave },
   ];
 
   if (loading) {
@@ -405,11 +414,11 @@ export default function CommunityChatScreen() {
           accessibilityRole="button"
           accessibilityLabel="חזרה"
         >
-          <Ionicons name="arrow-forward" size={24} color={COLORS.brand} />
+          <ChevronRight size={26} color={COLORS.brand} strokeWidth={2.2} />
         </TouchableOpacity>
 
         <View style={styles.headerIcon}>
-          <Ionicons name="people" size={20} color={COLORS.onBrand} />
+          <Users size={20} color={COLORS.onBrand} strokeWidth={2} />
         </View>
 
         <TouchableOpacity
@@ -432,7 +441,7 @@ export default function CommunityChatScreen() {
           accessibilityRole="button"
           accessibilityLabel="אפשרויות"
         >
-          <Ionicons name="ellipsis-vertical" size={22} color={COLORS.brand} />
+          <EllipsisVertical size={22} color={COLORS.brand} strokeWidth={2} />
         </TouchableOpacity>
       </View>
 
@@ -446,7 +455,7 @@ export default function CommunityChatScreen() {
         {loadError ? (
           <View style={styles.stateBox}>
             <View style={styles.stateIconCircle}>
-              <Ionicons name="cloud-offline-outline" size={40} color={COLORS.brand} />
+              <CloudOff size={40} color={COLORS.brand} strokeWidth={2} />
             </View>
             <Text style={styles.stateTitle}>לא ניתן לטעון את ההודעות כרגע</Text>
             <Text style={styles.stateSub}>נסו שוב בעוד מספר דקות</Text>
@@ -471,7 +480,7 @@ export default function CommunityChatScreen() {
               ListEmptyComponent={
                 <View style={styles.stateBox}>
                   <View style={styles.stateIconCircle}>
-                    <Ionicons name="chatbubbles-outline" size={40} color={COLORS.brand} />
+                    <MessagesSquare size={40} color={COLORS.brand} strokeWidth={2} />
                   </View>
                   <Text style={styles.stateTitle}>אין הודעות עדיין</Text>
                   <Text style={styles.stateSub}>היו הראשונים להתחיל את השיחה</Text>
@@ -500,7 +509,7 @@ export default function CommunityChatScreen() {
                       ? "הודעה חדשה"
                       : "הודעות חדשות"}
                 </Text>
-                <Ionicons name="arrow-down" size={16} color={COLORS.onBrand} />
+                <ArrowDown size={16} color={COLORS.onBrand} strokeWidth={2.2} />
               </TouchableOpacity>
             ) : null}
           </View>
@@ -532,7 +541,7 @@ export default function CommunityChatScreen() {
             {sending ? (
               <ActivityIndicator color={COLORS.onBrand} size="small" />
             ) : (
-              <Ionicons name="send" size={20} color={COLORS.onBrand} />
+              <Send size={20} color={COLORS.onBrand} strokeWidth={2} />
             )}
           </TouchableOpacity>
         </View>

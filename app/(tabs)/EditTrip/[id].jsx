@@ -200,7 +200,7 @@ export default function EditTrip() {
         {renderDateField("תאריך חזרה", endDate, setEndDate, showEndPicker, setShowEndPicker)}
 
         <Button
-          label="שמור שינויים"
+          label="שמירת שינויים"
           onPress={handleSave}
           loading={saving}
           size="lg"
