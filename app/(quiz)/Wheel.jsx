@@ -21,10 +21,12 @@ import {
   ActivityIndicator, // אינדיקטור טעינה
   Alert, // משוב שגיאה למשתמש (כשל שמירה)
   Animated, // מאפשר אנימציות (סיבוב הגלגל)
+  Dimensions, // רוחב המסך — לגודל הגלגל
   Easing, // פונקציות שולטות במהירות האנימציה (האם מאיץ? מאט?)
   PanResponder, // זיהוי מחוות סוויפ על הגלגל
   Platform,
   Pressable, // כפתור עם פידבק שינוי צבע בלחיצה
+  ScrollView, // גלילה — כדי שהכפתור התחתון תמיד יהיה נגיש
   StyleSheet, // הגדרת עיצובים
   Text, // הצגת טקסט
   View, // מיכל/קופסה
@@ -45,7 +47,10 @@ import { getUserInterests } from "../src/api/interestService";
 import { getQuestionnaire } from "../src/api/questionnaireService";
 import { computeWheelMatchScore } from "../src/matching/wheelMatchScore";
 
-const WHEEL_SIZE = 290;
+// גודל הגלגל מגיב גם לרוחב וגם לגובה המסך — כדי שיהיה גדול וברור, אבל בלי לדחוף
+// את הכפתור התחתון מחוץ למסך במכשירים נמוכים. geometry בלבד — אינו נוגע בלוגיקת הסיבוב.
+const { width: SCREEN_W, height: SCREEN_H } = Dimensions.get("window");
+const WHEEL_SIZE = Math.min(SCREEN_W - 36, SCREEN_H * 0.35, 330);
 const CX = WHEEL_SIZE / 2;
 const CY = WHEEL_SIZE / 2;
 const R = WHEEL_SIZE / 2 - 12;
@@ -77,6 +82,11 @@ const COLORS = [
   "#255A5D", // טורקיז כהה
   "#BE6A34", // חול-ענבר
 ];
+
+// כמה יעדים להציג בגלגל — רק הרלוונטיים ביותר (הראשונים ברשימה שכבר ממוינת
+// לפי ציון ההתאמה). תצוגה בלבד: לא משנה מיון/ניקוד/הגרלה/API — רק כמה נראים.
+// תואם ל-8 צבעי הפלטה שמעל, ושומר על גלגל קריא ולא צפוף.
+const MAX_WHEEL_DESTINATIONS = 8;
 
 
 function computeAge(birthDate) {
@@ -281,7 +291,9 @@ for (const d of destinationsFromTrips) {
 }
 
 // מחבר את הגלגל ליעדים האמיתיים (עם הפרטנר האמיתי). בלי נתונים פיקטיביים.
-setDestinations(uniqueDestinations);
+// מציגים רק את 8 הרלוונטיים ביותר — הרשימה כבר ממוינת מהכי-מתאים לפחות,
+// אז slice שומר בדיוק את היעדים של הפרטנרים עם ההתאמה הגבוהה ביותר.
+setDestinations(uniqueDestinations.slice(0, MAX_WHEEL_DESTINATIONS));
   } catch (err) {
     console.error(err);
   } finally {
@@ -311,6 +323,11 @@ setDestinations(uniqueDestinations);
   // const numberOfSectors = DESTINATIONS_POOL.length; // 8 מקטעים
   const numberOfSectors = destinations.length || 1;
   const sectorAngle = 360 / numberOfSectors; // 45 מעלות לכל מקטע
+
+  // גופן התווית מסתגל למספר המקטעים — הרבה יעדים = מקטע דק = גופן קטן יותר,
+  // כדי שהשמות ייכנסו ולא ייחתכו. תצוגה בלבד; לא משנה נתונים/לוגיקה.
+  const labelFontSize =
+    numberOfSectors > 12 ? 9 : numberOfSectors > 9 ? 10 : numberOfSectors > 6 ? 11 : 13;
 
   // ── פונקציה ראשית: מסובבת את הגלגל ──
   const spinWheel = () => {
@@ -384,6 +401,12 @@ setResult({
       {/* ── רגע-הסיום של האונבורדינג (קצר, לפני הכניסה למוצר) ── */}
       <CompletionOverlay visible={done} />
 
+      {/* גלילה — מבטיחה שהכפתור התחתון ("זה היעד שלי") נגיש בכל גובה מסך.
+          מחוות הסוויפ על הגלגל נשמרת (ה-PanResponder תופס מגע שמתחיל על הגלגל). */}
+      <ScrollView
+        contentContainerStyle={styles.scrollContent}
+        showsVerticalScrollIndicator={false}
+      >
       {/* ── אזור הכותרת העליונה ── */}
       <View style={styles.header}>
         {/* כפתור החזרה — חץ ימינה (RTL) */}
@@ -467,7 +490,7 @@ setResult({
                       x={tx}
                       y={ty}
                       fill="white"
-                      fontSize="13"
+                      fontSize={labelFontSize}
                       fontWeight="bold"
                       textAnchor="middle"
                       dy="0.35em"
@@ -601,6 +624,7 @@ setResult({
           <Text style={styles.skipText}>דלגי בלי לבחור יעד</Text>
         </Pressable>
       </View>
+      </ScrollView>
     </SafeAreaView>
   );
 }
@@ -616,6 +640,12 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: THEME.background, // נייר חם
     paddingHorizontal: 18,
+  },
+  // תוכן הגלילה — flexGrow ממלא את המסך כשיש מקום, וגולל כשהתוכן גבוה ממנו
+  // (כך הכפתור התחתון תמיד נגיש). paddingBottom נותן מרווח נשימה מתחת לכפתורים.
+  scrollContent: {
+    flexGrow: 1,
+    paddingBottom: 12,
   },
 
   // ── אזור הכותרת העליונה ──

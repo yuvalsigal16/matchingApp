@@ -408,13 +408,17 @@ namespace MatchingAppServer.Services
                 var located = day.Activities.Where(a => a.Place != null).ToList();
                 if (located.Count >= 2)
                 {
+                    // מסלול יומי פנימי: origin = העצירה הראשונה של היום (לא המיקום הנוכחי),
+                    // יעד = האחרונה, ותחנות-הביניים באמצע — כך כל המסלול נשאר בתוך היעד.
+                    var first = located[0].Place!;
                     var last = located[^1].Place!;
                     var waypoints = string.Join("|",
-                        located.Take(located.Count - 1).Select(a => Coord(a.Place!)));
+                        located.Skip(1).Take(located.Count - 2).Select(a => Coord(a.Place!)));
                     day.DayNavUrl =
                         "https://www.google.com/maps/dir/?api=1" +
+                        $"&origin={Coord(first)}" +
                         $"&destination={Coord(last)}" +
-                        $"&waypoints={Uri.EscapeDataString(waypoints)}";
+                        (waypoints.Length > 0 ? $"&waypoints={Uri.EscapeDataString(waypoints)}" : "");
                 }
 
                 day.Insights = ComputeInsights(day);
@@ -497,10 +501,12 @@ namespace MatchingAppServer.Services
                 RatingCount = data.RatingCount,
                 PhotoUrl = data.PhotoUrl,
                 MapsUrl = data.MapsUrl,
+                // מקום בודד: פתיחת המקום במפה (סיכה) — לא ניווט מהמיקום הנוכחי.
+                // לפני הטיול המשתמש בארץ; route ליעד בחו"ל ייצר מסלול חוצה-גבולות מיותר.
                 NavUrl =
-                    "https://www.google.com/maps/dir/?api=1" +
-                    $"&destination={CoordValue(data.Lat)},{CoordValue(data.Lng)}" +
-                    $"&destination_place_id={Uri.EscapeDataString(data.Id)}",
+                    "https://www.google.com/maps/search/?api=1" +
+                    $"&query={CoordValue(data.Lat)},{CoordValue(data.Lng)}" +
+                    $"&query_place_id={Uri.EscapeDataString(data.Id)}",
                 Lat = data.Lat,
                 Lng = data.Lng,
                 Type = data.Type,

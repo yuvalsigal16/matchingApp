@@ -1,7 +1,7 @@
 import { useCallback, useState } from "react";
 import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { useFocusEffect, useRouter } from "expo-router";
-import { Bell, Check, MessageCircle, Send, UserPlus, X } from "lucide-react-native";
+import { Bell, Check, MessageCircle, Route, Send, UserPlus, X } from "lucide-react-native";
 
 import { COLORS, FONTS, RADIUS, SPACING, TYPOGRAPHY } from "../src/theme";
 import { getUser } from "../src/auth/authStore";
@@ -27,6 +27,12 @@ function typeIcon(type) {
       return { Icon: X, color: COLORS.danger, bg: COLORS.dangerLight };
     case "NewMessage":
       return { Icon: MessageCircle, color: COLORS.brand, bg: COLORS.brandLight };
+    case "TripLinkRequest":
+      return { Icon: Route, color: COLORS.brand, bg: COLORS.brandLight };
+    case "TripLinkApproved":
+      return { Icon: Check, color: COLORS.success, bg: COLORS.successLight };
+    case "TripLinkRejected":
+      return { Icon: X, color: COLORS.danger, bg: COLORS.dangerLight };
     default:
       return { Icon: Bell, color: COLORS.textMuted, bg: COLORS.divider };
   }
@@ -109,6 +115,13 @@ export default function NotificationsScreen() {
     else if (notif.type === "RequestApproved") router.push("/activeChats");
     else if (notif.type === "RequestRejected") router.push("/requestStatus");
     else if (notif.type === "NewMessage" && notif.relatedID != null)
+      router.push(`/chat/${notif.relatedID}`);
+    else if (notif.type === "TripLinkRequest" && notif.relatedID != null)
+      router.push(`/trip-link/${notif.relatedID}`);
+    else if (
+      (notif.type === "TripLinkApproved" || notif.type === "TripLinkRejected") &&
+      notif.relatedID != null
+    )
       router.push(`/chat/${notif.relatedID}`);
   };
 

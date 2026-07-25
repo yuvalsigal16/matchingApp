@@ -86,6 +86,13 @@ export function pushRouteForType(type, relatedID) {
     case "NewMessage":
       // relatedID = MatchID → פותח את הצ'אט הספציפי; fallback לרשימת הצ'אטים.
       return relatedID != null ? `/chat/${relatedID}` : "/activeChats";
+    case "TripLinkRequest":
+      // relatedID = RequestID → מסך האישור.
+      return relatedID != null ? `/trip-link/${relatedID}` : null;
+    case "TripLinkApproved":
+    case "TripLinkRejected":
+      // relatedID = MatchID → הצ'אט (שהפך/נשאר).
+      return relatedID != null ? `/chat/${relatedID}` : "/activeChats";
     default:
       return null;
   }

@@ -12,7 +12,7 @@ const LOGO = require("../assets/images/onlyLogo-removebg-preview.png");
 
 // מסך פתיחה — נשימה שקטה אחת לפני היציאה לדרך.
 // כניסה עדינה (fade + rise), RouteLine בעצירה 0 ("המסע מתחיל"),
-// ותזמון מהודק (~1.7 שנ') — בלי טקסט-דמה של "מתחברים בקרוב".
+// ותזמון מהודק (משך אנימציית הכניסה בלבד) — בלי טקסט-דמה של "מתחברים בקרוב".
 export default function SplashScreen() {
   const router = useRouter();
   const fade = useRef(new Animated.Value(0)).current;
@@ -31,6 +31,10 @@ export default function SplashScreen() {
 
     // אם יש משתמש בזיכרון (הטוקן נטען מ-SecureStore ב-_layout) — ישר ל-Home,
     // אחרת — למסך ההתחברות. אין auto-login מסיסמה (לא שומרים סיסמה במכשיר).
+    //
+    // האימות (loadAuth) כבר הושלם ב-_layout לפני שמסך זה בכלל מרונדר (ה-Stack לא
+    // עולה עד ש-authLoaded=true), לכן getUser() כאן כבר מהימן. לא נשארת שום המתנה
+    // מלאכותית — מנווטים בתום אנימציית הכניסה (600ms) בלבד, במקום עיכוב קשיח של 1.7 שנ'.
     const t = setTimeout(async () => {
       if (!getUser()) {
         router.replace("/Login");
@@ -44,7 +48,7 @@ export default function SplashScreen() {
       const route = pushRouteForType(data?.type, data?.relatedID);
       router.replace("/Home");
       if (route) router.push(route);
-    }, 1700);
+    }, 600);
     return () => clearTimeout(t);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);

@@ -1,10 +1,12 @@
 ﻿using MatchingAppServer.BL;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Authorization;
 
 namespace MatchingAppServer.Controllers
 {
     [Route("api/[controller]")]
     [ApiController]
+    [Authorize]
     public class TripPreferenceInterestsController : ControllerBase
     {
         TripPreferenceInterests bl = new TripPreferenceInterests();

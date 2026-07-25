@@ -33,6 +33,9 @@ import { Image } from "expo-image";
 
 import { generateItinerary } from "../src/api/aiItineraryService";
 import { addPlannerEvent, subscribePlanner } from "../src/api/tripPlannerService";
+import { getMatchesByTrip } from "../src/api/chatService";
+import { getUserProfile } from "../src/api/userProfileService";
+import { getUser } from "../src/auth/authStore";
 import { COLORS, FONTS, RADIUS, SPACING, TYPOGRAPHY } from "../src/theme";
 import Screen from "../../components/ui/Screen";
 import ScreenHeader from "../../components/ui/ScreenHeader";
@@ -82,6 +85,9 @@ export default function TripPlanner() {
   const [snack, setSnack] = useState(""); // משוב הצלחה קצר
   const titleRef = useRef(null); // מיקוד השדה הראשון מכפתור ה-Empty State
 
+  // שמות שני המטיילים ל-lead — נמשכים משכבת הנתונים הקיימת (לא מוזרקים ל-AI).
+  const [travelers, setTravelers] = useState("");
+
   // ── "המסלול שלכם" — הצעת מסלול מותאמת. Preview בלבד: שום דבר לא נכנס
   //    ליומן אוטומטית — רק פעילויות שנבחרו במפורש מתווספות דרך addPlannerEvent. ──
   const [itinerary, setItinerary] = useState(null); // { summary, match_reason, planning_notes, days }
@@ -96,6 +102,34 @@ export default function TripPlanner() {
       setLoaded(true);
     });
     return unsubscribe;
+  }, [id]);
+
+  // שמות שני המטיילים לכותרת: השותף/ה מ-getMatchesByTrip, ואני מ-getUserProfile.
+  // מקורות קיימים בלבד (בלי hardcode); כישלון או חוסר-נתון → הכותרת נשארת "תכנון משותף".
+  useEffect(() => {
+    let alive = true;
+    (async () => {
+      try {
+        const me = getUser();
+        const [matches, myProfile] = await Promise.all([
+          getMatchesByTrip(id),
+          me?.userID ? getUserProfile(me.userID).catch(() => null) : null,
+        ]);
+        if (!alive) return;
+        const firstName = (s) => String(s || "").trim().split(/\s+/)[0] || "";
+        const mine = firstName(myProfile?.firstName || myProfile?.FirstName);
+        const raw = matches?.[0]?.name;
+        const partner = raw && raw !== "משתמש" ? firstName(raw) : "";
+        if (mine && partner) setTravelers(`${mine} ו${partner}`);
+        else if (partner) setTravelers(partner);
+        else if (mine) setTravelers(mine);
+      } catch {
+        // לא קריטי — נשארים עם ברירת המחדל
+      }
+    })();
+    return () => {
+      alive = false;
+    };
   }, [id]);
 
   const canSave = !!title.trim() && !!time.trim() && !saving;
@@ -181,7 +215,9 @@ export default function TripPlanner() {
       {/* חיווי תכנון-משותף — Users במקום ענבר (ענבר שמור לניקוד התאמה) */}
       <View style={styles.lead}>
         <Users size={15} color={COLORS.brand} strokeWidth={2} />
-        <Text style={styles.leadText}>תכנון משותף</Text>
+        <Text style={styles.leadText} numberOfLines={1}>
+          {travelers ? `תכנון משותף · ${travelers}` : "תכנון משותף"}
+        </Text>
       </View>
 
       {/* טופס הוספה נעוץ וקומפקטי — הוספה מהירה, אך היומן הוא הגיבור */}
@@ -361,11 +397,11 @@ export default function TripPlanner() {
                             onPress={() => openUrl(a.place.navUrl)}
                             hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
                             accessibilityRole="button"
-                            accessibilityLabel={`ניווט אל ${a.title}`}
+                            accessibilityLabel={`הצגת ${a.title} במפה`}
                             style={[styles.navLink, styles.activityNavLink]}
                           >
-                            <Navigation size={13} color={COLORS.brand} strokeWidth={2.2} />
-                            <Text style={styles.navLinkText}>נווט לשם</Text>
+                            <MapPin size={13} color={COLORS.brand} strokeWidth={2.2} />
+                            <Text style={styles.navLinkText}>ראה במפה</Text>
                           </TouchableOpacity>
                         ) : null}
                       </View>
@@ -483,7 +519,7 @@ const styles = StyleSheet.create({
     marginTop: SPACING.xs,
     marginBottom: SPACING.md,
   },
-  leadText: { ...TYPOGRAPHY.body, color: COLORS.textSecondary },
+  leadText: { ...TYPOGRAPHY.body, color: COLORS.textSecondary, flexShrink: 1 },
 
   // ── טופס נעוץ קומפקטי (2 שורות): כותרת, ואז שעה + כפתור הוספה ──
   form: {
