@@ -6,6 +6,7 @@ import { buildImageUri } from "../src/utils/image";
 import { getUserInterests } from "../src/api/interestService";
 import {
   approveRequest,
+  getMyMatches,
   getPendingRequests,
   rejectRequest,
 } from "../src/api/notificationService";
@@ -19,12 +20,12 @@ import {
   Alert,
   Dimensions,
   FlatList,
-  Image,
   StyleSheet,
   Text,
   TouchableOpacity,
   View,
 } from "react-native";
+import { Image } from "expo-image";
 import { Check, MapPin, Sparkles, User, Users, X } from "lucide-react-native";
 
 import BottomNav from "../../components/BottomNav";
@@ -163,6 +164,7 @@ export default function MatchesScreen() {
         myQuestRes,
         pendingRes,
         pairsRes,
+        myMatchesRes,
       ] = await Promise.allSettled([
         getAllUsers(myId),
         getUserProfile(myId),
@@ -170,12 +172,22 @@ export default function MatchesScreen() {
         getQuestionnaire(myId),
         getPendingRequests(myId),
         getEngagementPairs(),
+        getMyMatches(myId),
       ]);
 
-      // משתמשים מועשרים מהשרת. מסננים פריטים null/undefined ליתר ביטחון.
+      // מזהי משתמשים שכבר יש איתי שיחה פעילה — לא מוצגים כהתאמה חדשה
+      // (מונע Match/Chat כפולים; ה-backend חוסם גם הוא). כשל בטעינת ההתאמות
+      // אינו חוסם את המסך — במקרה כזה פשוט לא מסננים (fail-open).
+      const myMatches =
+        myMatchesRes.status === "fulfilled" ? myMatchesRes.value || [] : [];
+      const matchedUserIds = new Set(
+        myMatches.filter((m) => m.status === "Active").map((m) => m.otherUserID),
+      );
+
+      // משתמשים מועשרים מהשרת. מסננים null/undefined + מי שכבר קיימת איתו שיחה פעילה.
       const serverUsers = (
         allUsersRes.status === "fulfilled" ? allUsersRes.value || [] : []
-      ).filter((u) => u && u.userID);
+      ).filter((u) => u && u.userID && !matchedUserIds.has(u.userID));
 
       const me = buildMyEnrichedData(
         loggedInUser,

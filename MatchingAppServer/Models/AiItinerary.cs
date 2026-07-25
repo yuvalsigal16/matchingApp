@@ -97,7 +97,7 @@ namespace MatchingAppServer.Models
         [JsonPropertyName("mapsUrl")]
         public string MapsUrl { get; set; } = "";
 
-        // ניווט ישיר (navigation intent) מהמיקום הנוכחי אל המקום.
+        // פתיחת המקום במפה (Google Maps search) — סיכה על המקום, ללא ניווט מהמיקום הנוכחי.
         [JsonPropertyName("navUrl")]
         public string NavUrl { get; set; } = "";
 

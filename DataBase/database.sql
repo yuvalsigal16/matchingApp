@@ -256,6 +256,20 @@ CREATE TABLE dbo.MatchMessages (
 );
 GO
 
+-- ── Performance: אינדקס לנתיב החם ביותר (רשימת הצ'אטים / התאמות) ──
+-- תומך ב-LastMessages CTE שב-GetMatchesWithDetailsByUserID:
+--   ROW_NUMBER() OVER (PARTITION BY ChatID ORDER BY SentAt DESC)
+-- ומבטל את מיון כל טבלת ההודעות בכל טעינת רשימת צ'אטים.
+-- מוגן ב-IF NOT EXISTS → אידמפוטנטי ובטוח להריץ שוב. אינו משנה סכימה/SP/נתונים.
+IF NOT EXISTS (
+    SELECT 1 FROM sys.indexes
+    WHERE name = 'IX_MatchMessages_ChatID_SentAt'
+      AND object_id = OBJECT_ID('dbo.MatchMessages')
+)
+    CREATE NONCLUSTERED INDEX IX_MatchMessages_ChatID_SentAt
+        ON dbo.MatchMessages (ChatID, SentAt DESC);
+GO
+
 CREATE TABLE dbo.MatchRatings (
     RatingID      INT IDENTITY(1,1) PRIMARY KEY,
     MatchID       INT NOT NULL,
@@ -2874,6 +2888,14 @@ BEGIN
     IF @FromUserID = @ToUserID
     BEGIN RAISERROR('Cannot request self',16,1); RETURN; END
 
+    -- מניעת כפילות: אם כבר קיימת שיחה (Match) פעילה בין השניים בכל כיוון —
+    -- לא פותחים בקשה חדשה (מונע Match/Chat כפולים). לשדרוג שיחה כללית לטיול משתמשים ב-TripLink.
+    IF EXISTS (SELECT 1 FROM dbo.Matches
+               WHERE Status='Active'
+                 AND ((User1ID=@FromUserID AND User2ID=@ToUserID)
+                   OR (User1ID=@ToUserID AND User2ID=@FromUserID)))
+    BEGIN RAISERROR(N'כבר קיימת שיחה פעילה בין המשתמשים.',16,1); RETURN; END
+
     IF EXISTS (SELECT 1 FROM dbo.MatchRequests
                WHERE FromUserID=@FromUserID AND ToUserID=@ToUserID
                  AND ((TripID=@TripID) OR (TripID IS NULL AND @TripID IS NULL))
@@ -3003,6 +3025,17 @@ BEGIN
 
     SELECT @FromUserID = FromUserID, @ToUserID = ToUserID, @TripID = TripID
     FROM dbo.MatchRequests WHERE RequestID = @RequestID;
+
+    -- הגנה בעומק: אם כבר קיים Match פעיל בין השניים (בכל כיוון) — לא יוצרים כפילות,
+    -- גם אם בקשה כלשהי דלפה מעבר לבדיקה ב-SendMatchRequest (race / שינוי עתידי).
+    IF EXISTS (SELECT 1 FROM dbo.Matches
+               WHERE Status='Active'
+                 AND ((User1ID=@FromUserID AND User2ID=@ToUserID)
+                   OR (User1ID=@ToUserID AND User2ID=@FromUserID)))
+    BEGIN
+        RAISERROR(N'כבר קיימת שיחה פעילה בין המשתמשים.', 16, 1);
+        RETURN;
+    END
 
     BEGIN TRANSACTION;
     BEGIN TRY
@@ -3145,5 +3178,216 @@ BEGIN
     WHERE UserID = @UserID;
 
     SELECT @@ROWCOUNT AS RowsAffected;
+END
+GO
+
+
+-- ============================================================================
+-- TripLinkRequests — Consent flow: הפיכת התאמה כללית (TripID NULL) לשותפות טיול.
+-- אדיטיבי בלבד. אינו נוגע ב-Matches/Trips/Users. Rollback בתחתית הבלוק.
+-- ============================================================================
+
+CREATE TABLE dbo.TripLinkRequests (
+    RequestID          INT IDENTITY(1,1) PRIMARY KEY,
+    MatchID            INT NOT NULL,
+    TripID             INT NOT NULL,
+    RequestedByUserID  INT NOT NULL,
+    Status             NVARCHAR(10) NOT NULL DEFAULT 'Pending',
+    CreatedAt          DATETIME2 NOT NULL DEFAULT SYSDATETIME(),
+    UpdatedAt          DATETIME2 NULL,
+    CONSTRAINT FK_TripLinkRequests_Match
+        FOREIGN KEY (MatchID) REFERENCES dbo.Matches(MatchID),
+    CONSTRAINT FK_TripLinkRequests_Trip
+        FOREIGN KEY (TripID) REFERENCES dbo.Trips(TripID),
+    CONSTRAINT FK_TripLinkRequests_User
+        FOREIGN KEY (RequestedByUserID) REFERENCES dbo.Users(UserID),
+    CONSTRAINT CK_TripLinkRequests_Status
+        CHECK (Status IN ('Pending','Accepted','Rejected'))
+);
+GO
+
+-- בקשה ממתינה אחת בלבד לכל התאמה (בקרת race ברמת DB).
+-- Accepted/Rejected מרובים מותרים; שני Pending אסורים.
+CREATE UNIQUE INDEX UX_TripLinkRequests_Match_Pending
+    ON dbo.TripLinkRequests (MatchID)
+    WHERE Status = 'Pending';
+GO
+
+-- CreateTripLinkRequest — משתמש A מבקש להפוך התאמה כללית לשותפות טיול.
+CREATE OR ALTER PROCEDURE dbo.CreateTripLinkRequest
+    @MatchID INT,
+    @TripID INT,
+    @RequestedByUserID INT
+AS
+BEGIN
+    SET NOCOUNT ON;
+
+    -- המבקש חייב להיות אחד הצדדים בהתאמה
+    IF NOT EXISTS (SELECT 1 FROM dbo.Matches
+                   WHERE MatchID = @MatchID
+                     AND (@RequestedByUserID = User1ID OR @RequestedByUserID = User2ID))
+    BEGIN RAISERROR('Not a participant of this match', 16, 1); RETURN; END
+
+    -- ההתאמה עדיין ללא טיול
+    IF EXISTS (SELECT 1 FROM dbo.Matches WHERE MatchID = @MatchID AND TripID IS NOT NULL)
+    BEGIN RAISERROR('Match already linked to a trip', 16, 1); RETURN; END
+
+    -- הטיול קיים ושייך למבקש
+    IF NOT EXISTS (SELECT 1 FROM dbo.Trips
+                   WHERE TripID = @TripID AND CreatedByUserID = @RequestedByUserID)
+    BEGIN RAISERROR('Trip not found or not owned by requester', 16, 1); RETURN; END
+
+    -- אין בקשה Pending קיימת (נאכף גם ב-filtered unique)
+    IF EXISTS (SELECT 1 FROM dbo.TripLinkRequests WHERE MatchID = @MatchID AND Status = 'Pending')
+    BEGIN RAISERROR('A pending request already exists', 16, 1); RETURN; END
+
+    INSERT INTO dbo.TripLinkRequests (MatchID, TripID, RequestedByUserID)
+    VALUES (@MatchID, @TripID, @RequestedByUserID);
+
+    SELECT SCOPE_IDENTITY() AS RequestID;
+END
+GO
+
+-- ApproveTripLinkRequest — הצד השני מאשר. אטומי: או ששניהם מתעדכנים או אף אחד.
+CREATE OR ALTER PROCEDURE dbo.ApproveTripLinkRequest
+    @RequestID INT,
+    @ApproverID INT
+AS
+BEGIN
+    SET NOCOUNT ON;
+
+    DECLARE @MatchID INT, @TripID INT, @RequestedBy INT;
+
+    SELECT @MatchID = MatchID, @TripID = TripID, @RequestedBy = RequestedByUserID
+    FROM dbo.TripLinkRequests
+    WHERE RequestID = @RequestID AND Status = 'Pending';
+
+    IF @MatchID IS NULL
+    BEGIN RAISERROR('Pending request not found', 16, 1); RETURN; END
+
+    -- המאשר חייב להיות הצד השני (משתתף, ואינו המבקש)
+    IF @ApproverID = @RequestedBy
+       OR NOT EXISTS (SELECT 1 FROM dbo.Matches
+                      WHERE MatchID = @MatchID
+                        AND (@ApproverID = User1ID OR @ApproverID = User2ID))
+    BEGIN RAISERROR('Not authorized to approve this request', 16, 1); RETURN; END
+
+    -- הטיול עדיין קיים
+    IF NOT EXISTS (SELECT 1 FROM dbo.Trips WHERE TripID = @TripID)
+    BEGIN RAISERROR('Trip no longer exists', 16, 1); RETURN; END
+
+    BEGIN TRANSACTION;
+    BEGIN TRY
+        -- CAS: מעדכן רק אם ההתאמה עדיין ללא טיול (מונע דריסה/מרוץ)
+        UPDATE dbo.Matches SET TripID = @TripID
+        WHERE MatchID = @MatchID AND TripID IS NULL;
+
+        IF @@ROWCOUNT = 0
+        BEGIN
+            ROLLBACK TRANSACTION;
+            RAISERROR('Match already linked to a trip', 16, 1);
+            RETURN;
+        END
+
+        UPDATE dbo.TripLinkRequests
+        SET Status = 'Accepted', UpdatedAt = SYSDATETIME()
+        WHERE RequestID = @RequestID;
+
+        COMMIT TRANSACTION;
+        SELECT @MatchID AS MatchID, @TripID AS TripID;
+    END TRY
+    BEGIN CATCH
+        ROLLBACK TRANSACTION;
+        THROW;
+    END CATCH
+END
+GO
+
+-- RejectTripLinkRequest — הצד השני דוחה. TripID נשאר NULL.
+CREATE OR ALTER PROCEDURE dbo.RejectTripLinkRequest
+    @RequestID INT,
+    @RejecterID INT
+AS
+BEGIN
+    SET NOCOUNT ON;
+
+    DECLARE @MatchID INT, @RequestedBy INT;
+
+    SELECT @MatchID = MatchID, @RequestedBy = RequestedByUserID
+    FROM dbo.TripLinkRequests
+    WHERE RequestID = @RequestID AND Status = 'Pending';
+
+    IF @MatchID IS NULL
+    BEGIN RAISERROR('Pending request not found', 16, 1); RETURN; END
+
+    IF @RejecterID = @RequestedBy
+       OR NOT EXISTS (SELECT 1 FROM dbo.Matches
+                      WHERE MatchID = @MatchID
+                        AND (@RejecterID = User1ID OR @RejecterID = User2ID))
+    BEGIN RAISERROR('Not authorized to reject this request', 16, 1); RETURN; END
+
+    UPDATE dbo.TripLinkRequests
+    SET Status = 'Rejected', UpdatedAt = SYSDATETIME()
+    WHERE RequestID = @RequestID;
+
+    SELECT @MatchID AS MatchID;
+END
+GO
+
+-- GetTripLinkRequestById — לשליפת בקשה בודדת (pre-check הרשאה בקונטרולר + מזהה המבקש להתראה).
+CREATE OR ALTER PROCEDURE dbo.GetTripLinkRequestById
+    @RequestID INT
+AS
+BEGIN
+    SET NOCOUNT ON;
+    SELECT RequestID, MatchID, TripID, RequestedByUserID, Status, CreatedAt, UpdatedAt
+    FROM dbo.TripLinkRequests
+    WHERE RequestID = @RequestID;
+END
+GO
+
+-- Rollback (V1 teardown):
+--   DROP PROCEDURE dbo.CreateTripLinkRequest;
+--   DROP PROCEDURE dbo.ApproveTripLinkRequest;
+--   DROP PROCEDURE dbo.RejectTripLinkRequest;
+--   DROP TABLE dbo.TripLinkRequests;   -- כולל האינדקס ואילוצי ה-FK
+-- ============================================================================
+
+
+-- ============================================================================
+-- C2 — השלמת SP-ים שנקראים מה-DAL אך חסרו מהסקריפט (ללא שינוי סכימה/לוגיקה).
+-- שניהם קוראים בלבד מטבלאות קיימות; מתאימים בדיוק לחוזה שה-DAL מצפה לו.
+-- ============================================================================
+
+-- GetExpoPushToken — שולף את ה-Expo token של המשתמש (ExecuteScalar ב-UserDAL).
+-- העמודה dbo.Users.ExpoPushToken כבר קיימת (נוספה למעלה לצד SaveExpoPushToken).
+CREATE OR ALTER PROCEDURE dbo.GetExpoPushToken
+    @UserID INT
+AS
+BEGIN
+    SET NOCOUNT ON;
+    SELECT ExpoPushToken
+    FROM dbo.Users
+    WHERE UserID = @UserID;
+END
+GO
+
+-- GetAllUserProfiles — כל הפרופילים (ExecuteReader ב-UserProfileDAL, ללא פרמטרים).
+-- אותה רשימת עמודות בדיוק כמו GetUserProfileByUserID, בלי תנאי WHERE.
+CREATE OR ALTER PROCEDURE dbo.GetAllUserProfiles
+AS
+BEGIN
+    SET NOCOUNT ON;
+    SELECT
+        ProfileID,
+        UserID,
+        FirstName,
+        LastName,
+        BirthDate,
+        Gender,
+        City,
+        ProfileImage,
+        LastUpdated
+    FROM dbo.UserProfile;
 END
 GO

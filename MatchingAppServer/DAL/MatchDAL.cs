@@ -66,7 +66,9 @@ namespace MatchingAppServer.DAL
                     {
                         MatchID = Convert.ToInt32(reader["MatchID"]),
                         RequestID = Convert.ToInt32(reader["RequestID"]),
-                        TripID = Convert.ToInt32(reader["TripID"]),
+                        // התאמה כללית מגיעה עם TripID=NULL — קריאה null-safe (כמו ב-MatchDetailsDAL)
+                        // כדי לא לזרוק InvalidCastException בנתיב ההרשאה של journey/close.
+                        TripID = reader["TripID"] == DBNull.Value ? (int?)null : Convert.ToInt32(reader["TripID"]),
                         User1ID = Convert.ToInt32(reader["User1ID"]),
                         User2ID = Convert.ToInt32(reader["User2ID"]),
                         CreatedAt = Convert.ToDateTime(reader["CreatedAt"]),

@@ -17,6 +17,9 @@ export const INTRO_WEIGHTS = {
   lifestyle: 15,
 };
 
+// סך כל המשקלים — הבסיס ל-Confidence (איזה חלק מהפרופיל באמת ניתן היה להשוות).
+const INTRO_TOTAL_WEIGHT = Object.values(INTRO_WEIGHTS).reduce((a, b) => a + b, 0);
+
 // טווח ערכי הרמות בשאלון (1-5) → הפרש מקסימלי אפשרי הוא 4.
 const LEVEL_RANGE = 4;
 
@@ -80,5 +83,10 @@ export function computeIntroMatchScore(me, other) {
   }
 
   // נרמול לאחוז על סמך הקטגוריות שבאמת היה אפשר להשוות.
-  return maxPossible > 0 ? Math.round((earned / maxPossible) * 100) : 0;
+  if (maxPossible <= 0) return 0;
+  const raw = earned / maxPossible; // 0..1 — התאמה בתוך מה שהושווה
+  // Confidence עדין: פרופיל דליל לא מגיע ל-100% מלא (מונע "100% על שדה בודד").
+  // פרופיל מלא (confidence=1) נשאר ללא שינוי; הפגיעה המרבית מוגבלת ל-30%.
+  const confidence = maxPossible / INTRO_TOTAL_WEIGHT;
+  return Math.round(raw * (0.7 + 0.3 * confidence) * 100);
 }

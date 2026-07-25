@@ -1,11 +1,21 @@
 import React, { useEffect, useState } from "react";
-import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import {
+  ActivityIndicator,
+  Modal,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
+} from "react-native";
 import Animated, { FadeIn, FadeInDown, FadeInUp, ZoomIn } from "react-native-reanimated";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import {
   BedDouble,
   Check,
   ClipboardCheck,
+  MapPin,
   MessageCircle,
   Plane,
   X,
@@ -13,15 +23,17 @@ import {
 
 import { getMatchById } from "../src/api/chatService";
 import { getUserProfile } from "../src/api/userProfileService";
+import { getUserTrips } from "../src/api/tripService";
+import { sendTripLinkRequest } from "../src/api/tripLinkService";
 import { BASE_URL } from "../src/api/config";
 import { getToken, getUser } from "../src/auth/authStore";
 import { openFlights, openHotels } from "../src/utils/externalLinks";
 import Screen from "../../components/ui/Screen";
 import Button from "../../components/ui/Button";
 import ListRow from "../../components/ui/ListRow";
-import RouteLine from "../../components/ui/RouteLine";
 import JourneyTicket from "../../components/ui/JourneyTicket";
-import { COLORS, FONTS, RADIUS, SHADOWS, SPACING, TYPOGRAPHY } from "../src/theme";
+import Snackbar from "../../components/Snackbar";
+import { COLORS, RADIUS, SHADOWS, SPACING, TYPOGRAPHY } from "../src/theme";
 
 function formatDate(raw) {
   if (!raw) return "";
@@ -151,7 +163,61 @@ export default function MatchingSuccess() {
 
   const hasTrip = !!tripID;
 
-  // פעולה ראשית אחת — השלב הטבעי הבא אחרי ההתאמה: תכנון אם יש הקשר-טיול, אחרת שיחה.
+  // ── קישור-טיול (רק בהתאמה כללית, hasTrip=false): הפיכת השיחה לשותפות טיול ──
+  // bottom-sheet מקומי בלבד; אין state גלובלי / AsyncStorage / קומפוננטה חדשה.
+  const [linkSheetOpen, setLinkSheetOpen] = useState(false);
+  const [myTrips, setMyTrips] = useState([]);
+  const [tripsLoading, setTripsLoading] = useState(false);
+  const [selectedTripId, setSelectedTripId] = useState(null);
+  const [sending, setSending] = useState(false);
+  const [snack, setSnack] = useState("");
+
+  // ניווט ליצירת מסע חדש — אותו יעד בדיוק כמו myTrips (goNewTrip).
+  const goNewTrip = () =>
+    router.push({ pathname: "/PreferencesQuiz", params: { mode: "newTrip" } });
+
+  // פתיחת הבורר + טעינת הטיולים שהמשתמש יצר (getUserTrips מחזיר בדיוק אותם).
+  const openLinkSheet = async () => {
+    setSelectedTripId(null);
+    setLinkSheetOpen(true);
+    setTripsLoading(true);
+    try {
+      const trips = await getUserTrips(me?.userID);
+      setMyTrips(Array.isArray(trips) ? trips : []);
+    } catch {
+      setMyTrips([]);
+    } finally {
+      setTripsLoading(false);
+    }
+  };
+
+  // ממפה שגיאת שרת להודעה ידידותית (בלי לחשוף טקסט טכני/SP).
+  const friendlyLinkError = (err) => {
+    const m = String(err?.message || "").toLowerCase();
+    if (m.includes("pending")) return "כבר נשלחה בקשה לקישור טיול";
+    if (m.includes("linked") || m.includes("owned") || m.includes("trip") || m.includes("participant"))
+      return "לא ניתן לקשר את הטיול הזה";
+    return "לא ניתן להתחבר כרגע. נסו שוב מאוחר יותר.";
+  };
+
+  // שליחת בקשת הקישור. בהצלחה: Snackbar קצר ואז חזרה לצ'אט (לא ל-TripPlanner).
+  const sendLinkRequest = async () => {
+    if (!selectedTripId || sending) return;
+    setSending(true);
+    try {
+      await sendTripLinkRequest(params.matchId, selectedTripId);
+      setLinkSheetOpen(false);
+      setSnack("נשלחה בקשה לקישור טיול — ממתינים לאישור");
+      setTimeout(() => router.back(), 1400);
+    } catch (err) {
+      setSnack(friendlyLinkError(err));
+    } finally {
+      setSending(false);
+    }
+  };
+
+  // פעולה ראשית אחת — השלב הטבעי הבא אחרי ההתאמה: תכנון אם יש הקשר-טיול,
+  // ובהתאמה כללית — קישור טיול לשיחה (במקום דד-אנד של "התחילו לדבר").
   const primaryCta = hasTrip
     ? {
         label: "המשיכו לתכנון יחד",
@@ -159,8 +225,8 @@ export default function MatchingSuccess() {
           router.push({ pathname: "/TripPlanner/[id]", params: { id: tripID, name: dest } }),
       }
     : {
-        label: "התחילו לדבר",
-        onPress: () => router.back(),
+        label: "קשרו טיול לשיחה",
+        onPress: openLinkSheet,
       };
 
   // פעולות משנה — כלי-עזר שקטים (ListRow). ללא כפילות של פעולת הצ'אט הראשית.
@@ -264,23 +330,6 @@ export default function MatchingSuccess() {
             : `${bothNames}, ההרפתקה שלכם מתחילה כאן.`}
         </Animated.Text>
 
-        {/* ── נרטיב המסע (RouteLine) — עוגני-מסע מרכזיים, בלי תחושת צ'ק-ליסט ── */}
-        <Animated.View entering={FadeInUp.delay(430).duration(500)} style={styles.journeyNav}>
-          <RouteLine
-            nodes={3}
-            activeIndex={2}
-            rtl
-            accent={COLORS.brand}
-            color={COLORS.border}
-            style={styles.routeLine}
-          />
-          <View style={styles.journeyLabels}>
-            <Text style={styles.journeyLabel}>התאמה</Text>
-            <Text style={styles.journeyLabel}>שיחה</Text>
-            <Text style={[styles.journeyLabel, styles.journeyLabelActive]}>תכנון</Text>
-          </View>
-        </Animated.View>
-
         {/* ── פעולה ראשית אחת ── */}
         <Animated.View entering={FadeInUp.delay(540).duration(500)} style={styles.ctaWrap}>
           <Button
@@ -305,6 +354,83 @@ export default function MatchingSuccess() {
           ))}
         </View>
       </ScrollView>
+
+      {/* ── בורר טיול לקישור (bottom-sheet מקומי) — נפתח רק בהתאמה כללית ── */}
+      <Modal
+        visible={linkSheetOpen}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setLinkSheetOpen(false)}
+      >
+        <View style={styles.sheetOverlay}>
+          <Pressable style={StyleSheet.absoluteFill} onPress={() => setLinkSheetOpen(false)} />
+          <View style={styles.sheet}>
+            <View style={styles.sheetHandle} />
+            <Text style={styles.sheetTitle}>קשרו טיול לשיחה</Text>
+            <Text style={styles.sheetSub}>בחרו טיול שלכם — והשותף יתבקש לאשר את התכנון המשותף.</Text>
+
+            {tripsLoading ? (
+              <View style={styles.sheetCenter}>
+                <ActivityIndicator size="large" color={COLORS.brand} />
+              </View>
+            ) : myTrips.length === 0 ? (
+              <View style={styles.sheetCenter}>
+                <Text style={styles.emptyTitle}>עוד אין לך טיול</Text>
+                <Text style={styles.emptySub}>צרו טיול חדש כדי לתכנן אותו יחד.</Text>
+                <Button
+                  label="יצירת טיול חדש"
+                  onPress={goNewTrip}
+                  variant="primary"
+                  size="md"
+                  style={styles.emptyBtn}
+                />
+              </View>
+            ) : (
+              <>
+                <ScrollView style={styles.tripList} showsVerticalScrollIndicator={false}>
+                  {myTrips.map((t) => {
+                    const selected = selectedTripId === t.tripID;
+                    const title = t.destination || t.tripName || "טיול";
+                    return (
+                      <Pressable
+                        key={t.tripID}
+                        onPress={() => setSelectedTripId(t.tripID)}
+                        accessibilityRole="button"
+                        accessibilityState={{ selected }}
+                        style={[styles.tripRow, selected && styles.tripRowSelected]}
+                      >
+                        <View style={styles.tripIcon}>
+                          <MapPin size={18} color={COLORS.brand} strokeWidth={2} />
+                        </View>
+                        <View style={styles.tripText}>
+                          <Text style={styles.tripDest} numberOfLines={1}>{title}</Text>
+                          {formatDateRange(t.startDate, t.endDate) ? (
+                            <Text style={styles.tripDates} numberOfLines={1}>
+                              {formatDateRange(t.startDate, t.endDate)}
+                            </Text>
+                          ) : null}
+                        </View>
+                        {selected ? <Check size={20} color={COLORS.brand} strokeWidth={2.4} /> : null}
+                      </Pressable>
+                    );
+                  })}
+                </ScrollView>
+                <Button
+                  label="שלחו בקשה"
+                  onPress={sendLinkRequest}
+                  loading={sending}
+                  disabled={!selectedTripId || sending}
+                  variant="primary"
+                  size="lg"
+                  style={styles.sendBtn}
+                />
+              </>
+            )}
+          </View>
+        </View>
+      </Modal>
+
+      <Snackbar text={snack} onHide={() => setSnack("")} bottom={24} />
     </Screen>
   );
 }
@@ -377,28 +503,66 @@ const styles = StyleSheet.create({
     paddingHorizontal: SPACING.sm,
   },
 
-  // ── נרטיב המסע ──
-  journeyNav: {
-    alignSelf: "stretch",
-    marginTop: SPACING.lg,
-    paddingHorizontal: SPACING.sm,
-  },
-  routeLine: { alignSelf: "stretch" },
-  journeyLabels: {
-    flexDirection: "row-reverse",
-    justifyContent: "space-between",
-    marginTop: SPACING.sm,
-  },
-  journeyLabel: {
-    ...TYPOGRAPHY.tiny,
-    color: COLORS.textMuted,
-  },
-  journeyLabelActive: {
-    fontFamily: FONTS.bold,
-    color: COLORS.text,
-  },
-
   // ── פעולות ──
   ctaWrap: { alignSelf: "stretch", marginTop: SPACING.xl },
   secondary: { alignSelf: "stretch", marginTop: SPACING.lg, gap: SPACING.sm },
+
+  // ── bottom-sheet קישור-טיול (דפוס recommendations/TripToDo) ──
+  sheetOverlay: { flex: 1, justifyContent: "flex-end", backgroundColor: COLORS.scrim },
+  sheet: {
+    backgroundColor: COLORS.surface,
+    borderTopLeftRadius: RADIUS.xl,
+    borderTopRightRadius: RADIUS.xl,
+    paddingHorizontal: SPACING.xl,
+    paddingTop: SPACING.md,
+    paddingBottom: SPACING.xxl,
+    maxHeight: "80%",
+  },
+  sheetHandle: {
+    width: 40,
+    height: 4,
+    borderRadius: RADIUS.sm,
+    backgroundColor: COLORS.border,
+    alignSelf: "center",
+    marginBottom: SPACING.lg,
+  },
+  sheetTitle: { ...TYPOGRAPHY.h3, color: COLORS.text, textAlign: "right" },
+  sheetSub: {
+    ...TYPOGRAPHY.caption,
+    color: COLORS.textSecondary,
+    textAlign: "right",
+    marginTop: 2,
+    marginBottom: SPACING.md,
+  },
+  sheetCenter: { alignItems: "center", paddingVertical: SPACING.xxl, gap: SPACING.sm },
+
+  emptyTitle: { ...TYPOGRAPHY.h3, color: COLORS.text, textAlign: "center" },
+  emptySub: { ...TYPOGRAPHY.caption, color: COLORS.textMuted, textAlign: "center" },
+  emptyBtn: { alignSelf: "stretch", marginTop: SPACING.md },
+
+  tripList: { alignSelf: "stretch", marginBottom: SPACING.md },
+  tripRow: {
+    flexDirection: "row-reverse",
+    alignItems: "center",
+    gap: SPACING.md,
+    paddingVertical: SPACING.md,
+    paddingHorizontal: SPACING.md,
+    borderRadius: RADIUS.lg,
+    borderWidth: 1,
+    borderColor: COLORS.hairline,
+    marginBottom: SPACING.sm,
+  },
+  tripRowSelected: { borderColor: COLORS.brand, backgroundColor: COLORS.brandLight },
+  tripIcon: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    backgroundColor: COLORS.brandLight,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  tripText: { flex: 1, alignItems: "flex-end" },
+  tripDest: { ...TYPOGRAPHY.bodyBold, color: COLORS.text, textAlign: "right" },
+  tripDates: { ...TYPOGRAPHY.caption, color: COLORS.textSecondary, textAlign: "right", marginTop: 2 },
+  sendBtn: { alignSelf: "stretch" },
 });

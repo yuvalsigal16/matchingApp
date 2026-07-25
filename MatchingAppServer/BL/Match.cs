@@ -6,7 +6,7 @@ namespace MatchingAppServer.BL
     {
         public int MatchID { get; set; }
         public int RequestID { get; set; }
-        public int TripID { get; set; }
+        public int? TripID { get; set; }   // NULL = התאמה כללית (ללא טיול). nullable כדי לא לקרוס על NULL.
         public int User1ID { get; set; }
         public int User2ID { get; set; }
         public DateTime CreatedAt { get; set; }
