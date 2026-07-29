@@ -38,7 +38,7 @@ export function installFetchInterceptor() {
     const res = await originalFetch(...args);
 
     // 401 בבקשות התחברות/הרשמה = פרטים שגויים, לא טוקן שפג — לא לטפל
-    const isAuthEndpoint = /\/User\/(login|register|google-login)/i.test(url);
+    const isAuthEndpoint = /\/User\/(login|register)/i.test(url);
 
     if (res.status === 401 && !isAuthEndpoint && token && !handling401) {
       handling401 = true;
