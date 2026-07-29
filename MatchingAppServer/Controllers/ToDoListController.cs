@@ -26,6 +26,14 @@ namespace MatchingAppServer.Controllers
         {
             try
             {
+                // הרשאה: הוספת משימה מותרת רק למשתתף הטיול; ה-UserID נלקח מה-JWT (לא מהלקוח).
+                int me = GetCurrentUserId();
+                var trip = new Trip().GetTripById(task.TripID);
+                if (trip == null || (trip.CreatedByUserID != me
+                    && !new MatchDetails().GetUserMatches(me).Any(m => m.TripID == task.TripID)))
+                    return Forbid();
+                task.UserID = me;
+
                 int id = bl.AddTask(task);
                 return Ok(new { TaskID = id });
             }
@@ -40,6 +48,14 @@ namespace MatchingAppServer.Controllers
         {
             try
             {
+                // הרשאה: סימון מותר רק אם המשימה שייכת לטיול שהמשתמש משתתף בו.
+                int me = GetCurrentUserId();
+                var myTripIds = new Trip().GetUserTrips(me).Select(t => t.TripID)
+                    .Concat(new MatchDetails().GetUserMatches(me)
+                        .Where(x => x.TripID.HasValue).Select(x => x.TripID.Value));
+                if (!myTripIds.Any(tid => bl.GetTasksByTripID(tid).Any(t => t.TaskID == taskId)))
+                    return Forbid();
+
                 int rows = bl.MarkTaskDone(taskId, isDone);
                 return Ok(new { RowsAffected = rows });
             }
@@ -54,6 +70,14 @@ namespace MatchingAppServer.Controllers
         {
             try
             {
+                // הרשאה: מחיקה מותרת רק אם המשימה שייכת לטיול שהמשתמש משתתף בו.
+                int me = GetCurrentUserId();
+                var myTripIds = new Trip().GetUserTrips(me).Select(t => t.TripID)
+                    .Concat(new MatchDetails().GetUserMatches(me)
+                        .Where(x => x.TripID.HasValue).Select(x => x.TripID.Value));
+                if (!myTripIds.Any(tid => bl.GetTasksByTripID(tid).Any(t => t.TaskID == taskId)))
+                    return Forbid();
+
                 int rows = bl.DeleteTask(taskId);
                 return Ok(new { RowsAffected = rows });
             }
@@ -68,6 +92,13 @@ namespace MatchingAppServer.Controllers
         {
             try
             {
+                // הרשאה: משימות הטיול נחשפות רק למשתתפי הטיול (בעלים או צד מותאם).
+                int me = GetCurrentUserId();
+                var trip = new Trip().GetTripById(tripId);
+                if (trip == null || (trip.CreatedByUserID != me
+                    && !new MatchDetails().GetUserMatches(me).Any(m => m.TripID == tripId)))
+                    return Forbid();
+
                 return Ok(bl.GetTasksByTripID(tripId));
             }
             catch (Exception ex)

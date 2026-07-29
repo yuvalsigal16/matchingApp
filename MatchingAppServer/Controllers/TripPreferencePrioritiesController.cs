@@ -1,6 +1,7 @@
-﻿using MatchingAppServer.BL;
+using MatchingAppServer.BL;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Authorization;
+using System.Security.Claims;
 
 namespace MatchingAppServer.Controllers
 {
@@ -11,12 +12,27 @@ namespace MatchingAppServer.Controllers
     {
         TripPreferencePriority bl = new TripPreferencePriority();
 
+        // מזהה המשתמש המחובר מה-JWT (כמו בשאר ה-Controllers) — לבדיקות בעלות/שיוך.
+        private int GetCurrentUserId()
+        {
+            var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier);
+            if (userIdClaim == null)
+                throw new UnauthorizedAccessException("No user ID in token");
+            return int.Parse(userIdClaim.Value);
+        }
+
         // ADD priority row (query string, כמו TripPreferenceInterests)
         [HttpPost]
         public IActionResult Add(int tripPreferenceID, string factor, int priorityRank)
         {
             try
             {
+                // הרשאה: כתיבה מותרת רק אם ההעדפה שייכת לטיול שבבעלות המשתמש.
+                int me = GetCurrentUserId();
+                if (!new Trip().GetUserTrips(me)
+                        .Any(t => new TripPreferences().GetByTripId(t.TripID)?.TripPreferenceID == tripPreferenceID))
+                    return Forbid();
+
                 int result = bl.Add(tripPreferenceID, factor, priorityRank);
 
                 if (result > 0)
@@ -36,6 +52,12 @@ namespace MatchingAppServer.Controllers
         {
             try
             {
+                // הרשאה: ניקוי מותר רק אם ההעדפה שייכת לטיול שבבעלות המשתמש.
+                int me = GetCurrentUserId();
+                if (!new Trip().GetUserTrips(me)
+                        .Any(t => new TripPreferences().GetByTripId(t.TripID)?.TripPreferenceID == tripPreferenceID))
+                    return Forbid();
+
                 bl.Clear(tripPreferenceID);
                 return Ok(new { message = "Priorities cleared" });
             }
@@ -51,6 +73,14 @@ namespace MatchingAppServer.Controllers
         {
             try
             {
+                // הרשאה: קריאה מותרת לבעל הטיול או לצד מותאם (ניקוד התאמה).
+                int me = GetCurrentUserId();
+                var myTripIds = new Trip().GetUserTrips(me).Select(t => t.TripID)
+                    .Concat(new MatchDetails().GetUserMatches(me)
+                        .Where(x => x.TripID.HasValue).Select(x => x.TripID.Value));
+                if (!myTripIds.Any(tid => new TripPreferences().GetByTripId(tid)?.TripPreferenceID == tripPreferenceID))
+                    return Forbid();
+
                 return Ok(bl.GetByTripPreferenceID(tripPreferenceID));
             }
             catch (Exception ex)
@@ -58,5 +88,6 @@ namespace MatchingAppServer.Controllers
                 return BadRequest(ex.Message);
             }
         }
+
     }
 }

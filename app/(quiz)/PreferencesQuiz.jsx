@@ -54,7 +54,9 @@ import {
 import { BASE_URL } from "../src/api/config";
 import { getToken, getUser } from "../src/auth/authStore";
 import { COLORS, FONTS, RADIUS, SHADOWS, SPACING } from "../src/theme";
+import { MAX_PRIORITIES, togglePriorityFactor } from "../src/constants/tripPriorities";
 import QuizShell from "../../components/ui/QuizShell";
+import PrioritySelector from "../../components/trip/PrioritySelector";
 import CompletionOverlay from "../../components/ui/CompletionOverlay";
 import Tappable from "../../components/ui/Tappable";
 
@@ -115,20 +117,8 @@ const MONTHS_HE = [
   "יולי", "אוגוסט", "ספטמבר", "אוקטובר", "נובמבר", "דצמבר",
 ];
 
-// ── גורמי ההתאמה לדירוג חשיבות אישי ──
-// ה-key חייב להתאים למפתחות באלגוריתם (TripMatches) ול-CHECK ב-DB.
-// המשתמש בוחר עד MAX_PRIORITIES לפי הסדר, והאלגוריתם נותן להם משקל גבוה יותר.
-const PRIORITY_FACTORS = [
-  { key: "gender", label: "מגדר הפרטנר" },
-  { key: "interests", label: "תחומי עניין משותפים" },
-  { key: "age", label: "טווח הגילאים" },
-  { key: "smoker", label: "עישון" },
-  { key: "kosher", label: "כשרות" },
-  { key: "shabbat", label: "שמירת שבת" },
-  { key: "spontaneity", label: "רמת ספונטניות" },
-  { key: "lifestyle", label: "אורח חיים" },
-];
-const MAX_PRIORITIES = 3;
+// PRIORITY_FACTORS / MAX_PRIORITIES / togglePriorityFactor — מקור אמת יחיד:
+// app/src/constants/tripPriorities.js (מיובאים למעלה).
 
 // ─── הגדרת שאלות השאלון ─────────────────────────────────────────────────────
 // כל שאלה מכילה: id (מפתח לשמירה), type (סוג השאלה), title (כותרת), progress (אחוז התקדמות)
@@ -467,11 +457,9 @@ export default function PreferencesQuizScreen() {
   // ── הוספה/הסרה של גורם מדירוג החשיבות (שומר על הסדר, עד MAX_PRIORITIES) ──
   const togglePriority = useCallback((factorKey) => {
     setData((prev) => {
-      if (prev.priorities.includes(factorKey)) {
-        return { ...prev, priorities: prev.priorities.filter((k) => k !== factorKey) };
-      }
-      if (prev.priorities.length >= MAX_PRIORITIES) return prev; // הגענו למקסימום
-      return { ...prev, priorities: [...prev.priorities, factorKey] };
+      const next = togglePriorityFactor(prev.priorities, factorKey);
+      // חסום במקסימום → אותו reference → לא יוצרים אובייקט data חדש (התנהגות זהה למקור).
+      return next === prev.priorities ? prev : { ...prev, priorities: next };
     });
   }, []);
 
@@ -1175,51 +1163,12 @@ export default function PreferencesQuizScreen() {
     </View>
   );
 
-  // ── שאלת דירוג חשיבות — בחירה מסודרת של עד MAX_PRIORITIES גורמים ──
-  const renderPriorities = () => {
-    const atMax = data.priorities.length >= MAX_PRIORITIES;
-    return (
-      <View style={styles.fieldsWrapper}>
-        {PRIORITY_FACTORS.map((f) => {
-          const order = data.priorities.indexOf(f.key); // -1 אם לא נבחר
-          const selected = order >= 0;
-          const blocked = !selected && atMax; // הגענו למקסימום ולא נבחר
-          return (
-            <Pressable
-              key={f.key}
-              style={({ pressed }) => [
-                styles.priorityRow,
-                selected && styles.priorityRowSelected,
-                pressed && !selected && !blocked && styles.pressedBtn,
-                blocked && styles.priorityRowBlocked,
-              ]}
-              onPress={() => togglePriority(f.key)}
-              disabled={blocked}
-            >
-              <View
-                style={[
-                  styles.priorityBadge,
-                  selected && styles.priorityBadgeSelected,
-                ]}
-              >
-                {selected && (
-                  <Text style={styles.priorityBadgeText}>{order + 1}</Text>
-                )}
-              </View>
-              <Text
-                style={[
-                  styles.priorityLabel,
-                  selected && styles.priorityLabelSelected,
-                ]}
-              >
-                {f.label}
-              </Text>
-            </Pressable>
-          );
-        })}
-      </View>
-    );
-  };
+  // ── שאלת דירוג חשיבות — בורר משותף (PrioritySelector), עטוף כמו כל שדה ──
+  const renderPriorities = () => (
+    <View style={styles.fieldsWrapper}>
+      <PrioritySelector value={data.priorities} onToggle={togglePriority} />
+    </View>
+  );
 
   const renderQuestionContent = () => {
     switch (currentQ.type) {
@@ -1514,7 +1463,6 @@ const styles = StyleSheet.create({
 
   // ── מיכל טעינה/שגיאה + פידבק-לחיצה לשורות (בשימוש) ──
   optionsContainer: { width: "100%", alignItems: "center" },
-  pressedBtn: { backgroundColor: COLORS.background },
 
   // ── Age range slider ──
   ageHint: {
@@ -1717,58 +1665,6 @@ const styles = StyleSheet.create({
   noPrefTextActive: {
     color: COLORS.onBrand,
     fontFamily: FONTS.bold,
-  },
-
-  // ── Priorities (דירוג חשיבות) ──
-  priorityRow: {
-    flexDirection: "row-reverse",
-    alignItems: "center",
-    gap: 12,
-    backgroundColor: COLORS.surface,
-    width: "100%",
-    paddingVertical: 15,
-    paddingHorizontal: 16,
-    borderRadius: RADIUS.lg,
-    marginBottom: SPACING.md,
-    borderWidth: 1.5,
-    borderColor: COLORS.hairline,
-  },
-  priorityRowSelected: {
-    borderColor: COLORS.brand,
-    backgroundColor: COLORS.brandLight,
-  },
-  priorityRowBlocked: {
-    opacity: 0.45,
-  },
-  priorityBadge: {
-    width: 28,
-    height: 28,
-    borderRadius: 14,
-    borderWidth: 1.5,
-    borderColor: COLORS.hairline,
-    backgroundColor: COLORS.backgroundSunk,
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  priorityBadgeSelected: {
-    backgroundColor: COLORS.brand,
-    borderColor: COLORS.brand,
-  },
-  priorityBadgeText: {
-    color: COLORS.surface,
-    fontFamily: FONTS.bold,
-    fontSize: 14,
-  },
-  priorityLabel: {
-    flex: 1,
-    fontSize: 16,
-    fontFamily: FONTS.regular,
-    color: COLORS.text,
-    textAlign: "right",
-  },
-  priorityLabelSelected: {
-    fontFamily: FONTS.bold,
-    color: COLORS.brand,
   },
 
   // ── Submit error ──

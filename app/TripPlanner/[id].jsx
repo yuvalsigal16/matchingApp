@@ -1,5 +1,5 @@
 import { useLocalSearchParams, useRouter } from "expo-router";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator,
   Linking,
@@ -32,20 +32,33 @@ import {
 import { Image } from "expo-image";
 
 import { generateItinerary } from "../src/api/aiItineraryService";
-import { addPlannerEvent, subscribePlanner } from "../src/api/tripPlannerService";
+import {
+  addCalendarEvent,
+  deleteCalendarEvent,
+  subscribePlanner,
+  updateCalendarEvent,
+} from "../src/api/tripPlannerService";
 import { getMatchesByTrip } from "../src/api/chatService";
 import { getUserProfile } from "../src/api/userProfileService";
-import { getUser } from "../src/auth/authStore";
+import { getToken, getUser } from "../src/auth/authStore";
+import { BASE_URL } from "../src/api/config";
+import {
+  activityToEvent,
+  buildEventPatch,
+  buildNewEvent,
+  groupEventsByDate,
+} from "../src/calendar/eventModel";
+import { addEventToPhoneCalendar } from "../src/calendar/phoneCalendar";
 import { COLORS, FONTS, RADIUS, SPACING, TYPOGRAPHY } from "../src/theme";
 import Screen from "../../components/ui/Screen";
 import ScreenHeader from "../../components/ui/ScreenHeader";
-import Input from "../../components/ui/Input";
 import Button from "../../components/ui/Button";
 import Card from "../../components/ui/Card";
-import ListRow from "../../components/ui/ListRow";
 import EmptyState from "../../components/ui/EmptyState";
 import SectionLabel from "../../components/ui/SectionLabel";
 import Snackbar from "../../components/Snackbar";
+import EventRow from "../../components/trip/EventRow";
+import EventFormModal from "../../components/trip/EventFormModal";
 
 // מיפוי primaryType של Google Places לאייקון lucide. fallback שקט: MapPin.
 const TYPE_ICONS = [
@@ -79,17 +92,23 @@ export default function TripPlanner() {
 
   const [events, setEvents] = useState([]);
   const [loaded, setLoaded] = useState(false); // האם התקבל snapshot ראשון (כולל ריק)
-  const [title, setTitle] = useState("");
-  const [time, setTime] = useState("");
-  const [saving, setSaving] = useState(false);
   const [snack, setSnack] = useState(""); // משוב הצלחה קצר
-  const titleRef = useRef(null); // מיקוד השדה הראשון מכפתור ה-Empty State
 
   // שמות שני המטיילים ל-lead — נמשכים משכבת הנתונים הקיימת (לא מוזרקים ל-AI).
   const [travelers, setTravelers] = useState("");
+  const [trip, setTrip] = useState(null); // פרטי הטיול (לתאריך אירועים) — GET /Trip/{id}
+
+  // יומן משותף — Modal יצירה/עריכה
+  const [formVisible, setFormVisible] = useState(false);
+  const [editingEvent, setEditingEvent] = useState(null); // null = יצירה
+  const [formSaving, setFormSaving] = useState(false);
+  const [deletingEvent, setDeletingEvent] = useState(false);
+
+  // קיבוץ אירועים לאג'נדה (לפי יום) — נגזר, בלי re-fetch. useMemo למניעת חישוב מיותר.
+  const agenda = useMemo(() => groupEventsByDate(events), [events]);
 
   // ── "המסלול שלכם" — הצעת מסלול מותאמת. Preview בלבד: שום דבר לא נכנס
-  //    ליומן אוטומטית — רק פעילויות שנבחרו במפורש מתווספות דרך addPlannerEvent. ──
+  //    ליומן אוטומטית — רק פעילויות שנבחרו במפורש מתווספות דרך addCalendarEvent. ──
   const [itinerary, setItinerary] = useState(null); // { summary, match_reason, planning_notes, days }
   const [generating, setGenerating] = useState(false);
   const [genError, setGenError] = useState("");
@@ -111,11 +130,18 @@ export default function TripPlanner() {
     (async () => {
       try {
         const me = getUser();
-        const [matches, myProfile] = await Promise.all([
+        const token = getToken();
+        const [matches, myProfile, tripData] = await Promise.all([
           getMatchesByTrip(id),
           me?.userID ? getUserProfile(me.userID).catch(() => null) : null,
+          fetch(`${BASE_URL}/Trip/${id}`, {
+            headers: token ? { Authorization: `Bearer ${token}` } : {},
+          })
+            .then((r) => (r.ok ? r.json() : null))
+            .catch(() => null),
         ]);
         if (!alive) return;
+        if (tripData) setTrip(tripData);
         const firstName = (s) => String(s || "").trim().split(/\s+/)[0] || "";
         const mine = firstName(myProfile?.firstName || myProfile?.FirstName);
         const raw = matches?.[0]?.name;
@@ -132,23 +158,58 @@ export default function TripPlanner() {
     };
   }, [id]);
 
-  const canSave = !!title.trim() && !!time.trim() && !saving;
+  // ── יומן משותף — יצירה / עריכה / מחיקה ──
+  const openCreateEvent = () => {
+    setEditingEvent(null);
+    setFormVisible(true);
+  };
 
-  const save = async () => {
-    if (!canSave) return;
-    setSaving(true);
+  const openEditEvent = (ev) => {
+    setEditingEvent(ev);
+    setFormVisible(true);
+  };
+
+  const submitEvent = async (form) => {
+    if (formSaving) return;
+    setFormSaving(true);
     try {
-      await addPlannerEvent(id, {
-        title: title.trim(),
-        time: time.trim(),
-        createdAt: Date.now(),
-      });
-      setTitle("");
-      setTime("");
-      setSnack("האירוע נוסף ליומן");
+      if (editingEvent) {
+        await updateCalendarEvent(id, editingEvent, buildEventPatch(form));
+      } else {
+        await addCalendarEvent(id, buildNewEvent(form, getUser()?.userID));
+      }
+      setFormVisible(false);
+      setEditingEvent(null);
+      setSnack(editingEvent ? "האירוע עודכן" : "האירוע נוסף ליומן");
+    } catch {
+      setSnack("לא הצלחנו לשמור את האירוע. נסו שוב.");
     } finally {
-      setSaving(false);
+      setFormSaving(false);
     }
+  };
+
+  const removeEvent = async () => {
+    if (!editingEvent || deletingEvent) return;
+    setDeletingEvent(true);
+    try {
+      await deleteCalendarEvent(id, editingEvent);
+      setFormVisible(false);
+      setEditingEvent(null);
+      setSnack("האירוע נמחק");
+    } catch {
+      setSnack("לא הצלחנו למחוק את האירוע. נסו שוב.");
+    } finally {
+      setDeletingEvent(false);
+    }
+  };
+
+  // הוספה ליומן המכשיר — דיאלוג-מערכת (המשתמש מאשר). עותק אישי בלבד, בלי סנכרון חזרה.
+  const addToPhone = async (ev) => {
+    const res = await addEventToPhoneCalendar(ev);
+    if (res.ok) setSnack("האירוע נוסף ליומן הטלפון");
+    else if (res.reason === "no-date") setSnack("צריך תאריך לאירוע כדי להוסיף ליומן הטלפון");
+    else if (res.reason === "unavailable") setSnack("היומן אינו זמין במכשיר זה");
+    // action === 'canceled' — המשתמש ביטל, בלי הודעה
   };
 
   // בקשת הצעת מסלול מהשרת. regenerate=true מבקש הצעה שונה מהקודמת.
@@ -176,28 +237,24 @@ export default function TripPlanner() {
     });
   };
 
-  // מוסיף ליומן רק את הפעילויות שנבחרו — באותו מבנה אירוע בדיוק כמו הוספה ידנית.
+  // מוסיף ליומן המשותף רק את הפעילויות שנבחרו — כאירועי-יומן מלאים (תאריך/שעה/מיקום/סוג),
+  // כדי שיוכלו להתווסף גם ליומן הטלפון. מבנה ה-AI עצמו לא משתנה — רק הממיר activityToEvent.
   const addSelected = async () => {
     if (selected.size === 0 || addingSelected) return;
     setAddingSelected(true);
     setGenError("");
     try {
+      const myId = getUser()?.userID;
       const picks = [];
       itinerary.days.forEach((d, di) => {
         (d.activities || []).forEach((a, ai) => {
           if (selected.has(`${di}-${ai}`)) {
-            picks.push({
-              title: `יום ${d.day} · ${a.title}`,
-              time: a.time || "",
-              // +picks.length: מבטיח createdAt ייחודי גם באותה מילישנייה —
-              // arrayUnion של Firestore מסנן אובייקטים זהים לחלוטין.
-              createdAt: Date.now() + picks.length,
-            });
+            picks.push(activityToEvent(a, d.day, trip, myId));
           }
         });
       });
       for (const ev of picks) {
-        await addPlannerEvent(id, ev);
+        await addCalendarEvent(id, ev);
       }
       setSelected(new Set());
       setSnack(picks.length === 1 ? "הפעילות נוספה ליומן" : "הפעילויות נוספו ליומן");
@@ -220,33 +277,15 @@ export default function TripPlanner() {
         </Text>
       </View>
 
-      {/* טופס הוספה נעוץ וקומפקטי — הוספה מהירה, אך היומן הוא הגיבור */}
-      <View style={styles.form}>
-        <Input
-          ref={titleRef}
-          value={title}
-          onChangeText={setTitle}
-          placeholder="מה מתכננים?"
-          accessibilityLabel="כותרת האירוע"
+      {/* פעולה ראשית נעוצה — הוספת אירוע ליומן המשותף (פותח Modal טופס) */}
+      <View style={styles.addBar}>
+        <Button
+          label="הוספת אירוע"
+          Icon={Plus}
+          onPress={openCreateEvent}
+          size="lg"
+          accessibilityLabel="הוספת אירוע ליומן"
         />
-        <View style={styles.formRow}>
-          <Input
-            value={time}
-            onChangeText={setTime}
-            placeholder="שעה (09:00)"
-            accessibilityLabel="שעת האירוע"
-            style={styles.timeInput}
-          />
-          <Button
-            label="הוספה"
-            Icon={Plus}
-            onPress={save}
-            loading={saving}
-            disabled={!canSave}
-            size="lg"
-            accessibilityLabel="הוספת אירוע ליומן"
-          />
-        </View>
       </View>
 
       <ScrollView
@@ -478,9 +517,7 @@ export default function TripPlanner() {
           <EmptyState
             Icon={CalendarPlus}
             title="עדיין אין אירועים ביומן"
-            subtitle="זה המקום שבו תתכננו יחד את הטיול. הוסיפו את האירוע הראשון."
-            actionLabel="הוספת אירוע ראשון"
-            onAction={() => titleRef.current?.focus()}
+            subtitle="זה המקום שבו תתכננו יחד את הטיול. הוסיפו את האירוע הראשון עם הכפתור למעלה."
             style={styles.empty}
           />
         ) : (
@@ -490,20 +527,39 @@ export default function TripPlanner() {
               count={events.length}
               style={styles.sectionLabel}
             />
-            <View style={styles.list}>
-              {events.map((event, i) => (
-                <ListRow
-                  key={i}
-                  Icon={Clock}
-                  title={event.title}
-                  subtitle={event.time || undefined}
-                  trailing={null}
-                />
-              ))}
-            </View>
+            {agenda.map((group) => (
+              <View key={group.date || "no-date"} style={styles.dayGroup}>
+                <Text style={styles.dayGroupLabel}>{group.label}</Text>
+                <View style={styles.list}>
+                  {group.items.map((ev) => (
+                    <EventRow
+                      key={ev.id || ev.createdAt}
+                      event={ev}
+                      onEdit={openEditEvent}
+                      onAddToPhone={addToPhone}
+                    />
+                  ))}
+                </View>
+              </View>
+            ))}
           </View>
         )}
       </ScrollView>
+
+      <EventFormModal
+        visible={formVisible}
+        mode={editingEvent ? "edit" : "create"}
+        initial={editingEvent}
+        defaultDate={trip?.startDate || trip?.StartDate || ""}
+        onSubmit={submitEvent}
+        onDelete={removeEvent}
+        onClose={() => {
+          setFormVisible(false);
+          setEditingEvent(null);
+        }}
+        saving={formSaving}
+        deleting={deletingEvent}
+      />
 
       <Snackbar text={snack} onHide={() => setSnack("")} bottom={24} />
     </Screen>
@@ -521,18 +577,11 @@ const styles = StyleSheet.create({
   },
   leadText: { ...TYPOGRAPHY.body, color: COLORS.textSecondary, flexShrink: 1 },
 
-  // ── טופס נעוץ קומפקטי (2 שורות): כותרת, ואז שעה + כפתור הוספה ──
-  form: {
+  // ── פעולת הוספה נעוצה ──
+  addBar: {
     paddingHorizontal: SPACING.xl,
-    gap: SPACING.sm,
     paddingBottom: SPACING.md,
   },
-  formRow: {
-    flexDirection: "row-reverse",
-    alignItems: "center",
-    gap: SPACING.sm,
-  },
-  timeInput: { flex: 1 },
 
   scrollView: { flex: 1 },
   scroll: {
@@ -553,6 +602,16 @@ const styles = StyleSheet.create({
 
   sectionLabel: { marginBottom: SPACING.sm },
   list: { gap: SPACING.sm },
+
+  // ── אג'נדה: קבוצת יום (תאריך + אירועיו) ──
+  dayGroup: { marginBottom: SPACING.md },
+  dayGroupLabel: {
+    ...TYPOGRAPHY.caption,
+    fontFamily: FONTS.bold,
+    color: COLORS.brand,
+    textAlign: "right",
+    marginBottom: SPACING.sm,
+  },
 
   // ── "המסלול שלכם" — כרטיס הצעת המסלול ──
   itinerarySection: { marginBottom: SPACING.lg },

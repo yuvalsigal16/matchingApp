@@ -118,19 +118,27 @@ const buildEnrichedUser = (basicUser, profile, interests, quest) => ({
   lifestyleLevel: quest?.lifestyleLevel ?? null,
 });
 
-const enrichUser = async (basicUser) => {
-  const [p, i, q] = await Promise.allSettled([
-    getUserProfile(basicUser.userID),
-    getUserInterests(basicUser.userID),
-    getQuestionnaire(basicUser.userID),
-  ]);
-
-  return buildEnrichedUser(
-    basicUser,
-    p.status === "fulfilled" ? p.value : null,
-    i.status === "fulfilled" ? i.value || [] : [],
-    q.status === "fulfilled" ? q.value : null
-  );
+// המידע כבר הגיע מלא מ-getAllUsers (פרופיל + שאלון + interests) — משתמשים בו ישירות
+// במקום שליפה חוזרת פר-מועמד. השליפה הפר-מועמדית שברה את הדירוג: מאז חיזוק ה-IDOR,
+// getQuestionnaire/getUserInterests מתעלמים מה-id ומחזירים את המשתמש המחובר, כך שכל
+// מועמד "הועשר" בנתונים שלי. basicUser כולל את כל השדות ש-buildEnrichedUser צריך;
+// interests מגיע כמחרוזת JSON — ממירים אותו למבנה שהבנאי מצפה לו ({ interestName }).
+const enrichUser = (basicUser) => {
+  let interestObjs = [];
+  try {
+    const raw = basicUser.interests;
+    const arr = typeof raw === "string" ? JSON.parse(raw) : raw;
+    if (Array.isArray(arr)) {
+      interestObjs = arr
+        .map((it) => ({
+          interestName: typeof it === "string" ? it : it?.interestName || it?.InterestName,
+        }))
+        .filter((o) => o.interestName);
+    }
+  } catch {
+    interestObjs = [];
+  }
+  return buildEnrichedUser(basicUser, basicUser, interestObjs, basicUser);
 };
 
 

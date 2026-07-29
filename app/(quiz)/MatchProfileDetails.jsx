@@ -32,6 +32,7 @@ import { blockUser } from "../src/api/blockService";
 import { getUserProfile } from "../src/api/userProfileService";
 import { getQuestionnaire } from "../src/api/questionnaireService";
 import { getUserInterests } from "../src/api/interestService";
+import { getAllUsers } from "../src/api/userService";
 import { buildMatchReasons } from "../src/utils/matchReasons";
 import { computeIntroMatchScore } from "../src/matching/introQuestionnaireScore";
 import { computeTripPreferenceScore } from "../src/matching/tripPreferenceScore";
@@ -82,6 +83,19 @@ const formatDate = (d) => {
   const dt = new Date(d);
   return `${dt.getDate().toString().padStart(2, "0")}/${(dt.getMonth() + 1).toString().padStart(2, "0")}/${dt.getFullYear()}`;
 };
+
+// ממיר את מחרוזת ה-Interests (JSON מ-getAllUsers) למערך שמות. תומך גם במערך מוכן.
+function parseInterestNames(raw) {
+  if (!raw) return [];
+  let arr = raw;
+  if (typeof raw === "string") {
+    try { arr = JSON.parse(raw); } catch { return []; }
+  }
+  if (!Array.isArray(arr)) return [];
+  return arr
+    .map((it) => (typeof it === "string" ? it : it?.interestName || it?.InterestName))
+    .filter(Boolean);
+}
 
 export default function MatchProfile() {
   const router = useRouter();
@@ -136,11 +150,14 @@ export default function MatchProfile() {
           matchContext.score == null &&
           matchContext.tripId != null;
 
-        const [profileRes, questRes, interestsRes, tripsRes, mineRes, tripInputsRes] =
+        const [profileRes, othersRes, tripsRes, mineRes, tripInputsRes] =
           await Promise.allSettled([
             getUserProfile(userId),
-            getQuestionnaire(userId),
-            getUserInterests(userId),
+            // תחומי העניין + נתוני אורח-החיים של המשתמש הנצפה נשלפים מ-getAllUsers —
+            // ה-endpoint המוגן שכבר חושף בדיוק את הנתונים האלה לכל משתמש מחובר (הבסיס
+            // ל-matchesForYou/TripMatches). כך אין קריאה ל-Questionnaire/UserInterest של
+            // משתמש אחר, וההגנה מפני IDOR נשמרת. השדה הפרטי SocialNetworks אינו נכלל כאן.
+            getAllUsers(getUser()?.userID),
             fetch(`${BASE_URL}/Trip/user/${userId}`, { headers }),
             myId
               ? Promise.all([
@@ -160,13 +177,25 @@ export default function MatchProfile() {
 
         if (profileRes.status === "fulfilled") setProfile(profileRes.value || null);
         else setLoadError(true); // שליפת הפרופיל נכשלה — מציגים מצב-שגיאה ברור
-        if (questRes.status === "fulfilled") setQuestionnaire(questRes.value || null);
-        if (interestsRes.status === "fulfilled") {
-          setFetchedInterests(
-            (interestsRes.value || [])
-              .map((i) => i?.interestName || i?.InterestName)
-              .filter(Boolean),
+
+        // נתוני ההשוואה של המשתמש הנצפה (אורח-חיים + תחומי עניין) מתוך getAllUsers.
+        // כניסות עשירות (matchesForYou/TripMatches) ידרסו זאת עם ה-params בכל מקרה;
+        // לכניסת הצ'אט (params מינימליים) זה מחזיר את הנתונים הנכונים של הצד השני
+        // במקום נתוני המשתמש המחובר.
+        if (othersRes.status === "fulfilled") {
+          const served = (othersRes.value || []).find(
+            (u) => String(u.userID) === String(userId),
           );
+          if (served) {
+            setQuestionnaire({
+              isSmoker: served.isSmoker ?? null,
+              keepsKosher: served.keepsKosher ?? null,
+              keepsShabbat: served.keepsShabbat ?? null,
+              spontaneityLevel: served.spontaneityLevel ?? null,
+              lifestyleLevel: served.lifestyleLevel ?? null,
+            });
+            setFetchedInterests(parseInterestNames(served.interests));
+          }
         }
         if (mineRes.status === "fulfilled" && mineRes.value) {
           const [myProfile, myQuest, myInterests] = mineRes.value;
