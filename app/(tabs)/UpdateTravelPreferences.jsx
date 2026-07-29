@@ -22,8 +22,11 @@ import {
 import { getAllInterests } from "../src/api/interestService";
 import {
   addTripPreferenceInterest,
+  addTripPreferencePriority,
+  clearTripPreferencePriorities,
   createTripPreferences,
   getTripPreferenceInterests,
+  getTripPreferencePriorities,
   getTripPreferences,
   getUserTrips,
   removeTripPreferenceInterest,
@@ -31,10 +34,12 @@ import {
 } from "../src/api/tripService";
 import { getUser } from "../src/auth/authStore";
 import { COLORS, FONTS, RADIUS, SPACING, TYPOGRAPHY } from "../src/theme";
+import { MAX_PRIORITIES, togglePriorityFactor } from "../src/constants/tripPriorities";
 import Screen from "../../components/ui/Screen";
 import ScreenHeader from "../../components/ui/ScreenHeader";
 import Button from "../../components/ui/Button";
 import EmptyState from "../../components/ui/EmptyState";
+import PrioritySelector from "../../components/trip/PrioritySelector";
 
 // "הכל" = אין העדפה → נשלח כ-NULL. ה-CHECK constraint ב-DB מתיר רק Male/Female/Other/NULL.
 const GENDER_OPTIONS = [
@@ -66,6 +71,9 @@ export default function UpdateTravelPreferencesScreen() {
   const [ageRange, setAgeRange] = useState({ min: 24, max: 38 });
   const [selectedInterestIds, setSelectedInterestIds] = useState([]);
   const [originalInterestIds, setOriginalInterestIds] = useState([]);
+  // דירוג חשיבות (מערך factor keys לפי הסדר) — original לצורך diff בשמירה
+  const [priorities, setPriorities] = useState([]);
+  const [originalPriorities, setOriginalPriorities] = useState([]);
   // העדפות אורח חיים לפרטנר/ית (null = אין העדפה)
   const [partnerIsSmoker, setPartnerIsSmoker] = useState(null);
   const [partnerKeepsKosher, setPartnerKeepsKosher] = useState(null);
@@ -137,9 +145,25 @@ export default function UpdateTravelPreferencesScreen() {
             const ids = (tripInts || []).map((i) => i.interestID ?? i.InterestID);
             setSelectedInterestIds(ids);
             setOriginalInterestIds(ids);
+
+            // דירוג חשיבות — ממוין לפי PriorityRank, ממופה למערך keys (כמו בשאלון)
+            const prios = await getTripPreferencePriorities(tripPrefId);
+            if (cancelled) return;
+            const priorityKeys = (prios || [])
+              .slice()
+              .sort(
+                (a, b) =>
+                  (a.priorityRank ?? a.PriorityRank) - (b.priorityRank ?? b.PriorityRank),
+              )
+              .map((x) => x.factor ?? x.Factor)
+              .filter(Boolean);
+            setPriorities(priorityKeys);
+            setOriginalPriorities(priorityKeys);
           } else {
             setSelectedInterestIds([]);
             setOriginalInterestIds([]);
+            setPriorities([]);
+            setOriginalPriorities([]);
           }
         } else {
           // אין העדפות לטיול הזה — איפוס לערכי ברירת מחדל
@@ -153,6 +177,8 @@ export default function UpdateTravelPreferencesScreen() {
           setPartnerKeepsShabbat(null);
           setPartnerSpontaneity(null);
           setPartnerLifestyle(null);
+          setPriorities([]);
+          setOriginalPriorities([]);
         }
       } catch (err) {
         if (!cancelled) Alert.alert("שגיאה", err.message || "טעינת ההעדפות נכשלה");
@@ -164,6 +190,9 @@ export default function UpdateTravelPreferencesScreen() {
       cancelled = true;
     };
   }, [selectedTripId]);
+
+  const handleTogglePriority = (factorKey) =>
+    setPriorities((prev) => togglePriorityFactor(prev, factorKey));
 
   const handleSave = async () => {
     if (!selectedTripId) {
@@ -205,6 +234,20 @@ export default function UpdateTravelPreferencesScreen() {
       ]);
 
       setOriginalInterestIds(selectedInterestIds);
+
+      // 3) דירוג חשיבות — אותו דפוס בדיוק כמו בשאלון: Clear ואז Add לפי הסדר.
+      //    מופעל רק כשהדירוג השתנה (כמו ה-diff על תחומי העניין) כדי להימנע מכתיבות מיותרות.
+      const prioritiesChanged =
+        priorities.length !== originalPriorities.length ||
+        priorities.some((k, i) => k !== originalPriorities[i]);
+      if (prioritiesChanged) {
+        await clearTripPreferencePriorities(prefId);
+        await Promise.all(
+          priorities.map((factor, idx) => addTripPreferencePriority(prefId, factor, idx + 1)),
+        );
+        setOriginalPriorities(priorities);
+      }
+
       Alert.alert("נשמר", "העדפות הטיול עודכנו בהצלחה", [
         { text: "אישור", onPress: () => router.back() },
       ]);
@@ -449,6 +492,13 @@ export default function UpdateTravelPreferencesScreen() {
                 );
               })}
             </View>
+
+            {/* ── דירוג חשיבות — בורר משותף (זהה לשאלון) ── */}
+            <Text style={styles.section}>מה הכי חשוב לך בהתאמה?</Text>
+            <Text style={styles.lifestyleIntro}>
+              {`בחרו עד ${MAX_PRIORITIES} לפי הסדר — האלגוריתם ייתן להם משקל גבוה יותר`}
+            </Text>
+            <PrioritySelector value={priorities} onToggle={handleTogglePriority} />
           </>
         )}
       </ScrollView>

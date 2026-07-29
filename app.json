@@ -57,7 +57,13 @@
           "color": "#1A3C40"
         }
       ],
-      "expo-secure-store"
+      "expo-secure-store",
+      [
+        "expo-calendar",
+        {
+          "calendarPermission": "האפליקציה צריכה גישה ליומן כדי להוסיף אירועים מהטיול ליומן שלך"
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true,

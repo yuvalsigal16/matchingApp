@@ -81,6 +81,12 @@ namespace MatchingAppServer.Controllers
         {
             try
             {
+                // הרשאה: הודעות הצ'אט נחשפות רק לאחד משני משתתפי הצ'אט (מזהה מה-JWT).
+                int me = GetCurrentUserId();
+                var chat = chatBL.GetParticipantsByChatID(chatID);
+                if (chat == null || (chat.User1ID != me && chat.User2ID != me))
+                    return Forbid();
+
                 return Ok(msgBL.GetByChatID(chatID));
             }
             catch (Exception ex)
